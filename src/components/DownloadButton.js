@@ -25,14 +25,28 @@ export default function DownloadButton({ movieId, title }) {
         return;
       }
 
-      // Trigger download via a hidden <a> pointing to the proxy stream
-      const a = document.createElement('a');
-      a.href = `/api/video/stream/${data.token}`;
-      // Suggest a clean filename using the movie title
-      a.download = `${(title || 'flixon-video').replace(/[^a-zA-Z0-9\s-]/g, '').trim()}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const videoUrl = `${window.location.origin}/api/video/stream/${data.token}`;
+      
+      // Check if we are running inside the React Native WebView
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'DOWNLOAD_VIDEO',
+          payload: {
+            videoUrl,
+            title: title || 'flixon-video',
+            movieId
+          }
+        }));
+      } else {
+        // Trigger download via a hidden <a> pointing to the proxy stream
+        const a = document.createElement('a');
+        a.href = videoUrl;
+        // Suggest a clean filename using the movie title
+        a.download = `${(title || 'flixon-video').replace(/[^a-zA-Z0-9\s-]/g, '').trim()}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
     } catch {
       setError('Network error. Please try again.');
     } finally {
