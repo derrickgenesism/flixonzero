@@ -28,8 +28,8 @@ export async function forcePasswordReset(formData) {
     .eq('email', email)
     .single()
 
-  if (!profile || !profile.legacy_migration) {
-    return { error: 'Account not found or already reset.' }
+  if (!profile) {
+    return { error: 'Account not found.' }
   }
 
   // 2. We need the auth.users UUID to update the password.
