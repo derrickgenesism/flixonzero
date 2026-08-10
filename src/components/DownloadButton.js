@@ -102,13 +102,22 @@ export default function DownloadButton({ movieId, title }) {
     );
     disabled = true;
   } else if (progress !== null) {
-    // Show progress bar
+    // Show progress bar (if 0, it means indeterminate chunked download)
+    const isIndeterminate = progress === 0;
     buttonContent = (
       <>
-        <div style={{ width: '100px', height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px', overflow: 'hidden' }}>
-          <div style={{ width: `${Math.round(progress * 100)}%`, height: '100%', background: '#e50914' }} />
+        <div style={{ width: '100px', height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+          <div style={{ 
+            width: isIndeterminate ? '50%' : `${Math.round(progress * 100)}%`, 
+            height: '100%', 
+            background: '#e50914',
+            animation: isIndeterminate ? 'indeterminate 1.5s infinite linear' : 'none',
+            position: isIndeterminate ? 'absolute' : 'static'
+          }} />
         </div>
-        <span style={{ fontSize: '13px' }}>{Math.round(progress * 100)}%</span>
+        <span style={{ fontSize: '13px' }}>
+          {isIndeterminate ? 'Downloading' : `${Math.round(progress * 100)}%`}
+        </span>
       </>
     );
     disabled = true;
@@ -147,7 +156,13 @@ export default function DownloadButton({ movieId, title }) {
         {buttonContent}
       </button>
       {error && <p style={{ color: '#ff6b6b', fontSize: '12px', marginTop: '6px' }}>{error}</p>}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes indeterminate {
+          0% { left: -50%; }
+          100% { left: 100%; }
+        }
+      `}</style>
     </div>
   );
 }
