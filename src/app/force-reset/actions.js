@@ -35,14 +35,19 @@ export async function forcePasswordReset(formData) {
   // If the user doesn't exist in auth.users, they need to be recreated!
   if (!authUser) {
     // Check if they exist in user_profiles
-    const { data: profile } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .select('id')
       .ilike('email', normalizedEmail)
-      .single()
+      .limit(1)
+      .maybeSingle()
+
+    if (profileError) {
+      return { error: 'Database error while checking profile: ' + profileError.message }
+    }
 
     if (!profile) {
-      return { error: 'Account not found in our system.' }
+      return { error: `Account (${normalizedEmail}) truly not found in user_profiles.` }
     }
 
     // Recreate them in auth.users with the exact same ID so it links to their profile
