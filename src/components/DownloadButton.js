@@ -1,10 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function DownloadButton({ movieId, title }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [progress, setProgress] = useState(null); // null means not downloading, 1 means completed
+  const [isNative, setIsNative] = useState(false);
+
+  useEffect(() => {
+    setIsNative(!!window.ReactNativeWebView);
+
+    const handleMessage = (event) => {
+      try {
+        let data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (typeof data === 'string') data = JSON.parse(data); // Double parse in case of escaped JSON
+
+        if (data.type === 'DOWNLOAD_PROGRESS' && data.downloads) {
+          const myDownload = data.downloads.find(d => d.movieId === movieId);
+          if (myDownload) {
+            setProgress(myDownload.progress);
+          }
+        }
+      } catch (e) {
+        // Not a JSON message or unrelated message, ignore
+      }
+    };
+
+    // React Native WebView messages come on the document or window
+    window.addEventListener('message', handleMessage);
+    document.addEventListener('message', handleMessage); // for older android
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      document.removeEventListener('message', handleMessage);
+    };
+  }, [movieId]);
 
   const handleDownload = async () => {
     setLoading(true);
@@ -29,6 +60,7 @@ export default function DownloadButton({ movieId, title }) {
       
       // Check if we are running inside the React Native WebView
       if (window.ReactNativeWebView) {
+        setProgress(0); // optimistically show 0% progress
         window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'DOWNLOAD_VIDEO',
           payload: {
@@ -54,31 +86,65 @@ export default function DownloadButton({ movieId, title }) {
     }
   };
 
+  // Render logic based on progress
+  let buttonContent = null;
+  let disabled = false;
+  let opacity = 1;
+
+  if (progress === 1) {
+    buttonContent = (
+      <>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        <span style={{ color: '#4ade80' }}>Downloaded</span>
+      </>
+    );
+    disabled = true;
+  } else if (progress !== null) {
+    // Show progress bar
+    buttonContent = (
+      <>
+        <div style={{ width: '100px', height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{ width: `${Math.round(progress * 100)}%`, height: '100%', background: '#e50914' }} />
+        </div>
+        <span style={{ fontSize: '13px' }}>{Math.round(progress * 100)}%</span>
+      </>
+    );
+    disabled = true;
+  } else if (loading) {
+    buttonContent = (
+      <>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+        Preparing…
+      </>
+    );
+    disabled = true;
+    opacity = 0.6;
+  } else {
+    buttonContent = (
+      <>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Download
+      </>
+    );
+  }
+
   return (
     <div>
       <button
         onClick={handleDownload}
-        disabled={loading}
+        disabled={disabled}
         className="gms-btn gms-btn--ghost"
-        style={{ opacity: loading ? 0.6 : 1, cursor: loading ? 'wait' : 'pointer' }}
+        style={{ opacity, cursor: disabled ? 'default' : 'pointer' }}
       >
-        {loading ? (
-          <>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
-            Preparing…
-          </>
-        ) : (
-          <>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Download
-          </>
-        )}
+        {buttonContent}
       </button>
       {error && <p style={{ color: '#ff6b6b', fontSize: '12px', marginTop: '6px' }}>{error}</p>}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
