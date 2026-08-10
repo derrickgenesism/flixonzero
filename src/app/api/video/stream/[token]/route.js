@@ -36,8 +36,8 @@ export async function GET(request, { params }) {
     });
 
     if (!upstream.ok && upstream.status !== 206) {
-      console.error(`[Stream] Upstream error: ${upstream.status} for token ${token}`);
-      return new Response('Unable to fetch video from source', { status: 502 });
+      console.warn(`[Stream] Proxy failed for token ${token}. Redirecting directly to videoUrl...`);
+      return NextResponse.redirect(videoUrl);
     }
 
     // Build response headers
@@ -60,8 +60,8 @@ export async function GET(request, { params }) {
       headers: responseHeaders,
     });
   } catch (err) {
-    console.error('[Stream] Error:', err);
-    return new Response('Stream error', { status: 500 });
+    console.error('[Stream] Error during fetch, falling back to redirect:', err);
+    return NextResponse.redirect(videoUrl);
   }
 }
 

@@ -97,6 +97,7 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
       ref={videoRef}
       controls
       autoPlay
+      playsInline
       poster={movie.thumbnail_url}
       onTimeUpdate={handleTimeUpdate}
       style={{ width: '100%', height: '100%', objectFit: 'contain' }}
