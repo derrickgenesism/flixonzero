@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { forcePasswordReset } from './actions'
 
-export default function ForceResetPage({ searchParams }) {
-  const email = searchParams.email || ''
+function ForceResetForm() {
+  const searchParams = useSearchParams()
+  const email = searchParams.get('email') || ''
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -74,5 +76,13 @@ export default function ForceResetPage({ searchParams }) {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ForceResetPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#0a0a0a' }} />}>
+      <ForceResetForm />
+    </Suspense>
   )
 }
