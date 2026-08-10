@@ -21,7 +21,6 @@ export async function forcePasswordReset(formData) {
     }
   )
 
-  // 1. Find the user in auth.users (paginated since listUsers defaults to 50)
   let authUser = null;
   let page = 1;
   const normalizedEmail = email.trim().toLowerCase();
@@ -33,17 +32,40 @@ export async function forcePasswordReset(formData) {
     page++;
   }
 
+  // If the user doesn't exist in auth.users, they need to be recreated!
   if (!authUser) {
-    return { error: 'Account not found in our system.' }
+    // Check if they exist in user_profiles
+    const { data: profile } = await supabaseAdmin
+      .from('user_profiles')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .single()
+
+    if (!profile) {
+      return { error: 'Account not found in our system.' }
+    }
+
+    // Recreate them in auth.users with the exact same ID so it links to their profile
+    const { data: newUserData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      id: profile.id,
+      email: normalizedEmail,
+      password: password,
+      email_confirm: true
+    })
+
+    if (createError) {
+      // If the ID already exists or something else failed
+      return { error: 'Failed to restore account: ' + createError.message }
+    }
+    authUser = newUserData.user;
+  } else {
+    // Force update the password for existing authUser
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      authUser.id,
+      { password: password }
+    )
+    if (updateError) return { error: updateError.message }
   }
-
-  // 2. Force update the password
-  const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-    authUser.id,
-    { password: password }
-  )
-
-  if (updateError) return { error: updateError.message }
 
   // 3. Try to update user_profiles legacy_migration flag (but don't fail if they don't have a profile yet)
   await supabaseAdmin
