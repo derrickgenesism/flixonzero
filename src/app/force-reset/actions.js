@@ -21,26 +21,23 @@ export async function forcePasswordReset(formData) {
     }
   )
 
-  // 1. Find the user ID by email via the user_profiles table (since auth.users is protected)
-  const { data: profile } = await supabaseAdmin
-    .from('user_profiles')
-    .select('id, legacy_migration')
-    .eq('email', email)
-    .single()
-
-  if (!profile) {
-    return { error: 'Account not found.' }
+  // 1. Find the user in auth.users (paginated since listUsers defaults to 50)
+  let authUser = null;
+  let page = 1;
+  const normalizedEmail = email.trim().toLowerCase();
+  
+  while (!authUser) {
+    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 100 });
+    if (listError || users.length === 0) break;
+    authUser = users.find(u => u.email.toLowerCase() === normalizedEmail);
+    page++;
   }
 
-  // 2. We need the auth.users UUID to update the password.
-  // We can query auth.users directly with the admin client.
-  const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers()
-  if (listError) return { error: listError.message }
+  if (!authUser) {
+    return { error: 'Account not found in our system.' }
+  }
 
-  const authUser = users.find(u => u.email === email)
-  if (!authUser) return { error: 'Auth user not found.' }
-
-  // 3. Force update the password!
+  // 2. Force update the password
   const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
     authUser.id,
     { password: password }
@@ -48,11 +45,11 @@ export async function forcePasswordReset(formData) {
 
   if (updateError) return { error: updateError.message }
 
-  // 4. Mark legacy_migration as false so this backdoor is closed forever for this user
+  // 3. Try to update user_profiles legacy_migration flag (but don't fail if they don't have a profile yet)
   await supabaseAdmin
     .from('user_profiles')
     .update({ legacy_migration: false })
-    .eq('email', email)
+    .ilike('email', normalizedEmail)
 
   // 5. Log them in properly with the standard client
   const supabase = await createServerClient()
