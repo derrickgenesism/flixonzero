@@ -9,7 +9,33 @@ export const metadata = { title: 'My Account — Flixon' };
 export default async function AccountPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  
+  if (!user) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+        <Navbar />
+        <main style={{ paddingTop: '100px', paddingBottom: '60px', maxWidth: '900px', margin: '0 auto', padding: '100px 24px 60px' }}>
+          <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '32px' }}>Profile Dashboard</h1>
+          
+          <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '32px', marginBottom: '24px', border: '1px solid var(--border)', textAlign: 'center' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '24px' }}>👤</div>
+            <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '12px', color: '#fff' }}>Free Access</h2>
+            <p style={{ margin: '0 auto 24px', color: 'var(--text2)', fontSize: '15px', maxWidth: '400px', lineHeight: '1.6' }}>
+              You are currently browsing with guest access. Sign in or upgrade to a premium plan to unlock unlimited HD movies, series, and downloads.
+            </p>
+            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Link href="/login" className="gms-btn gms-btn--ghost" style={{ padding: '12px 24px', fontSize: '15px' }}>
+                Sign In
+              </Link>
+              <Link href="/checkout" className="gms-btn gms-btn--primary" style={{ padding: '12px 24px', fontSize: '15px' }}>
+                Upgrade to Premium
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const { data: profile } = await supabase.from('user_profiles').select('*').eq('email', user.email).single();
   const { data: transactions } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10);
@@ -144,11 +170,18 @@ export default async function AccountPage() {
 
         {/* Account Details */}
         <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '28px', marginBottom: '24px', border: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: 'var(--text2)' }}>Account Details</h2>
-            <Link href="/account/profile" className="gms-btn gms-btn--ghost" style={{ padding: '6px 14px', fontSize: '13px' }}>
-              Edit Profile
-            </Link>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <Link href="/account/profile" className="gms-btn gms-btn--ghost" style={{ padding: '6px 14px', fontSize: '13px' }}>
+                Edit Profile
+              </Link>
+              <form action="/auth/signout" method="POST">
+                <button type="submit" className="gms-btn gms-btn--ghost" style={{ padding: '6px 14px', fontSize: '13px', color: '#ff6b6b', borderColor: 'rgba(255,107,107,0.2)' }}>
+                  Sign Out
+                </button>
+              </form>
+            </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '14px', fontSize: '15px' }}>
             <div style={{ color: 'var(--text3)' }}>Email</div>
