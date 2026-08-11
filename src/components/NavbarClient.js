@@ -22,11 +22,11 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft }
     <nav className={`flx-nav${scrolled ? ' flx-nav--scrolled' : ''}`}>
       {/* Left: Logo + Links */}
       <Link href="/" className="flx-nav__logo" style={{ display: 'flex', alignItems: 'center' }}>
-        <img src="/logo.png" alt="FlixOn" style={{ height: '56px', width: 'auto', objectFit: 'contain' }} />
+        <img src="/logo.png" alt="FlixOn" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
       </Link>
       <div className="flx-nav__links">
         <Link href="/" className={`flx-nav__link${pathname === '/' ? ' flx-nav__link--active' : ''}`}>Home</Link>
-        <Link href="/search" className={`flx-nav__link${pathname === '/search' ? ' flx-nav__link--active' : ''}`}>Browse</Link>
+        <Link href="/movies" className={`flx-nav__link${pathname === '/movies' ? ' flx-nav__link--active' : ''}`}>Movies</Link>
         <Link href="/my-list" className={`flx-nav__link${pathname === '/my-list' ? ' flx-nav__link--active' : ''}`}>My List</Link>
       </div>
 
@@ -48,7 +48,6 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft }
                 Subscribe
               </Link>
             )}
-            <NotificationBell userId={user.id} />
             <Link href="/profiles" style={{ cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }} title="Switch Profile">
               <div style={{ width: '28px', height: '28px', borderRadius: '4px', background: '#e50914', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
                 {activeProfile ? activeProfile.name.charAt(0).toUpperCase() : '?'}
