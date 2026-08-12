@@ -36,16 +36,16 @@ export default function DownloadButton({ movieId, title }) {
     setError(null);
 
     try {
-      // For React Native WebView — hand off to the native downloader
+      // For React Native WebView — hand off direct download URL to native downloader
       if (isNative || window.ReactNativeWebView) {
-        const tokenRes = await fetch('/api/video/token', {
+        const dlRes = await fetch('/api/video/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ movieId }),
+          body: JSON.stringify({ movieId, title }),
         });
-        const tokenData = await tokenRes.json();
-        if (!tokenData.token) {
-          setError(tokenData.error || 'Unable to generate download link.');
+        const dlData = await dlRes.json();
+        if (!dlData.downloadUrl) {
+          setError(dlData.error || 'Unable to generate download link.');
           setLoading(false);
           return;
         }
@@ -53,7 +53,7 @@ export default function DownloadButton({ movieId, title }) {
         window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'DOWNLOAD_VIDEO',
           payload: {
-            videoUrl: `${window.location.origin}/api/video/stream/${tokenData.token}`,
+            videoUrl: dlData.downloadUrl,
             title: title || 'flixon-video',
             movieId,
           },
