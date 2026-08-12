@@ -7,9 +7,7 @@ export default function DownloadButton({ movieId, title }) {
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState(null);
   const [isNative] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return !!window.ReactNativeWebView;
-    }
+    if (typeof window !== 'undefined') return !!window.ReactNativeWebView;
     return false;
   });
 
@@ -18,18 +16,12 @@ export default function DownloadButton({ movieId, title }) {
       try {
         let data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         if (typeof data === 'string') data = JSON.parse(data);
-
         if (data.type === 'DOWNLOAD_PROGRESS' && data.downloads) {
-          const myDownload = data.downloads.find(d => d.movieId === movieId);
-          if (myDownload) {
-            setProgress(myDownload.progress);
-          }
+          const mine = data.downloads.find(d => d.movieId === movieId);
+          if (mine) setProgress(mine.progress);
         }
-      } catch (e) {
-        // Not a JSON message, ignore
-      }
+      } catch (_) {}
     };
-
     window.addEventListener('message', handleMessage);
     document.addEventListener('message', handleMessage);
     return () => {
@@ -43,54 +35,54 @@ export default function DownloadButton({ movieId, title }) {
     setError(null);
 
     try {
-      // Step 1: Get a secure stream token
-      const tokenRes = await fetch('/api/video/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ movieId }),
-      });
-      const tokenData = await tokenRes.json();
-
-      if (!tokenData.token) {
-        setError(tokenData.error || 'Unable to generate download link.');
-        setLoading(false);
-        return;
-      }
-
-      // If inside React Native WebView, send to native downloader
+      // For React Native WebView — hand off to the native downloader
       if (isNative || window.ReactNativeWebView) {
-        const streamUrl = `${window.location.origin}/api/video/stream/${tokenData.token}`;
+        // Native needs a stream token first
+        const tokenRes = await fetch('/api/video/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ movieId }),
+        });
+        const tokenData = await tokenRes.json();
+        if (!tokenData.token) {
+          setError(tokenData.error || 'Unable to generate download link.');
+          setLoading(false);
+          return;
+        }
         setProgress(0);
         window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'DOWNLOAD_VIDEO',
-          payload: { videoUrl: streamUrl, title: title || 'flixon-video', movieId },
+          payload: {
+            videoUrl: `${window.location.origin}/api/video/stream/${tokenData.token}`,
+            title: title || 'flixon-video',
+            movieId,
+          },
         }));
         setLoading(false);
         return;
       }
 
-      // Step 2: Exchange token for a presigned R2 download URL
-      const dlRes = await fetch('/api/video/download', {
+      // For web: call self-contained download endpoint with just movieId
+      const res = await fetch('/api/video/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: tokenData.token, title }),
+        body: JSON.stringify({ movieId, title }),
       });
-      const dlData = await dlRes.json();
 
-      if (!dlData.downloadUrl) {
-        setError(dlData.error || 'Download link generation failed.');
+      const data = await res.json();
+
+      if (!data.downloadUrl) {
+        setError(data.error || 'Download link generation failed. Please try again.');
         setLoading(false);
         return;
       }
 
-      // Step 3: Trigger browser download via hidden anchor
+      // Trigger browser download via hidden anchor tag
       const a = document.createElement('a');
-      a.href = dlData.downloadUrl;
-      const safeFilename = (title || 'flixon-video')
-        .replace(/[^a-zA-Z0-9\s\-_]/g, '')
-        .trim()
-        .replace(/\s+/g, '_') || 'flixon-video';
-      a.download = `${safeFilename}.mp4`;
+      a.href = data.downloadUrl;
+      const safe = (title || 'flixon-video')
+        .replace(/[^a-zA-Z0-9\s\-_]/g, '').trim().replace(/\s+/g, '_') || 'flixon-video';
+      a.download = `${safe}.mp4`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -102,15 +94,14 @@ export default function DownloadButton({ movieId, title }) {
     }
   };
 
-  // --- Render ---
-  let buttonContent;
+  // --- Button rendering ---
+  let content;
   let disabled = false;
-  let opacity = 1;
 
   if (progress === 1) {
-    buttonContent = (
+    content = (
       <>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
         <span style={{ color: '#4ade80' }}>Downloaded</span>
@@ -118,39 +109,31 @@ export default function DownloadButton({ movieId, title }) {
     );
     disabled = true;
   } else if (progress !== null) {
-    const isIndeterminate = progress === 0;
-    buttonContent = (
+    const pct = Math.round((progress || 0) * 100);
+    content = (
       <>
-        <div style={{ width: '100px', height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-          <div style={{
-            width: isIndeterminate ? '50%' : `${Math.round(progress * 100)}%`,
-            height: '100%',
-            background: '#e50914',
-            animation: isIndeterminate ? 'indeterminate 1.5s infinite linear' : 'none',
-            position: isIndeterminate ? 'absolute' : 'static',
-          }} />
+        <div style={{ width: '80px', height: '5px', background: 'rgba(255,255,255,0.15)', borderRadius: '3px', overflow: 'hidden' }}>
+          <div style={{ width: `${pct}%`, height: '100%', background: 'var(--acc)', transition: 'width 0.3s' }} />
         </div>
-        <span style={{ fontSize: '13px' }}>
-          {isIndeterminate ? 'Downloading' : `${Math.round(progress * 100)}%`}
-        </span>
+        <span style={{ fontSize: '12px' }}>{pct}%</span>
       </>
     );
     disabled = true;
   } else if (loading) {
-    buttonContent = (
+    content = (
       <>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ animation: 'spin 1s linear infinite' }}>
           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
         </svg>
         Preparing…
       </>
     );
     disabled = true;
-    opacity = 0.6;
   } else {
-    buttonContent = (
+    content = (
       <>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
@@ -166,18 +149,12 @@ export default function DownloadButton({ movieId, title }) {
         onClick={handleDownload}
         disabled={disabled}
         className="gms-btn gms-btn--ghost"
-        style={{ opacity, cursor: disabled ? 'default' : 'pointer' }}
+        style={{ opacity: disabled && !progress ? 0.6 : 1, cursor: disabled ? 'default' : 'pointer' }}
       >
-        {buttonContent}
+        {content}
       </button>
-      {error && <p style={{ color: '#ff6b6b', fontSize: '12px', marginTop: '6px' }}>{error}</p>}
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes indeterminate {
-          0% { left: -50%; }
-          100% { left: 100%; }
-        }
-      `}</style>
+      {error && <p style={{ color: '#ff6b6b', fontSize: '12px', marginTop: '6px', maxWidth: '220px' }}>{error}</p>}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
