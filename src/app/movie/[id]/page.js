@@ -266,6 +266,32 @@ export default async function MoviePage({ params }) {
               )}
             </div>
 
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '28px' }}>
+              {hasAccess && (actualVideoUrl || isIframe) && (
+                <>
+                  {!isIframe && (
+                    <Link href={`/movie/${movie.id}`} className="gms-btn gms-btn--primary">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5V19L19 12L8 5Z" /></svg>
+                      Watch Now
+                    </Link>
+                  )}
+                  {actualVideoUrl && 
+                   (actualVideoUrl.includes('r2.dev') || actualVideoUrl.includes('.mp4') || actualVideoUrl.includes('.mkv')) && 
+                   !actualVideoUrl.includes('pelpic') && !actualVideoUrl.includes('upstream') && (
+                    <DownloadButton movieId={movie.id} title={movie.title} />
+                  )}
+                </>
+              )}
+              {!hasAccess && (
+                <Link href="/checkout" className="gms-btn gms-btn--primary">Subscribe to Watch</Link>
+              )}
+              {user && (
+                <FavoriteButton movieId={movie.id} initialIsFavorite={isFavorite} />
+              )}
+              <ShareButton title={movie.title} />
+            </div>
+
             {cats.length > 0 && (
               <div className="flx-movie-cats" style={{ marginBottom: '16px' }}>
                 {cats.map(cat => (
@@ -286,25 +312,6 @@ export default async function MoviePage({ params }) {
                 : 'No description available for this title.'}
             </p>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '28px' }}>
-              {hasAccess && actualVideoUrl && (
-                <>
-                  <Link href={`/movie/${movie.id}`} className="gms-btn gms-btn--primary">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5V19L19 12L8 5Z" /></svg>
-                    Watch Now
-                  </Link>
-                  <DownloadButton movieId={movie.id} title={movie.title} />
-                </>
-              )}
-              {!hasAccess && (
-                <Link href="/checkout" className="gms-btn gms-btn--primary">Subscribe to Watch</Link>
-              )}
-              {user && (
-                <FavoriteButton movieId={movie.id} initialIsFavorite={isFavorite} />
-              )}
-              <ShareButton title={movie.title} />
-            </div>
 
             {/* Star Rating (logged-in users) */}
             {user && (

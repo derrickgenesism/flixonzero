@@ -2,6 +2,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import NextTopLoader from 'nextjs-toploader';
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -32,6 +33,7 @@ export default function RootLayout({ children }) {
           shadow="0 0 10px #e50914,0 0 5px #e50914"
         />
         {children}
+        <PWAInstallPrompt />
         <MobileBottomNav />
       </body>
     </html>
