@@ -131,6 +131,8 @@ export async function POST(request) {
       } else {
         objectKey = parsed.pathname.replace(/^\//, '');
       }
+      // Decode it because new URL() leaves it URL-encoded, and AWS SDK will encode it again
+      objectKey = decodeURIComponent(objectKey);
     } catch {
       return NextResponse.json({ error: 'Invalid video URL format' }, { status: 500 });
     }
@@ -144,6 +146,7 @@ export async function POST(request) {
       region: 'auto',
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
       credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
+      forcePathStyle: true, // Prevents AWS SDK from putting the bucket name in the subdomain
     });
 
     const safeFilename = (title || movie?.title || 'flixon-video')
