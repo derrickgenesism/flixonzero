@@ -75,57 +75,18 @@ export default function DownloadButton({ movieId, title }) {
       if (dlData.externalUrl) {
         setProgress(0);
         setLoading(false); // loading spinner replaced by progress bar
-
-        const controller = new AbortController();
-        abortRef.current = controller;
-
-        const response = await fetch(dlData.externalUrl, { signal: controller.signal });
-
-        if (!response.ok) {
-          setError('Failed to fetch video. The external link may be down.');
-          setProgress(null);
-          return;
-        }
-
-        const contentLength = response.headers.get('content-length');
-        const total = contentLength ? parseInt(contentLength, 10) : 0;
-        const reader = response.body.getReader();
-        const chunks = [];
-        let received = 0;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          received += value.length;
-          if (total > 0) {
-            setProgress(Math.min(received / total, 0.99)); // cap at 99% until blob is ready
-          } else {
-            // No content-length header — show indeterminate-ish progress
-            setProgress(Math.min(0.5 + (received / (500 * 1024 * 1024)) * 0.49, 0.99));
-          }
-        }
-
-        // Combine chunks into a blob
-        const blob = new Blob(chunks, { type: 'video/mp4' });
-        const blobUrl = URL.createObjectURL(blob);
-
-        const safeFilename = (title || 'flixon-video')
+        const a = document.createElement('a');
+        a.href = dlData.externalUrl;
+        const safe = (title || 'flixon-video')
           .replace(/[^a-zA-Z0-9\s\-_]/g, '')
           .trim()
           .replace(/\s+/g, '_') || 'flixon-video';
-
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = `${safeFilename}.mp4`;
+        a.download = `${safe}.mp4`;
+        a.target = "_blank";
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-
-        // Clean up blob URL after a short delay
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-
-        setProgress(1);
+        setLoading(false);
         return;
       }
 
