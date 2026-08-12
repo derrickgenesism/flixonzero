@@ -1073,3 +1073,55 @@ button {
   .gms-section-head { padding: 0 12px 12px; }
   .flx-hero__actions .gms-btn { padding: 10px 16px; font-size: 13px; }
 }
+
+/* ============================================================
+   MOBILE BOTTOM NAVIGATION
+   ============================================================ */
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: rgba(10, 10, 10, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 -4px 10px rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 1000;
+  border-top: 1px solid var(--border);
+  display: none; /* hidden on desktop */
+}
+
+.mbn-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--text3);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mbn-link.active {
+  color: var(--acc);
+}
+
+.mbn-link svg {
+  stroke-width: 2.2;
+}
+
+/* Show only on mobile screens */
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: flex;
+  }
+}
+
+/* Hide entirely if embedded inside the React Native App */
+html.in-react-native .mobile-bottom-nav {
+  display: none !important;
+}

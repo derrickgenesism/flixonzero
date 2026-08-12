@@ -1,5 +1,6 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
+import MobileBottomNav from "@/components/MobileBottomNav";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -17,7 +18,10 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${inter.variable} antialiased`}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        <MobileBottomNav />
+      </body>
     </html>
   );
 }
