@@ -124,8 +124,15 @@ export async function POST(request) {
       const parsed = new URL(videoUrl);
 
       if (parsed.hostname.endsWith('r2.cloudflarestorage.com')) {
-        const parts = parsed.pathname.replace(/^\//, '').split('/');
-        objectKey = parts.slice(1).join('/');
+        const hostParts = parsed.hostname.split('.');
+        if (hostParts.length > 4) {
+          // Virtual-hosted style: bucketName.accountId.r2.cloudflarestorage.com/key
+          objectKey = parsed.pathname.replace(/^\//, '');
+        } else {
+          // Path style: accountId.r2.cloudflarestorage.com/bucketName/key
+          const parts = parsed.pathname.replace(/^\//, '').split('/');
+          objectKey = parts.slice(1).join('/');
+        }
       } else {
         objectKey = parsed.pathname.replace(/^\//, '');
       }
