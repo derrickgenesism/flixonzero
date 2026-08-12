@@ -41,10 +41,13 @@ export default async function MoviePage({ params }) {
     );
   }
 
-  // Extract primary video URL
+  // Extract primary video URL or detect Iframe
   let actualVideoUrl = null;
+  let isIframe = false;
   if (movie.video_url) {
-    if (movie.video_url.includes('<video') || movie.video_url.includes('<source')) {
+    if (movie.video_url.includes('<iframe')) {
+      isIframe = true;
+    } else if (movie.video_url.includes('<video') || movie.video_url.includes('<source')) {
       const match = movie.video_url.match(/src=["']([^"']+)['"]/);
       if (match?.[1]) actualVideoUrl = match[1];
     } else {
@@ -190,6 +193,11 @@ export default async function MoviePage({ params }) {
                 </div>
               )}
             </div>
+          ) : isIframe ? (
+            <div 
+              style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }} 
+              dangerouslySetInnerHTML={{ __html: movie.video_url.replace(/width=["']?[0-9%px]+["']?/, 'width="100%"').replace(/height=["']?[0-9%px]+["']?/, 'height="100%"') }}
+            />
           ) : (actualVideoUrl || movie.video_url) ? (
             <VideoPlayer movie={movie} movieId={movie.id} initialProgress={initialProgress} />
           ) : (
