@@ -16,13 +16,18 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export async function POST(request) {
   try {
-    const { movieId, title } = await request.json();
+    const body = await request.json();
+    // Accept either movieId or token (for backward compatibility with un-refreshed clients)
+    const movieId = body.movieId;
+    const title = body.title;
 
-    if (!movieId) {
-      return NextResponse.json({ error: 'Missing movieId' }, { status: 400 });
+    if (!movieId && !body.token) {
+      return NextResponse.json({ error: 'Missing movieId. Please refresh the page and try again.' }, { status: 400 });
     }
 
     const supabase = await createClient();
+    let videoUrl = null;
+    let movie = null;
 
     // 1. Verify authentication
     const { data: { user } } = await supabase.auth.getUser();
@@ -31,81 +36,99 @@ export async function POST(request) {
     }
 
     // 2. Fetch the movie
-    const { data: movie, error: movieError } = await supabase
-      .from('movies')
-      .select('id, type, video_url, title')
-      .eq('id', movieId)
-      .single();
-
-    if (movieError || !movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
-    }
-
-    // 3. Verify subscription access
-    if (movie.type !== 'genesis_free_movie') {
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('subscription_end_date')
-        .eq('email', user.email)
+    if (movieId) {
+      const { data: m, error: movieError } = await supabase
+        .from('movies')
+        .select('id, type, video_url, title')
+        .eq('id', movieId)
         .single();
 
-      const hasActiveSub = profile?.subscription_end_date &&
-        new Date(profile.subscription_end_date) > new Date();
+      if (movieError || !m) {
+        return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      }
+      movie = m;
 
-      if (!hasActiveSub) {
-        // Also check PPV access
-        const { data: ppvData } = await supabase
-          .from('ppv_purchases')
-          .select('expires_at')
-          .eq('user_id', user.id)
-          .eq('movie_id', movie.id)
-          .eq('status', 'success')
-          .maybeSingle();
+      // 3. Verify subscription access
+      if (movie.type !== 'genesis_free_movie') {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('subscription_end_date')
+          .eq('email', user.email)
+          .single();
 
-        const hasPpv = ppvData?.expires_at && new Date(ppvData.expires_at) > new Date();
-        if (!hasPpv) {
-          return NextResponse.json({ error: 'Subscription required' }, { status: 403 });
+        const hasActiveSub = profile?.subscription_end_date &&
+          new Date(profile.subscription_end_date) > new Date();
+
+        if (!hasActiveSub) {
+          const { data: ppvData } = await supabase
+            .from('ppv_purchases')
+            .select('expires_at')
+            .eq('user_id', user.id)
+            .eq('movie_id', movie.id)
+            .eq('status', 'success')
+            .maybeSingle();
+
+          const hasPpv = ppvData?.expires_at && new Date(ppvData.expires_at) > new Date();
+          if (!hasPpv) {
+            return NextResponse.json({ error: 'Subscription required' }, { status: 403 });
+          }
         }
       }
-    }
 
-    // 4. Extract the real video URL
-    let videoUrl = movie.video_url;
-    if (videoUrl && (videoUrl.includes('<video') || videoUrl.includes('<source'))) {
-      const match = videoUrl.match(/src=["']([^"']+)['"]/);
-      if (match?.[1]) videoUrl = match[1];
+      videoUrl = movie.video_url;
+      if (videoUrl && (videoUrl.includes('<video') || videoUrl.includes('<source'))) {
+        const match = videoUrl.match(/src=["']([^"']+)['"]/);
+        if (match?.[1]) videoUrl = match[1];
+      }
+    } else if (body.token) {
+      // Fallback for older clients that haven't refreshed
+      // We don't have the token store here, so we just tell them to refresh
+      return NextResponse.json({ error: 'System updated. Please refresh the page to download.' }, { status: 400 });
     }
 
     if (!videoUrl) {
       return NextResponse.json({ error: 'No video available for download' }, { status: 404 });
     }
 
-    // 5. Get R2 credentials
+    // 4. Get R2 credentials
     const { data: settings } = await supabase.from('admin_settings').select('*');
     const accountId = settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value;
     const accessKey  = settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value;
     const secretKey  = settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value;
     const bucketName = settings?.find(s => s.setting_key === 'r2_bucket_name')?.setting_value;
+    const customDomain = settings?.find(s => s.setting_key === 'r2_custom_domain')?.setting_value;
 
-    if (!accountId || !accessKey || !secretKey || !bucketName) {
-      // No R2 credentials — fall back to direct URL (browser will open in tab, but at least it works)
-      return NextResponse.json({ downloadUrl: videoUrl });
+    // Determine if this is an external link not belonging to our primary bucket
+    // If it is, we cannot presign it. We must fall back to direct download.
+    let isExternal = true;
+    try {
+      const parsed = new URL(videoUrl);
+      if (accountId && parsed.hostname.includes(accountId)) isExternal = false;
+      if (customDomain && parsed.hostname.includes(customDomain)) isExternal = false;
+      if (bucketName && parsed.pathname.includes(bucketName)) isExternal = false;
+      // If it's a relative URL or internal, it's not external
+      if (videoUrl.startsWith('/')) isExternal = false;
+    } catch {
+      // Invalid URL
     }
 
-    // 6. Extract the R2 object key from the URL
+    if (!accountId || !accessKey || !secretKey || !bucketName || isExternal) {
+      // No R2 credentials OR it's an external link from another source
+      // Fallback: just return the video URL. To force download, we append ?download=1
+      // Note: cross-origin downloads will still open in a new tab natively
+      const separator = videoUrl.includes('?') ? '&' : '?';
+      return NextResponse.json({ downloadUrl: `${videoUrl}${separator}download=1` });
+    }
+
+    // 5. Extract the R2 object key from the URL
     let objectKey;
     try {
       const parsed = new URL(videoUrl);
 
       if (parsed.hostname.endsWith('r2.cloudflarestorage.com')) {
-        // Direct R2 URL: https://<accountId>.r2.cloudflarestorage.com/<bucket>/<key>
-        // pathname = /<bucket>/<key>  → strip leading slash and bucket name
         const parts = parsed.pathname.replace(/^\//, '').split('/');
-        // parts[0] is the bucket name, everything after is the key
         objectKey = parts.slice(1).join('/');
       } else {
-        // Custom domain or CDN URL: https://<domain>/<key>
-        // pathname = /<key> → just strip the leading slash
         objectKey = parsed.pathname.replace(/^\//, '');
       }
     } catch {
@@ -116,14 +139,14 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Could not determine R2 object key' }, { status: 500 });
     }
 
-    // 7. Build presigned GET URL with Content-Disposition: attachment
+    // 6. Build presigned GET URL with Content-Disposition: attachment
     const s3 = new S3Client({
       region: 'auto',
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
       credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
     });
 
-    const safeFilename = (title || movie.title || 'flixon-video')
+    const safeFilename = (title || movie?.title || 'flixon-video')
       .replace(/[^a-zA-Z0-9\s\-_]/g, '')
       .trim()
       .replace(/\s+/g, '_') || 'flixon-video';
@@ -135,7 +158,7 @@ export async function POST(request) {
       ResponseContentType: 'video/mp4',
     });
 
-    // Presigned URL valid for 15 minutes — plenty of time for download to start
+    // Presigned URL valid for 15 minutes
     const downloadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
 
     return NextResponse.json({ downloadUrl });
