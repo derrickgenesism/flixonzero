@@ -77,15 +77,11 @@ export default function DownloadButton({ movieId, title }) {
         return;
       }
 
-      // Trigger browser download via hidden anchor tag
-      const a = document.createElement('a');
-      a.href = dlData.downloadUrl;
-      const safe = (title || 'flixon-video')
-        .replace(/[^a-zA-Z0-9\s\-_]/g, '').trim().replace(/\s+/g, '_') || 'flixon-video';
-      a.download = `${safe}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Trigger browser native download via location assignment.
+      // Because both R2 and external links send Content-Disposition: attachment,
+      // the browser will NOT navigate away from the page; it will hand the stream directly
+      // to the native background download manager without cross-origin anchor blocks.
+      window.location.href = dlData.downloadUrl;
 
     } catch (err) {
       if (err.name === 'AbortError') {
