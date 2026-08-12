@@ -208,6 +208,42 @@ export default function ManageSeriesClient({ series, initialEpisodes, tmdbApiKey
             </div>
 
             <div>
+              <label style={{ display: 'block', fontSize: '13px', color: 'var(--text2)', marginBottom: '8px' }}>Genres (Comma separated)</label>
+              <input type="text" value={formData.categories.join(', ')} onChange={e => setFormData({...formData, categories: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})} style={{ width: '100%', padding: '12px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '6px' }} />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', color: 'var(--text2)', marginBottom: '8px' }}>VJ (Translator)</label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {['VJ ICE P', 'VJ Emmy', 'VJ Junior', 'VJ Jingo', 'VJ Mark'].map(vj => {
+                  const isSelected = formData.categories.includes(vj);
+                  return (
+                    <button
+                      key={vj}
+                      type="button"
+                      onClick={() => {
+                        let cats = [...formData.categories];
+                        if (isSelected) {
+                          cats = cats.filter(c => c !== vj);
+                        } else {
+                          cats.push(vj);
+                        }
+                        setFormData({...formData, categories: cats});
+                      }}
+                      style={{
+                        padding: '6px 12px', borderRadius: '20px', border: '1px solid #444', 
+                        background: isSelected ? 'var(--acc)' : '#222',
+                        color: '#fff', cursor: 'pointer', fontSize: '12px'
+                      }}
+                    >
+                      {vj}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
               <label style={{ display: 'block', fontSize: '13px', color: 'var(--text2)', marginBottom: '8px' }}>Description</label>
               <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows="4" style={{ width: '100%', padding: '12px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '6px', resize: 'vertical' }} />
             </div>

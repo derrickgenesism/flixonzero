@@ -270,6 +270,36 @@ export default function AddMovieClient({ tmdbApiKey }) {
               style={{ width: '100%', padding: '10px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '4px' }}
             />
           </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '5px' }}>VJ (Translator)</label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {['VJ ICE P', 'VJ Emmy', 'VJ Junior', 'VJ Jingo', 'VJ Mark'].map(vj => {
+                const isSelected = formData.categories.includes(vj);
+                return (
+                  <button
+                    key={vj}
+                    type="button"
+                    onClick={() => {
+                      let cats = [...formData.categories];
+                      if (isSelected) {
+                        cats = cats.filter(c => c !== vj);
+                      } else {
+                        cats.push(vj);
+                      }
+                      handleManualEdit('categories', cats);
+                    }}
+                    style={{
+                      padding: '6px 12px', borderRadius: '20px', border: '1px solid #444', 
+                      background: isSelected ? 'var(--acc)' : '#222',
+                      color: '#fff', cursor: 'pointer', fontSize: '12px'
+                    }}
+                  >
+                    {vj}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </div>

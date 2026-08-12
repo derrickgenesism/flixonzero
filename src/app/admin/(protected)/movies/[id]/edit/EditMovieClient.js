@@ -243,6 +243,36 @@ export default function EditMovieClient({ movie }) {
                 <input type="text" value={form.categories} onChange={e => set('categories', e.target.value)} placeholder="Action, Drama, Thriller" style={inputStyle} />
               </Field>
 
+              <Field label="VJ (Translator)">
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {['VJ ICE P', 'VJ Emmy', 'VJ Junior', 'VJ Jingo', 'VJ Mark'].map(vj => {
+                    const isSelected = form.categories.includes(vj);
+                    return (
+                      <button
+                        key={vj}
+                        type="button"
+                        onClick={() => {
+                          let cats = form.categories.split(',').map(s => s.trim()).filter(Boolean);
+                          if (isSelected) {
+                            cats = cats.filter(c => c !== vj);
+                          } else {
+                            cats.push(vj);
+                          }
+                          set('categories', cats.join(', '));
+                        }}
+                        style={{
+                          padding: '6px 12px', borderRadius: '20px', border: '1px solid #444', 
+                          background: isSelected ? 'var(--acc)' : '#222',
+                          color: '#fff', cursor: 'pointer', fontSize: '12px'
+                        }}
+                      >
+                        {vj}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+
               <Field label="Cast / Actors">
                 <input type="text" value={form.actors} onChange={e => set('actors', e.target.value)} placeholder="Actor 1, Actor 2, ..." style={inputStyle} />
               </Field>
