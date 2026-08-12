@@ -114,7 +114,7 @@ export default function SearchInput() {
             </div>
           ))}
           <div className="flx-search-footer" onClick={handleSearch}>
-            See all results for "{query}" →
+            See all results for &quot;{query}&quot; →
           </div>
         </div>
       )}

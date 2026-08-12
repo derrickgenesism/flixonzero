@@ -103,6 +103,7 @@ export default async function Home({ searchParams }) {
   const comingSoon = safeMovies.filter(m => m.is_coming_soon).slice(0, 10);
 
   // Smart rows - Trending (by view_count), New Arrivals (last 30 days), Top Rated
+  // eslint-disable-next-line react-hooks/purity
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const newArrivals = safeMovies
     .filter(m => new Date(m.created_at) > thirtyDaysAgo)

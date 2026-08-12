@@ -15,7 +15,6 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
   // Fetch a secure token on mount, then build the stream URL
   useEffect(() => {
     let active = true;
-    setLoading(true);
 
     fetch('/api/video/token', {
       method: 'POST',
@@ -63,7 +62,7 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
       vid.removeEventListener('loadedmetadata', onLoaded);
       vid.removeEventListener('play', onPlay);
     };
-  }, [streamUrl, initialProgress]);
+  }, [streamUrl, initialProgress, movieId]);
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;

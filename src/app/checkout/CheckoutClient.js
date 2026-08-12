@@ -157,7 +157,7 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
             
             <div style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', marginBottom: '20px' }}>
               <p style={{ fontSize: '14px', margin: 0, color: 'var(--text2)' }}>
-                Didn't receive the prompt? Dial <strong>*165#</strong> or <strong>*185#</strong> and check your pending approvals, or try again.
+                Didn&apos;t receive the prompt? Dial <strong>*165#</strong> or <strong>*185#</strong> and check your pending approvals, or try again.
               </p>
             </div>
           </>

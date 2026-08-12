@@ -75,10 +75,10 @@ export default function OnboardingClient() {
               Welcome to FlixOn!
             </h1>
             <p style={{ fontSize: '16px', color: 'var(--text2)', lineHeight: '1.7', marginBottom: '40px', maxWidth: '480px', margin: '0 auto 40px' }}>
-              The best streaming experience in Uganda. Let's take 30 seconds to personalize your experience. We'll show you movies and series you'll actually love.
+              The best streaming experience in Uganda. Let&apos;s take 30 seconds to personalize your experience. We&apos;ll show you movies and series you&apos;ll actually love.
             </p>
             <button onClick={() => setStep(1)} className="gms-btn gms-btn--primary" style={{ padding: '16px 40px', fontSize: '16px' }}>
-              Let's Get Started →
+              Let&apos;s Get Started →
             </button>
             <p style={{ marginTop: '20px' }}>
               <button onClick={finish} style={{ color: 'var(--text3)', fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -136,9 +136,9 @@ export default function OnboardingClient() {
         {step === 2 && (
           <div style={{ textAlign: 'center', animation: 'fadeSlideDown 0.3s ease' }}>
             <div style={{ fontSize: '64px', marginBottom: '24px' }}>🚀</div>
-            <h2 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '16px' }}>You're all set!</h2>
+            <h2 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '16px' }}>You&apos;re all set!</h2>
             <p style={{ fontSize: '16px', color: 'var(--text2)', lineHeight: '1.7', marginBottom: '16px', maxWidth: '440px', margin: '0 auto 16px' }}>
-              We've personalized your FlixOn experience based on your preferences.
+              We&apos;ve personalized your FlixOn experience based on your preferences.
             </p>
             {selected.length > 0 && (
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '32px' }}>

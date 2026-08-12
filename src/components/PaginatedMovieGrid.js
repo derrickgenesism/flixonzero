@@ -42,7 +42,7 @@ export default function PaginatedMovieGrid({
         <div style={{ padding: '80px 20px', textAlign: 'center', color: 'var(--text2)' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎬</div>
           <h2 style={{ fontSize: '22px', marginBottom: '12px', color: '#fff' }}>No movies found</h2>
-          <p style={{ fontSize: '15px', color: 'var(--text3)' }}>We couldn't find any movies in this category.</p>
+          <p style={{ fontSize: '15px', color: 'var(--text3)' }}>We couldn&apos;t find any movies in this category.</p>
         </div>
       </div>
     );

@@ -6,10 +6,14 @@ export default function DownloadButton({ movieId, title }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState(null); // null means not downloading, 1 means completed
-  const [isNative, setIsNative] = useState(false);
+  const [isNative, setIsNative] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !!window.ReactNativeWebView;
+    }
+    return false;
+  });
 
   useEffect(() => {
-    setIsNative(!!window.ReactNativeWebView);
 
     const handleMessage = (event) => {
       try {
@@ -56,7 +60,7 @@ export default function DownloadButton({ movieId, title }) {
         return;
       }
 
-      const videoUrl = `${window.location.origin}/api/video/stream/${data.token}`;
+      const videoUrl = `${window.location.origin}/api/video/stream/${data.token}?download=1`;
       
       // Check if we are running inside the React Native WebView
       if (window.ReactNativeWebView) {

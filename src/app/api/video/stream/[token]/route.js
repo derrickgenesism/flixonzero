@@ -24,11 +24,20 @@ export async function GET(request, { params }) {
 
   const { videoUrl } = resolved;
 
+  const searchParams = request.nextUrl.searchParams;
+  const isDownload = searchParams.get('download') === '1';
+
   try {
-    // To solve serverless timeouts and slow downloads, we redirect the user to the direct URL.
-    // Proxying massive video files through Vercel serverless functions causes random disconnects 
-    // and incredibly slow buffering/downloads.
-    return NextResponse.redirect(videoUrl);
+    if (isDownload) {
+      // Proxy the request to force Content-Disposition attachment
+      const res = await fetch(videoUrl);
+      const headers = new Headers(res.headers);
+      headers.set('Content-Disposition', 'attachment; filename="flixon-video.mp4"');
+      return new Response(res.body, { status: res.status, headers });
+    } else {
+      // To solve serverless timeouts and slow downloads, we redirect the user to the direct URL.
+      return NextResponse.redirect(videoUrl);
+    }
   } catch (err) {
     console.error('[Stream] Error parsing URL, falling back:', err);
     return new Response('Stream error', { status: 500 });

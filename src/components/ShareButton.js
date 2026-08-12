@@ -7,11 +7,14 @@ export default function ShareButton({ title }) {
   const [copied, setCopied] = useState(false);
   const router = useRouter();
 
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.href;
+    }
+    return '';
+  });
 
-  useEffect(() => {
-    setUrl(window.location.href);
-  }, []);
+  // useEffect for URL removed as it's set in initial state
 
   const whatsappText = encodeURIComponent(`🎬 Watch "${title}" on Flixon!\n${url}`);
 

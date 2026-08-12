@@ -122,7 +122,7 @@ export default function MoviesCatalog({ initialMovies }) {
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text3)' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
           <h3 style={{ fontSize: '20px', color: '#fff', marginBottom: '8px' }}>No movies found</h3>
-          <p>Try adjusting your filters to find what you're looking for.</p>
+          <p>Try adjusting your filters to find what you&apos;re looking for.</p>
         </div>
       )}
     </div>

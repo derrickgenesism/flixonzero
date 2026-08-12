@@ -12,6 +12,15 @@ export default function NotificationBell({ userId }) {
 
   useEffect(() => {
     if (!userId) return;
+
+    async function fetchNotifications() {
+      const res = await fetch('/api/v1/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.data || []);
+      }
+    }
+
     fetchNotifications();
   }, [userId]);
 
@@ -22,14 +31,6 @@ export default function NotificationBell({ userId }) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  async function fetchNotifications() {
-    const res = await fetch('/api/v1/notifications');
-    if (res.ok) {
-      const data = await res.json();
-      setNotifications(data.data || []);
-    }
-  }
 
   async function markAllRead() {
     await fetch('/api/v1/notifications', { method: 'PATCH' });

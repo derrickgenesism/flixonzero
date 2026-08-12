@@ -9,7 +9,7 @@ export default function ResetPasswordPage({ searchParams }) {
         <div className="gms-login-header" style={{ textAlign: 'center', marginBottom: '30px' }}>
           <h1 style={{ margin: '0 0 10px', color: '#fff', fontSize: '24px' }}>Reset Password</h1>
           <p style={{ margin: 0, color: 'var(--text-muted)' }}>
-            Enter your email and we'll send you a link to reset your password.
+            Enter your email and we&apos;ll send you a link to reset your password.
           </p>
         </div>
 

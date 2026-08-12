@@ -235,7 +235,7 @@ export default async function AdminSettingsPage() {
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '30px 0' }} />
 
         <h3 style={{ margin: '0 0 6px', color: 'var(--acc)' }}>Promo & Gift Codes</h3>
-        <p style={{ margin: '0 0 15px', fontSize: '13px', color: 'var(--text3)' }}>Enable or disable the "Have a promo code?" input during checkout.</p>
+        <p style={{ margin: '0 0 15px', fontSize: '13px', color: 'var(--text3)' }}>Enable or disable the &quot;Have a promo code?&quot; input during checkout.</p>
         <div style={{ marginBottom: '25px' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
             <input
@@ -258,7 +258,7 @@ export default async function AdminSettingsPage() {
               name="profiles_enabled"
               defaultChecked={settings?.find(s => s.setting_key === 'profiles_enabled')?.setting_value === 'true'}
             />
-            Enable Multiple Profiles (Who's watching?)
+            Enable Multiple Profiles (Who&apos;s watching?)
           </label>
         </div>
         <div style={{ marginBottom: '15px' }}>

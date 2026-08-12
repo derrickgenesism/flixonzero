@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { forcePasswordReset } from './actions'
 
 function ForceResetForm() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const email = searchParams.get('email') || ''
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,7 +24,7 @@ function ForceResetForm() {
     } else {
       setSuccess(true)
       // redirect happens server-side so this is a fallback
-      window.location.href = '/'
+      router.push('/')
     }
   }
 
