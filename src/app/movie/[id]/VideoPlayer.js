@@ -97,6 +97,7 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
 
   return (
     <video
+      key={streamUrl}
       ref={videoRef}
       controls
       autoPlay
