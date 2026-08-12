@@ -69,17 +69,23 @@ export default function DownloadButton({ movieId, title }) {
         body: JSON.stringify({ movieId, title }),
       });
 
-      const data = await res.json();
+      const dlData = await res.json();
 
-      if (!data.downloadUrl) {
-        setError(data.error || 'Download link generation failed. Please try again.');
+      if (dlData.isExternalInstruction) {
+        alert("To download this external video, please click the 3 dots (⋮) on the video player above and select 'Download', or long-press the video and choose 'Save Video'.");
+        setLoading(false);
+        return;
+      }
+
+      if (!dlData.downloadUrl) {
+        setError(dlData.error || 'Download link generation failed. Please try again.');
         setLoading(false);
         return;
       }
 
       // Trigger browser download via hidden anchor tag
       const a = document.createElement('a');
-      a.href = data.downloadUrl;
+      a.href = dlData.downloadUrl;
       const safe = (title || 'flixon-video')
         .replace(/[^a-zA-Z0-9\s\-_]/g, '').trim().replace(/\s+/g, '_') || 'flixon-video';
       a.download = `${safe}.mp4`;

@@ -114,10 +114,9 @@ export async function POST(request) {
 
     if (!accountId || !accessKey || !secretKey || !bucketName || isExternal) {
       // No R2 credentials OR it's an external link from another source
-      // Fallback: just return the video URL. To force download, we append ?download=1
-      // Note: cross-origin downloads will still open in a new tab natively
-      const separator = videoUrl.includes('?') ? '&' : '?';
-      return NextResponse.json({ downloadUrl: `${videoUrl}${separator}download=1` });
+      // Browsers prohibit forcing cross-origin downloads via JS, so we tell the frontend
+      // to instruct the user to use the native video player's download button.
+      return NextResponse.json({ isExternalInstruction: true });
     }
 
     // 5. Extract the R2 object key from the URL
