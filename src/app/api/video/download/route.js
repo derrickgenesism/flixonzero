@@ -96,7 +96,7 @@ export async function POST(request) {
     const accessKey  = settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value;
     const secretKey  = settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value;
     const bucketName = settings?.find(s => s.setting_key === 'r2_bucket_name')?.setting_value;
-    const customDomain = settings?.find(s => s.setting_key === 'r2_custom_domain')?.setting_value;
+    const customDomain = settings?.find(s => s.setting_key === 'cdn_domain')?.setting_value;
 
     // Determine if this is an external link not belonging to our primary bucket
     // If it is, we cannot presign it. We must fall back to direct download.
