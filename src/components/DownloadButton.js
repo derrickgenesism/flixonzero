@@ -5,8 +5,8 @@ import { useState, useEffect } from 'react';
 export default function DownloadButton({ movieId, title }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [progress, setProgress] = useState(null); // null means not downloading, 1 means completed
-  const [isNative, setIsNative] = useState(() => {
+  const [progress, setProgress] = useState(null);
+  const [isNative] = useState(() => {
     if (typeof window !== 'undefined') {
       return !!window.ReactNativeWebView;
     }
@@ -14,11 +14,10 @@ export default function DownloadButton({ movieId, title }) {
   });
 
   useEffect(() => {
-
     const handleMessage = (event) => {
       try {
         let data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (typeof data === 'string') data = JSON.parse(data); // Double parse in case of escaped JSON
+        if (typeof data === 'string') data = JSON.parse(data);
 
         if (data.type === 'DOWNLOAD_PROGRESS' && data.downloads) {
           const myDownload = data.downloads.find(d => d.movieId === movieId);
@@ -27,14 +26,12 @@ export default function DownloadButton({ movieId, title }) {
           }
         }
       } catch (e) {
-        // Not a JSON message or unrelated message, ignore
+        // Not a JSON message, ignore
       }
     };
 
-    // React Native WebView messages come on the document or window
     window.addEventListener('message', handleMessage);
-    document.addEventListener('message', handleMessage); // for older android
-
+    document.addEventListener('message', handleMessage);
     return () => {
       window.removeEventListener('message', handleMessage);
       document.removeEventListener('message', handleMessage);
@@ -46,44 +43,58 @@ export default function DownloadButton({ movieId, title }) {
     setError(null);
 
     try {
-      // Get a secure token (same auth-checked endpoint)
-      const res = await fetch('/api/video/token', {
+      // Step 1: Get a secure stream token
+      const tokenRes = await fetch('/api/video/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ movieId }),
       });
-      const data = await res.json();
+      const tokenData = await tokenRes.json();
 
-      if (!data.token) {
-        setError(data.error || 'Unable to generate download link.');
+      if (!tokenData.token) {
+        setError(tokenData.error || 'Unable to generate download link.');
         setLoading(false);
         return;
       }
 
-      const safeTitle = encodeURIComponent((title || 'flixon-video').replace(/[^a-zA-Z0-9\s\-_]/g, '').trim());
-      const videoUrl = `${window.location.origin}/api/video/stream/${data.token}?download=1&title=${safeTitle}`;
-      
-      // Check if we are running inside the React Native WebView
-      if (window.ReactNativeWebView) {
-        setProgress(0); // optimistically show 0% progress
+      // If inside React Native WebView, send to native downloader
+      if (isNative || window.ReactNativeWebView) {
+        const streamUrl = `${window.location.origin}/api/video/stream/${tokenData.token}`;
+        setProgress(0);
         window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'DOWNLOAD_VIDEO',
-          payload: {
-            videoUrl,
-            title: title || 'flixon-video',
-            movieId
-          }
+          payload: { videoUrl: streamUrl, title: title || 'flixon-video', movieId },
         }));
-      } else {
-        // Trigger download via a hidden <a> pointing to the proxy stream
-        const a = document.createElement('a');
-        a.href = videoUrl;
-        // Suggest a clean filename using the movie title
-        a.download = `${(title || 'flixon-video').replace(/[^a-zA-Z0-9\s-]/g, '').trim()}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        setLoading(false);
+        return;
       }
+
+      // Step 2: Exchange token for a presigned R2 download URL
+      const dlRes = await fetch('/api/video/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: tokenData.token, title }),
+      });
+      const dlData = await dlRes.json();
+
+      if (!dlData.downloadUrl) {
+        setError(dlData.error || 'Download link generation failed.');
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Trigger browser download via hidden anchor
+      const a = document.createElement('a');
+      a.href = dlData.downloadUrl;
+      const safeFilename = (title || 'flixon-video')
+        .replace(/[^a-zA-Z0-9\s\-_]/g, '')
+        .trim()
+        .replace(/\s+/g, '_') || 'flixon-video';
+      a.download = `${safeFilename}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
     } catch {
       setError('Network error. Please try again.');
     } finally {
@@ -91,8 +102,8 @@ export default function DownloadButton({ movieId, title }) {
     }
   };
 
-  // Render logic based on progress
-  let buttonContent = null;
+  // --- Render ---
+  let buttonContent;
   let disabled = false;
   let opacity = 1;
 
@@ -107,17 +118,16 @@ export default function DownloadButton({ movieId, title }) {
     );
     disabled = true;
   } else if (progress !== null) {
-    // Show progress bar (if 0, it means indeterminate chunked download)
     const isIndeterminate = progress === 0;
     buttonContent = (
       <>
         <div style={{ width: '100px', height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-          <div style={{ 
-            width: isIndeterminate ? '50%' : `${Math.round(progress * 100)}%`, 
-            height: '100%', 
+          <div style={{
+            width: isIndeterminate ? '50%' : `${Math.round(progress * 100)}%`,
+            height: '100%',
             background: '#e50914',
             animation: isIndeterminate ? 'indeterminate 1.5s infinite linear' : 'none',
-            position: isIndeterminate ? 'absolute' : 'static'
+            position: isIndeterminate ? 'absolute' : 'static',
           }} />
         </div>
         <span style={{ fontSize: '13px' }}>

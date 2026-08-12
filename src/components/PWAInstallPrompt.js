@@ -6,57 +6,65 @@ export default function PWAInstallPrompt() {
   const [show, setShow] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isIOS, setIsIOS] = useState(false);
-  const [isInStandaloneMode, setIsInStandaloneMode] = useState(false);
 
   useEffect(() => {
-    // Don't show if already installed as standalone app
-    const standalone = window.matchMedia('(display-mode: standalone)').matches
-      || window.navigator.standalone === true;
-    if (standalone) {
-      setIsInStandaloneMode(true);
-      return;
-    }
+    // ─── Never show if already installed as a PWA ───
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+    if (isStandalone) return;
 
-    // Don't show if inside a WebView (React Native)
+    // ─── Never show inside the React Native WebView ───
     if (window.ReactNativeWebView || window.self !== window.top) return;
 
-    // Don't show if user dismissed within last 7 days
-    const dismissed = localStorage.getItem('pwa-prompt-dismissed');
-    if (dismissed) {
-      const dismissedAt = parseInt(dismissed, 10);
-      const sevenDays = 7 * 24 * 60 * 60 * 1000;
-      if (Date.now() - dismissedAt < sevenDays) return;
-    }
+    // ─── Never show if user dismissed recently (7 day cooldown) ───
+    try {
+      const dismissed = localStorage.getItem('pwa-prompt-dismissed');
+      if (dismissed) {
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+        if (Date.now() - parseInt(dismissed, 10) < sevenDays) return;
+      }
+    } catch (_) {}
 
-    // Detect iOS (Safari doesn't support beforeinstallprompt)
+    // ─── Never show if user already installed via the native prompt ───
+    try {
+      const installed = localStorage.getItem('pwa-installed');
+      if (installed) return;
+    } catch (_) {}
+
+    // ─── Detect iOS (Safari has no beforeinstallprompt) ───
     const ua = window.navigator.userAgent;
     const ios = /iphone|ipad|ipod/i.test(ua);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
     setIsIOS(ios);
 
-    if (ios) {
-      // On iOS show the prompt after 3 seconds unconditionally
-      const timer = setTimeout(() => setShow(true), 3000);
+    if (ios && isSafari) {
+      // Show iOS instructions after 4 seconds
+      const timer = setTimeout(() => setShow(true), 4000);
       return () => clearTimeout(timer);
     }
 
-    // For Chrome/Android: capture the native prompt event
+    // ─── Chrome/Android: listen for the native install event ───
     const handleInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShow(true);
+      // Show our beautiful prompt instead of the plain browser bar
+      setTimeout(() => setShow(true), 1500);
     };
+
     window.addEventListener('beforeinstallprompt', handleInstallPrompt);
 
-    // Fallback: also show after 5 seconds even without the native prompt
-    // (covers edge cases where Chrome doesn't fire the event but PWA is still installable)
-    const fallbackTimer = setTimeout(() => {
-      setShow(true);
-    }, 5000);
+    // Listen for successful installation
+    window.addEventListener('appinstalled', () => {
+      try { localStorage.setItem('pwa-installed', '1'); } catch (_) {}
+      setShow(false);
+    });
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
-      clearTimeout(fallbackTimer);
     };
+    // NOTE: No unconditional fallback timer — we only show when Chrome explicitly
+    // tells us the app is installable via beforeinstallprompt.
   }, []);
 
   const handleInstall = async () => {
@@ -64,29 +72,27 @@ export default function PWAInstallPrompt() {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
-        setShow(false);
-        return;
+        try { localStorage.setItem('pwa-installed', '1'); } catch (_) {}
       }
     }
-    // If no native prompt (iOS / fallback), the button opens instructions
     setShow(false);
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('pwa-prompt-dismissed', String(Date.now()));
+    try { localStorage.setItem('pwa-prompt-dismissed', String(Date.now())); } catch (_) {}
     setShow(false);
   };
 
-  if (!show || isInStandaloneMode) return null;
+  if (!show) return null;
 
   return (
     <>
-      {/* Backdrop blur */}
+      {/* Backdrop */}
       <div
         onClick={handleDismiss}
         style={{
           position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.5)',
+          background: 'rgba(0,0,0,0.55)',
           zIndex: 9998,
           backdropFilter: 'blur(4px)',
           WebkitBackdropFilter: 'blur(4px)',
@@ -102,12 +108,12 @@ export default function PWAInstallPrompt() {
         transform: 'translateX(-50%)',
         width: 'calc(100% - 32px)',
         maxWidth: '420px',
-        background: 'linear-gradient(135deg, #1a1a1a 0%, #141414 100%)',
+        background: 'linear-gradient(135deg, #1c1c1c 0%, #141414 100%)',
         borderRadius: '20px',
         padding: '24px',
         zIndex: 9999,
-        border: '1px solid rgba(229,9,20,0.3)',
-        boxShadow: '0 24px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05)',
+        border: '1px solid rgba(229,9,20,0.25)',
+        boxShadow: '0 24px 60px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.04)',
         animation: 'pwaSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
       }}>
 
@@ -122,24 +128,23 @@ export default function PWAInstallPrompt() {
             borderRadius: '50%',
             width: '30px', height: '30px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: '#aaa',
+            cursor: 'pointer', color: '#999',
             fontSize: '18px', lineHeight: 1,
           }}
-        >
-          ×
-        </button>
+        >×</button>
 
-        {/* Header */}
+        {/* Header row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon-192x192.png" alt="FlixOn" width={48} height={48}
+          <img src="/icon-192x192.png" alt="FlixOn"
+            width={48} height={48}
             style={{ borderRadius: '12px', flexShrink: 0 }} />
           <div>
             <div style={{ fontSize: '18px', fontWeight: '800', color: '#fff', lineHeight: 1.2 }}>
               Install FlixOn
             </div>
-            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginTop: '3px' }}>
-              Add to Home Screen for the best experience
+            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', marginTop: '3px' }}>
+              Add to Home Screen · Free
             </div>
           </div>
         </div>
@@ -147,64 +152,52 @@ export default function PWAInstallPrompt() {
         {/* Benefits */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
           {[
-            { icon: '⚡', text: 'Faster loading — works offline' },
-            { icon: '📱', text: 'Full-screen app experience' },
-            { icon: '🔔', text: 'Instant access from your home screen' },
+            { icon: '⚡', text: 'Faster loading, works offline' },
+            { icon: '📱', text: 'Full-screen app — no browser chrome' },
+            { icon: '🔔', text: 'Quick access from your home screen' },
           ].map(({ icon, text }) => (
-            <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
-              <span style={{ fontSize: '16px' }}>{icon}</span>
-              {text}
+            <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'rgba(255,255,255,0.65)' }}>
+              <span>{icon}</span>{text}
             </div>
           ))}
         </div>
 
         {isIOS ? (
-          // iOS instructions (no native install API)
           <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '14px', fontSize: '13px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-            To install: tap <strong style={{ color: '#fff' }}>Share</strong> <span style={{ fontSize: '16px' }}>⬆</span> then <strong style={{ color: '#fff' }}>&quot;Add to Home Screen&quot;</strong>
+            Tap <strong style={{ color: '#fff' }}>Share</strong> <span>⬆</span> then <strong style={{ color: '#fff' }}>&quot;Add to Home Screen&quot;</strong>
           </div>
         ) : (
           <button
             onClick={handleInstall}
             style={{
-              width: '100%',
-              padding: '14px',
+              width: '100%', padding: '14px',
               background: 'linear-gradient(135deg, #e50914, #ff2d2d)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '15px',
-              fontWeight: '700',
-              cursor: 'pointer',
+              color: '#fff', border: 'none', borderRadius: '12px',
+              fontSize: '15px', fontWeight: '700', cursor: 'pointer',
               boxShadow: '0 4px 20px rgba(229,9,20,0.4)',
-              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
             }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(229,9,20,0.5)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(229,9,20,0.4)'; }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="17 8 12 3 7 8"/>
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            Install the App — It&apos;s Free
+            Install the App
           </button>
         )}
 
-        <p style={{ textAlign: 'center', marginTop: '12px', fontSize: '12px', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}
-          onClick={handleDismiss}>
-          No thanks, I&apos;ll use the browser
+        <p
+          onClick={handleDismiss}
+          style={{ textAlign: 'center', marginTop: '12px', fontSize: '12px', color: 'rgba(255,255,255,0.28)', cursor: 'pointer' }}
+        >
+          Not now
         </p>
       </div>
 
       <style>{`
         @keyframes pwaFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+          from { opacity: 0; } to { opacity: 1; }
         }
         @keyframes pwaSlideUp {
           from { opacity: 0; transform: translateX(-50%) translateY(40px); }

@@ -9,7 +9,6 @@ import DownloadButton from '@/components/DownloadButton';
 import StarRating from '@/components/StarRating';
 import ShareButton from '@/components/ShareButton';
 import PayPerViewButton from '@/components/PayPerViewButton';
-import { createVideoToken } from '@/lib/videoTokens';
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
@@ -200,12 +199,7 @@ export default async function MoviePage({ params }) {
               dangerouslySetInnerHTML={{ __html: movie.video_url.replace(/width=["']?[0-9%px]+["']?/, 'width="100%"').replace(/height=["']?[0-9%px]+["']?/, 'height="100%"') }}
             />
           ) : (actualVideoUrl || movie.video_url) ? (
-            <VideoPlayer
-            movie={movie}
-            movieId={movie.id}
-            initialProgress={initialProgress}
-            initialStreamUrl={hasAccess && actualVideoUrl ? `/api/video/stream/${createVideoToken(actualVideoUrl, user?.id || 'anon')}` : null}
-          />
+            <VideoPlayer movie={movie} movieId={movie.id} initialProgress={initialProgress} />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text2)', flexDirection: 'column', gap: '12px', aspectRatio: '16/9' }}>
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

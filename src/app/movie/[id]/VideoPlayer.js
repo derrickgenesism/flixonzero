@@ -3,21 +3,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { saveWatchProgress } from './actions';
 
-export default function VideoPlayer({ movie, movieId, initialProgress = 0, initialStreamUrl = null }) {
+export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
   const videoRef = useRef(null);
-  // Use server-provided URL instantly — no loading spinner needed
-  const [streamUrl, setStreamUrl] = useState(initialStreamUrl);
+  const [streamUrl, setStreamUrl] = useState(null);
   const [tokenError, setTokenError] = useState(null);
-  const [loading, setLoading] = useState(!initialStreamUrl); // only show loading if no server URL
+  const [loading, setLoading] = useState(true);
   const lastSavedTime = useRef(0);
   const hasSetInitialTime = useRef(false);
   const viewCounted = useRef(false);
 
-  // Only fetch a token client-side if the server didn't provide one
+  // Fetch a secure token client-side — this MUST be client-side on Vercel
+  // because in-memory tokens don't survive across serverless function instances
   useEffect(() => {
-    if (initialStreamUrl) return; // already have URL, skip API call
-
     let active = true;
+    setLoading(true);
 
     fetch('/api/video/token', {
       method: 'POST',
@@ -41,12 +40,13 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0, initi
       });
 
     return () => { active = false; };
-  }, [movieId, initialStreamUrl]);
+  }, [movieId]);
 
-  // Set initial progress once video metadata is loaded
+  // Set initial resume position once video metadata is loaded
   useEffect(() => {
     if (!videoRef.current || !streamUrl) return;
     const vid = videoRef.current;
+
     const onLoaded = () => {
       if (initialProgress > 0 && !hasSetInitialTime.current) {
         vid.currentTime = initialProgress;
@@ -59,6 +59,7 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0, initi
         fetch(`/api/v1/movies/${movieId}/view`, { method: 'POST' }).catch(() => {});
       }
     };
+
     vid.addEventListener('loadedmetadata', onLoaded);
     vid.addEventListener('play', onPlay);
     return () => {
