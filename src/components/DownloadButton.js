@@ -1,16 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function DownloadButton({ movieId, title }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [progress, setProgress] = useState(null); // null = idle, 0-0.99 = downloading, 1 = done
+  const [progress, setProgress] = useState(null);
   const [isNative] = useState(() => {
     if (typeof window !== 'undefined') return !!window.ReactNativeWebView;
     return false;
   });
-  const abortRef = useRef(null);
 
   useEffect(() => {
     const handleMessage = (event) => {
@@ -62,7 +61,7 @@ export default function DownloadButton({ movieId, title }) {
         return;
       }
 
-      // For web: call self-contained download endpoint with movieId
+      // For web: get the download URL (works for both R2 presigned and external proxy)
       const res = await fetch('/api/video/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,72 +70,15 @@ export default function DownloadButton({ movieId, title }) {
 
       const dlData = await res.json();
 
-      // --- External URL: fetch as blob with progress ---
-      if (dlData.externalUrl) {
-        setProgress(0);
-        setLoading(false); // loading spinner replaced by progress bar
-
-        const controller = new AbortController();
-        abortRef.current = controller;
-
-        const response = await fetch(dlData.externalUrl, { signal: controller.signal });
-
-        if (!response.ok) {
-          setError('Failed to fetch video. The external link may be down.');
-          setProgress(null);
-          return;
-        }
-
-        const contentLength = response.headers.get('content-length');
-        const total = contentLength ? parseInt(contentLength, 10) : 0;
-        const reader = response.body.getReader();
-        const chunks = [];
-        let received = 0;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          received += value.length;
-          if (total > 0) {
-            setProgress(Math.min(received / total, 0.99)); // cap at 99% until blob is ready
-          } else {
-            // No content-length header — show indeterminate-ish progress
-            setProgress(Math.min(0.5 + (received / (500 * 1024 * 1024)) * 0.49, 0.99));
-          }
-        }
-
-        // Combine chunks into a blob
-        const blob = new Blob(chunks, { type: 'video/mp4' });
-        const blobUrl = URL.createObjectURL(blob);
-
-        const safeFilename = (title || 'flixon-video')
-          .replace(/[^a-zA-Z0-9\s\-_]/g, '')
-          .trim()
-          .replace(/\s+/g, '_') || 'flixon-video';
-
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = `${safeFilename}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        // Clean up blob URL after a short delay
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-
-        setProgress(1);
-        return;
-      }
-
-      // --- Normal R2 presigned download ---
       if (!dlData.downloadUrl) {
         setError(dlData.error || 'Download link generation failed. Please try again.');
         setLoading(false);
         return;
       }
 
-      // Trigger browser download via hidden anchor tag
+      // Open the download URL — browser handles it natively
+      // For R2: presigned URL with Content-Disposition triggers immediate download
+      // For external: our streaming proxy serves it with Content-Disposition
       const a = document.createElement('a');
       a.href = dlData.downloadUrl;
       const safe = (title || 'flixon-video')
@@ -146,11 +88,7 @@ export default function DownloadButton({ movieId, title }) {
       a.click();
       document.body.removeChild(a);
 
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        setProgress(null);
-        return;
-      }
+    } catch {
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
