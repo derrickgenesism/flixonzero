@@ -214,12 +214,6 @@ export default async function MoviePage({ params }) {
         </Link>
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '32px', flexWrap: 'wrap' }}>
-          {/* Poster */}
-          <img
-            src={movie.thumbnail_url || 'https://via.placeholder.com/200x300/1a1a1a/444'}
-            alt={movie.title}
-            style={{ width: '160px', height: '240px', objectFit: 'cover', borderRadius: '12px', flexShrink: 0, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
-          />
 
           {/* Details */}
           <div style={{ flex: 1, minWidth: '250px' }}>

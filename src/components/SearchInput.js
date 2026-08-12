@@ -68,7 +68,7 @@ export default function SearchInput() {
         <input
           ref={inputRef}
           type="text"
-          placeholder="Search movies, series..."
+          placeholder="Search movie..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKey}

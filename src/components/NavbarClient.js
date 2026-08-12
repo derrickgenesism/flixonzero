@@ -39,14 +39,10 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft }
       <div className="flx-nav__right">
         {user ? (
           <>
-            {isActive ? (
+            {isActive && (
               <div className="flx-nav__badge">
                 ✦ {daysLeft}d left
               </div>
-            ) : (
-              <Link href="/checkout" className="gms-btn gms-btn--primary" style={{ padding: '8px 16px', fontSize: '13px' }}>
-                Subscribe
-              </Link>
             )}
             <Link href="/profiles" style={{ cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }} title="Switch Profile">
               <div style={{ width: '28px', height: '28px', borderRadius: '4px', background: '#e50914', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
@@ -63,9 +59,6 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft }
           <>
             <Link href="/login" className="gms-btn gms-btn--ghost" style={{ padding: '8px 16px', fontSize: '13px' }}>
               Sign In
-            </Link>
-            <Link href="/login" className="gms-btn gms-btn--primary" style={{ padding: '8px 16px', fontSize: '13px' }}>
-              Subscribe
             </Link>
           </>
         )}

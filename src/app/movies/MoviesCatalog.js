@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import MovieCard from '@/components/MovieCard';
 
 export default function MoviesCatalog({ initialMovies }) {
   const [sortBy, setSortBy] = useState('latest');
@@ -112,27 +113,9 @@ export default function MoviesCatalog({ initialMovies }) {
 
       {/* Grid */}
       {filteredMovies.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '20px' }}>
+        <div className="gms-movie-grid">
           {filteredMovies.map(m => (
-            <Link key={m.id} href={`/movie/${m.id}`} style={{ textDecoration: 'none' }}>
-              <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', aspectRatio: '2/3', background: 'var(--bg2)', transition: 'transform 0.2s', ':hover': { transform: 'scale(1.03)' } }}>
-                {m.thumbnail_url ? (
-                  <img src={m.thumbnail_url} alt={m.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
-                ) : (
-                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🎬</div>
-                )}
-                {m.type === 'genesis_free_movie' && (
-                  <div style={{ position: 'absolute', top: '8px', left: '8px', background: '#166534', color: '#4ade80', fontSize: '10px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', zIndex: 2 }}>FREE</div>
-                )}
-                {m.type === 'gsm_series' && (
-                  <div style={{ position: 'absolute', top: '8px', left: '8px', background: '#1e3a8a', color: '#60a5fa', fontSize: '10px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', zIndex: 2 }}>SERIES</div>
-                )}
-              </div>
-              <div style={{ marginTop: '10px' }}>
-                <div style={{ fontWeight: '700', fontSize: '14px', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
-                {m.release_date && <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>{new Date(m.release_date).getFullYear()}</div>}
-              </div>
-            </Link>
+            <MovieCard key={m.id} {...m} />
           ))}
         </div>
       ) : (
