@@ -136,8 +136,19 @@ export async function POST(request) {
       } else {
         objectKey = parsed.pathname.replace(/^\//, '');
       }
-      // Decode it because new URL() leaves it URL-encoded, and AWS SDK will encode it again
-      objectKey = decodeURIComponent(objectKey);
+      // Fully decode URI iteratively until no encoded characters (like %2520) remain
+      // This prevents R2 404 NoSuchKey errors caused by double-encoded URLs in the DB
+      let decodedKey = objectKey;
+      try {
+        while (decodedKey.includes('%')) {
+          const next = decodeURIComponent(decodedKey);
+          if (next === decodedKey) break;
+          decodedKey = next;
+        }
+      } catch {
+        // Keep last valid decoded value if decode fails
+      }
+      objectKey = decodedKey;
     } catch {
       return NextResponse.json({ error: 'Invalid video URL format' }, { status: 500 });
     }
