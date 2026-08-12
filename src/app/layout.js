@@ -3,6 +3,7 @@ import "./globals.css";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import NextTopLoader from 'nextjs-toploader';
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -11,7 +12,8 @@ const inter = Inter({
 
 export const metadata = {
   title: "Flixon - Premium Movies & Series",
-  description: "Watch the latest premium movies and series.",
+  description: "Watch the latest premium movies and series on Flixon. Stream or download anytime.",
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({ children }) {
@@ -20,7 +22,16 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${inter.variable} antialiased`}
     >
+      <head>
+        <meta name="theme-color" content="#0a0a0a" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="FlixOn" />
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+      </head>
       <body>
+        <ServiceWorkerRegistrar />
         <NextTopLoader 
           color="#e50914"
           initialPosition={0.08}

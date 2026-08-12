@@ -3,17 +3,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { saveWatchProgress } from './actions';
 
-export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
+export default function VideoPlayer({ movie, movieId, initialProgress = 0, initialStreamUrl = null }) {
   const videoRef = useRef(null);
-  const [streamUrl, setStreamUrl] = useState(null);
+  // Use server-provided URL instantly — no loading spinner needed
+  const [streamUrl, setStreamUrl] = useState(initialStreamUrl);
   const [tokenError, setTokenError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialStreamUrl); // only show loading if no server URL
   const lastSavedTime = useRef(0);
   const hasSetInitialTime = useRef(false);
   const viewCounted = useRef(false);
 
-  // Fetch a secure token on mount, then build the stream URL
+  // Only fetch a token client-side if the server didn't provide one
   useEffect(() => {
+    if (initialStreamUrl) return; // already have URL, skip API call
+
     let active = true;
 
     fetch('/api/video/token', {
@@ -38,7 +41,7 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
       });
 
     return () => { active = false; };
-  }, [movieId]);
+  }, [movieId, initialStreamUrl]);
 
   // Set initial progress once video metadata is loaded
   useEffect(() => {
@@ -100,8 +103,9 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
       poster={movie.thumbnail_url}
       onTimeUpdate={handleTimeUpdate}
       style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+      preload="auto"
     >
-      <source src={streamUrl} />
+      <source src={streamUrl} type="video/mp4" />
       Your browser does not support the video tag.
     </video>
   );

@@ -60,7 +60,8 @@ export default function DownloadButton({ movieId, title }) {
         return;
       }
 
-      const videoUrl = `${window.location.origin}/api/video/stream/${data.token}?download=1`;
+      const safeTitle = encodeURIComponent((title || 'flixon-video').replace(/[^a-zA-Z0-9\s\-_]/g, '').trim());
+      const videoUrl = `${window.location.origin}/api/video/stream/${data.token}?download=1&title=${safeTitle}`;
       
       // Check if we are running inside the React Native WebView
       if (window.ReactNativeWebView) {
