@@ -63,12 +63,15 @@ export async function migrateUser(prevState, formData) {
 
     // 4. Update the profile row that the trigger just created.
     // Match by email — exactly like the working addNewUser pattern.
+    // Setting legacy_migration=true means when they try to login, the system
+    // will automatically redirect them to the /force-reset page to set a new password.
     const { error: updateError } = await adminClient
       .from('user_profiles')
       .update({
         username: username,
         role: 'user',
         subscription_end_date: subscriptionEndDate,
+        legacy_migration: true,  // This is the key flag — triggers force-reset on first login
       })
       .eq('email', email)
 
@@ -81,7 +84,7 @@ export async function migrateUser(prevState, formData) {
 
     return { 
       success: true, 
-      message: `✅ Successfully migrated ${username} (${email})${daysLeft > 0 ? ` with ${daysLeft} subscription days` : ' (no subscription)'}. Tell them to use "Forgot Password" on the login page to set their password.` 
+      message: `✅ Successfully migrated ${username} (${email})${daysLeft > 0 ? ` with ${daysLeft} subscription days` : ' (no subscription)'}. When they go to the login page and type their email + any password, they will be automatically taken to a "Set New Password" screen.` 
     }
 
   } catch (err) {
