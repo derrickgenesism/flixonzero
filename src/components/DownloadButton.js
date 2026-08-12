@@ -71,26 +71,6 @@ export default function DownloadButton({ movieId, title }) {
 
       const dlData = await res.json();
 
-      // --- External URL: fetch as blob with progress ---
-      if (dlData.externalUrl) {
-        setProgress(0);
-        setLoading(false); // loading spinner replaced by progress bar
-        const a = document.createElement('a');
-        a.href = dlData.externalUrl;
-        const safe = (title || 'flixon-video')
-          .replace(/[^a-zA-Z0-9\s\-_]/g, '')
-          .trim()
-          .replace(/\s+/g, '_') || 'flixon-video';
-        a.download = `${safe}.mp4`;
-        a.target = "_blank";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setLoading(false);
-        return;
-      }
-
-      // --- Normal R2 presigned download ---
       if (!dlData.downloadUrl) {
         setError(dlData.error || 'Download link generation failed. Please try again.');
         setLoading(false);

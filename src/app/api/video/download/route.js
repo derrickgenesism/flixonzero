@@ -113,9 +113,18 @@ export async function POST(request) {
     }
 
     if (!accountId || !accessKey || !secretKey || !bucketName || isExternal) {
-      // No R2 credentials OR it's an external link from another source.
-      // Return the direct URL so the frontend can fetch it as a blob and force download.
-      return NextResponse.json({ externalUrl: videoUrl });
+      // External link — append S3/Wasabi response-content-disposition parameter if possible
+      // to force the external server to return Content-Disposition: attachment natively
+      let downloadUrl = videoUrl;
+      try {
+        const u = new URL(videoUrl);
+        u.searchParams.set('response-content-disposition', 'attachment');
+        downloadUrl = u.toString();
+      } catch {
+        // Keep original if invalid URL
+      }
+
+      return NextResponse.json({ downloadUrl });
     }
 
     // 5. Extract the R2 object key from the URL
