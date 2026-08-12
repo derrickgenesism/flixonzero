@@ -60,7 +60,7 @@ export async function getActiveProfile() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: true })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (!firstProfile) {
     // Auto-create a default profile if the user has NONE
