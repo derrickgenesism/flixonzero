@@ -13,7 +13,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { createVideoToken } from '@/lib/videoTokens';
 
 export async function POST(request) {
   try {
@@ -114,17 +113,9 @@ export async function POST(request) {
     }
 
     if (!accountId || !accessKey || !secretKey || !bucketName || isExternal) {
-      // External link — create a short-lived token so the browser can download
-      // via our streaming proxy, which adds Content-Disposition: attachment.
-      // This makes the download appear in the browser's native download manager.
-      const token = createVideoToken(videoUrl, user.id);
-      const safeFilename = (title || movie?.title || 'flixon-video')
-        .replace(/[^a-zA-Z0-9\s\-_]/g, '')
-        .trim()
-        .replace(/\s+/g, '_') || 'flixon-video';
-      return NextResponse.json({
-        downloadUrl: `/api/video/download-proxy/${token}?filename=${encodeURIComponent(safeFilename)}`
-      });
+      // No R2 credentials OR it's an external link from another source.
+      // Return the direct URL so the frontend can fetch it as a blob and force download.
+      return NextResponse.json({ externalUrl: videoUrl });
     }
 
     // 5. Extract the R2 object key from the URL
