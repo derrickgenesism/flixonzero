@@ -39,11 +39,6 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft }
       <div className="flx-nav__right">
         {user ? (
           <>
-            {isActive && (
-              <div className="flx-nav__badge">
-                ✦ {daysLeft}d left
-              </div>
-            )}
             <Link href="/profiles" style={{ cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }} title="Switch Profile">
               <div style={{ width: '28px', height: '28px', borderRadius: '4px', background: '#e50914', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
                 {activeProfile ? activeProfile.name.charAt(0).toUpperCase() : '?'}
