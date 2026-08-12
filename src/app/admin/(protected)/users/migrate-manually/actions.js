@@ -8,7 +8,7 @@ export async function migrateUser(prevState, formData) {
   try {
     const supabase = await createClient()
     
-    // Auth check
+    // Auth check — must be admin
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
@@ -32,14 +32,13 @@ export async function migrateUser(prevState, formData) {
 
     const adminClient = createAdminClient()
 
-    // 1. Create User in Supabase Auth
-    // The user will reset this password, so we make it completely random and complex
+    // 1. Create User in Supabase Auth with a random password
     const randomPassword = crypto.randomBytes(16).toString('hex') + 'A1!'
     
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
       password: randomPassword,
-      email_confirm: true, // We auto-confirm so they don't have to click a verify link first
+      email_confirm: true,
       user_metadata: { name: username }
     })
 
@@ -50,12 +49,11 @@ export async function migrateUser(prevState, formData) {
       return { error: `Failed to create user: ${createError.message}` }
     }
 
-    const userId = newUser.user.id
-
-    // 2. Wait a moment to ensure any auth triggers have completed creating the profile
+    // 2. Wait for the database trigger to create the user_profiles row
+    // (same pattern as the working addNewUser function)
     await new Promise(resolve => setTimeout(resolve, 1000))
 
-    // 3. Calculate new subscription end date
+    // 3. Calculate subscription end date
     let subscriptionEndDate = null
     if (daysLeft > 0) {
       const d = new Date()
@@ -63,25 +61,28 @@ export async function migrateUser(prevState, formData) {
       subscriptionEndDate = d.toISOString()
     }
 
-    // 4. Update the user_profiles table (using upsert in case the trigger failed/was slow)
+    // 4. Update the profile row that the trigger just created.
+    // Match by email — exactly like the working addNewUser pattern.
     const { error: updateError } = await adminClient
       .from('user_profiles')
-      .upsert({
-        id: userId,
-        email: email,
+      .update({
         username: username,
         role: 'user',
         subscription_end_date: subscriptionEndDate,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'id' })
+      })
+      .eq('email', email)
 
     if (updateError) {
       console.error('Profile update error:', updateError)
-      // Even if this fails, they are in Auth. So we warn the admin but it's technically a partial success.
-      return { error: 'User created in Auth, but failed to apply subscription days.' }
+      return { 
+        error: `User was created in Auth but the profile update failed: ${updateError.message}. Please go to User Management and update their subscription manually.` 
+      }
     }
 
-    return { success: true, message: `Successfully migrated ${username} (${email}). They can now use the "Forgot Password" option to log in.` }
+    return { 
+      success: true, 
+      message: `✅ Successfully migrated ${username} (${email})${daysLeft > 0 ? ` with ${daysLeft} subscription days` : ' (no subscription)'}. Tell them to use "Forgot Password" on the login page to set their password.` 
+    }
 
   } catch (err) {
     console.error('Migration error:', err)
