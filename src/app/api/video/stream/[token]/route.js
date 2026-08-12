@@ -25,43 +25,13 @@ export async function GET(request, { params }) {
   const { videoUrl } = resolved;
 
   try {
-    // Forward Range header for video seeking support
-    const rangeHeader = request.headers.get('range');
-    const fetchHeaders = { 'User-Agent': 'Flixon/1.0' };
-    if (rangeHeader) fetchHeaders['Range'] = rangeHeader;
-
-    const upstream = await fetch(videoUrl, {
-      headers: fetchHeaders,
-      signal: AbortSignal.timeout(30000),
-    });
-
-    if (!upstream.ok && upstream.status !== 206) {
-      console.warn(`[Stream] Proxy failed for token ${token}. Redirecting directly to videoUrl...`);
-      return NextResponse.redirect(videoUrl);
-    }
-
-    // Build response headers
-    const responseHeaders = new Headers();
-    const forwardHeaders = [
-      'content-type', 'content-length', 'content-range',
-      'accept-ranges', 'cache-control', 'last-modified',
-    ];
-    forwardHeaders.forEach(h => {
-      const val = upstream.headers.get(h);
-      if (val) responseHeaders.set(h, val);
-    });
-
-    // Ensure no caching reveals the real URL path
-    responseHeaders.set('cache-control', 'no-store');
-    responseHeaders.delete('content-disposition'); // don't force download for streaming
-
-    return new NextResponse(upstream.body, {
-      status: upstream.status,
-      headers: responseHeaders,
-    });
-  } catch (err) {
-    console.error('[Stream] Error during fetch, falling back to redirect:', err);
+    // To solve serverless timeouts and slow downloads, we redirect the user to the direct URL.
+    // Proxying massive video files through Vercel serverless functions causes random disconnects 
+    // and incredibly slow buffering/downloads.
     return NextResponse.redirect(videoUrl);
+  } catch (err) {
+    console.error('[Stream] Error parsing URL, falling back:', err);
+    return new Response('Stream error', { status: 500 });
   }
 }
 
