@@ -1,6 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { saveSettings } from './actions'
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminSettingsPage() {
   const supabase = await createClient()
   const { data: settings } = await supabase.from('admin_settings').select('*')
