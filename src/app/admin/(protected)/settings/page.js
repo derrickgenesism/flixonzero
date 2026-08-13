@@ -27,6 +27,18 @@ export default async function AdminSettingsPage() {
           />
         </div>
 
+        <h3 style={{ margin: '0 0 15px', color: 'var(--acc)' }}>Mobile App Settings</h3>
+        <div style={{ marginBottom: '25px' }}>
+          <label style={{ display: 'block', marginBottom: '8px' }}>App Download URL</label>
+          <input 
+            type="text" 
+            name="app_download_url" 
+            defaultValue={settings?.find(s => s.setting_key === 'app_download_url')?.setting_value || ''}
+            placeholder="e.g. https://your-domain.com/app.apk"
+            style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
+          />
+        </div>
+
         <h3 style={{ margin: '0 0 15px', color: 'var(--acc)' }}>Flutterwave Payments</h3>
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '8px' }}>Public Key</label>

@@ -94,6 +94,14 @@ export default async function Home({ searchParams }) {
   }
   const isSectionEnabled = (name) => hpSections[name] !== false; // Default to true if missing
 
+  // 3.7 App Download URL setting
+  const { data: settingAppUrl } = await supabase
+    .from('admin_settings')
+    .select('setting_value')
+    .eq('setting_key', 'app_download_url')
+    .single();
+  const appDownloadUrl = settingAppUrl?.setting_value || '';
+
   // 4. Data slices
   const heroMovies = safeMovies.filter(m => m.thumbnail_url).slice(0, 6);
   const latest2026 = safeMovies.filter(m => new Date(m.created_at).getFullYear() === 2026).slice(0, 15);
@@ -122,7 +130,7 @@ export default async function Home({ searchParams }) {
       <Navbar />
 
       {/* Hero Slider */}
-      {!category && <Hero movies={heroMovies} />}
+      {!category && <Hero movies={heroMovies} appDownloadUrl={appDownloadUrl} />}
 
       <main style={{
         marginTop: category ? '90px' : 0,
@@ -222,7 +230,7 @@ export default async function Home({ searchParams }) {
           <div>
             <h3 style={{ margin: '0 0 8px', fontSize: '22px', fontWeight: '800' }}>Watch Anywhere, Anytime</h3>
             <p style={{ margin: '0 0 20px', color: 'var(--text2)', fontSize: '15px' }}>Stream on your phone, tablet, or desktop with a single subscription.</p>
-            <a href="#" className="gms-app-banner-btn">
+            <a href={appDownloadUrl || '#'} className="gms-app-banner-btn" target="_blank" rel="noopener noreferrer">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.32.07 2.23.73 3 .77 1.13-.16 2.2-.82 3.43-.77 1.5.07 2.58.69 3.3 1.71-3 1.88-2.51 5.7.27 6.97-.57 1.53-1.32 3.04-2 4.2zM12.03 7.25C11.79 5.12 13.55 3.38 15.62 3c.26 2.26-2.03 4.07-3.59 4.25z"/>
               </svg>

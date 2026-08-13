@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { cleanCategories } from '@/utils/categories';
 
-export default function HeroSlider({ movies }) {
+export default function HeroSlider({ movies, appDownloadUrl }) {
   const [current, setCurrent] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isApp, setIsApp] = useState(false);
 
   const slides = movies?.slice(0, 6) || [];
 
@@ -22,6 +23,12 @@ export default function HeroSlider({ movies }) {
     }, 6000);
     return () => clearInterval(timer);
   }, [isPaused, slides.length]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsApp(!!window.isReactNativeApp || !!window.ReactNativeWebView);
+    }
+  }, []);
 
   if (!slides.length) return null;
 
@@ -74,9 +81,15 @@ export default function HeroSlider({ movies }) {
                   </svg>
                   Play Now
                 </Link>
-                <Link href={`/movie/${movie.id}`} className="gms-btn gms-btn--ghost">
-                  More Info
-                </Link>
+                {isApp ? (
+                  <Link href={`/movie/${movie.id}`} className="gms-btn gms-btn--ghost">
+                    More Info
+                  </Link>
+                ) : (
+                  <a href={appDownloadUrl || '#'} className="gms-btn gms-btn--ghost" target="_blank" rel="noopener noreferrer">
+                    Download App
+                  </a>
+                )}
               </div>
             </div>
           </div>

@@ -9,6 +9,7 @@ export async function saveSettings(formData) {
   const checkboxKeys = ['referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled']
   const keys = [
     'tmdb_api_key',
+    'app_download_url',
     'flutterwave_public_key',
     'flutterwave_secret_key',
     'flutterwave_webhook_secret',
@@ -19,8 +20,6 @@ export async function saveSettings(formData) {
     'ppv_enabled',
     'ppv_price',
     'promo_enabled',
-    'profiles_enabled',
-    'profiles_enabled',
     'profiles_enabled',
     'free_profiles_limit',
     'extra_profile_price',
