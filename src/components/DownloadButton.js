@@ -18,8 +18,18 @@ export default function DownloadButton({ movieId, title }) {
         let data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         if (typeof data === 'string') data = JSON.parse(data);
         if (data.type === 'DOWNLOAD_PROGRESS' && data.downloads) {
-          const mine = data.downloads.find(d => d.movieId === movieId);
-          if (mine) setProgress(mine.progress);
+          const mine = data.downloads.find(d => String(d.movieId) === String(movieId));
+          if (!mine) {
+            // Deleted from mobile downloads -> reset button to idle state
+            setProgress(null);
+          } else if (mine.status === 'completed') {
+            setProgress(1);
+          } else if (mine.status === 'paused' || mine.status === 'error') {
+            // Paused or error -> reset button to idle state
+            setProgress(null);
+          } else if (mine.status === 'downloading') {
+            setProgress(mine.progress || 0);
+          }
         }
       } catch (_) {}
     };
