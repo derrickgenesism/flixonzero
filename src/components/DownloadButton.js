@@ -199,7 +199,7 @@ export default function DownloadButton({ movieId, title }) {
         type="button"
         onClick={handleDownload}
         disabled={disabled}
-        className="btn btn-secondary"
+        className="gms-btn gms-btn--ghost"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -219,6 +219,5 @@ export default function DownloadButton({ movieId, title }) {
         <span style={{ color: '#ef4444', fontSize: '12px' }}>{error}</span>
       )}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
   );
 }

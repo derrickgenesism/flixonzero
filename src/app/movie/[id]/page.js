@@ -276,9 +276,7 @@ export default async function MoviePage({ params }) {
                       Watch Now
                     </Link>
                   )}
-                  {actualVideoUrl && 
-                   (actualVideoUrl.includes('r2.dev') || actualVideoUrl.includes('.mp4') || actualVideoUrl.includes('.mkv')) && 
-                   !actualVideoUrl.includes('pelpic') && !actualVideoUrl.includes('upstream') && (
+                  {actualVideoUrl && !actualVideoUrl.includes('pelpic') && !actualVideoUrl.includes('upstream') && (
                     <DownloadButton movieId={movie.id} title={movie.title} />
                   )}
                 </>
