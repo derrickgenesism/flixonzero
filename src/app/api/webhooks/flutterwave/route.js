@@ -81,8 +81,7 @@ export async function POST(req) {
         .from('transactions')
         .update({ 
           status: 'successful', 
-          flw_transaction_id: payload.data.id.toString(),
-          updated_at: new Date().toISOString()
+          flw_transaction_id: payload.data.id.toString()
         })
         .eq('id', transaction.id);
 

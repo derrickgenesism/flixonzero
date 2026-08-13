@@ -159,8 +159,7 @@ export async function checkTransactionStatus(tx_ref) {
         .from('transactions')
         .update({ 
           status: 'successful', 
-          flw_transaction_id: fwData.data.id.toString(),
-          updated_at: new Date().toISOString()
+          flw_transaction_id: fwData.data.id.toString()
         })
         .eq('id', transaction.id);
 
