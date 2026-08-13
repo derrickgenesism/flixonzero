@@ -199,17 +199,31 @@ export default function DownloadButton({ movieId, title }) {
         type="button"
         onClick={handleDownload}
         disabled={disabled}
-        className="gms-btn gms-btn--ghost"
+        className="gms-btn"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '8px',
-          padding: '10px 20px',
-          borderRadius: '8px',
-          fontWeight: '600',
+          gap: '10px',
+          padding: '12px 24px',
+          borderRadius: '10px',
+          fontWeight: '700',
           fontSize: '14px',
+          background: disabled && statusState === 'completed'
+            ? 'rgba(74, 222, 128, 0.12)'
+            : disabled && statusState === 'downloading'
+            ? 'rgba(229, 9, 20, 0.15)'
+            : 'rgba(255, 255, 255, 0.08)',
+          color: disabled && statusState === 'completed' ? '#4ade80' : '#ffffff',
+          border: disabled && statusState === 'completed'
+            ? '1px solid rgba(74, 222, 128, 0.4)'
+            : disabled && statusState === 'downloading'
+            ? '1px solid rgba(229, 9, 20, 0.5)'
+            : '1px solid rgba(255, 255, 255, 0.25)',
+          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          transition: 'all 0.2s ease-in-out',
           cursor: disabled ? 'default' : 'pointer',
-          opacity: disabled && statusState !== 'downloading' ? 0.7 : 1,
         }}
       >
         {content}
