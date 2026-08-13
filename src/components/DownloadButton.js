@@ -12,8 +12,7 @@ export default function DownloadButton({ movieId, title }) {
   });
   const abortRef = useRef(null);
 
-  const [statusState, setStatusState] = useState(null); // null, 'downloading', 'paused', 'completed'
-  const [pausedProgress, setPausedProgress] = useState(0);
+  const [statusState, setStatusState] = useState(null); // null, 'downloading', 'completed'
 
   useEffect(() => {
     const handleMessage = (event) => {
@@ -22,22 +21,16 @@ export default function DownloadButton({ movieId, title }) {
         if (typeof data === 'string') data = JSON.parse(data);
         if (data.type === 'DOWNLOAD_PROGRESS' && data.downloads) {
           const mine = data.downloads.find(d => String(d.movieId) === String(movieId));
-          if (!mine) {
-            // Deleted from mobile downloads -> reset button to idle state
+          if (!mine || mine.status === 'paused' || mine.status === 'error') {
+            // Deleted, paused, or error -> reset button to idle state
             setProgress(null);
             setStatusState(null);
           } else if (mine.status === 'completed') {
             setProgress(1);
             setStatusState('completed');
-          } else if (mine.status === 'paused') {
-            setStatusState('paused');
-            setPausedProgress(mine.progress || 0);
           } else if (mine.status === 'downloading') {
             setStatusState('downloading');
             setProgress(mine.progress || 0);
-          } else if (mine.status === 'error') {
-            setProgress(null);
-            setStatusState(null);
           }
         }
       } catch (_) {}
@@ -51,16 +44,6 @@ export default function DownloadButton({ movieId, title }) {
   }, [movieId]);
 
   const handleDownload = async () => {
-    // If paused in React Native app, send RESUME_DOWNLOAD message
-    if (statusState === 'paused' && (isNative || window.ReactNativeWebView)) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({
-        type: 'RESUME_DOWNLOAD',
-        payload: { movieId },
-      }));
-      setStatusState('downloading');
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -136,68 +119,52 @@ export default function DownloadButton({ movieId, title }) {
       </>
     );
     disabled = true;
-  } else if (statusState === 'paused') {
-    content = (
-      <>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="#fbbf24" stroke="none">
-          <polygon points="5 3 19 12 5 21 5 3" />
-        </svg>
-        <span style={{ color: '#fbbf24' }}>Resume ({Math.round((pausedProgress || 0) * 100)}%)</span>
-      </>
-    );
-  } else if (statusState === 'downloading' || progress !== null) {
+  } else if (statusState === 'downloading' || (progress !== null && progress < 1)) {
     const pct = Math.round((progress || 0) * 100);
     content = (
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <div style={{ width: '70px', height: '5px', background: 'rgba(255,255,255,0.15)', borderRadius: '3px', overflow: 'hidden' }}>
-          <div style={{ width: `${pct}%`, height: '100%', background: 'var(--acc)', transition: 'width 0.3s' }} />
+        <div style={{ width: '65px', height: '5px', background: 'rgba(255,255,255,0.15)', borderRadius: '3px', overflow: 'hidden' }}>
+          <div style={{ width: `${pct}%`, height: '100%', background: '#e50914', transition: 'width 0.3s' }} />
         </div>
-        <span style={{ fontSize: '12px' }}>{pct}%</span>
+        <span style={{ fontSize: '12px', fontWeight: '600', color: '#fff' }}>{pct}%</span>
 
-        {/* Pause Icon Button */}
+        {/* Stop / Cancel Button */}
         <span
           role="button"
           tabIndex={0}
           onClick={(e) => {
-            e.stopPropagation();
-            if (isNative || window.ReactNativeWebView) {
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'PAUSE_DOWNLOAD',
-                payload: { movieId }
-              }));
-              setStatusState('paused');
-            }
-          }}
-          title="Pause Download"
-          style={{ cursor: 'pointer', padding: '2px 4px', display: 'inline-flex', alignItems: 'center', opacity: 0.9 }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="#fbbf24">
-            <rect x="6" y="4" width="4" height="16" rx="1" />
-            <rect x="14" y="4" width="4" height="16" rx="1" />
-          </svg>
-        </span>
-
-        {/* Stop / Cancel Icon Button */}
-        <span
-          role="button"
-          tabIndex={0}
-          onClick={(e) => {
+            e.preventDefault();
             e.stopPropagation();
             if (isNative || window.ReactNativeWebView) {
               window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'DELETE_DOWNLOAD',
                 payload: { movieId }
               }));
-              setProgress(null);
-              setStatusState(null);
             }
+            setProgress(null);
+            setStatusState(null);
           }}
           title="Stop & Cancel Download"
-          style={{ cursor: 'pointer', padding: '2px 4px', display: 'inline-flex', alignItems: 'center', opacity: 0.9 }}
+          style={{
+            background: 'rgba(239, 68, 68, 0.25)',
+            border: '1px solid rgba(239, 68, 68, 0.5)',
+            color: '#ff6b6b',
+            fontSize: '11px',
+            fontWeight: '700',
+            padding: '2px 7px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '3px',
+            marginLeft: '4px',
+          }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="#ff6b6b">
-            <rect x="4" y="4" width="16" height="16" rx="2" />
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
+          Stop
         </span>
       </div>
     );
@@ -227,16 +194,30 @@ export default function DownloadButton({ movieId, title }) {
   }
 
   return (
-    <div>
+    <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '4px' }}>
       <button
+        type="button"
         onClick={handleDownload}
         disabled={disabled}
-        className="gms-btn gms-btn--ghost"
-        style={{ opacity: disabled && !progress ? 0.6 : 1, cursor: disabled ? 'default' : 'pointer' }}
+        className="btn btn-secondary"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '10px 20px',
+          borderRadius: '8px',
+          fontWeight: '600',
+          fontSize: '14px',
+          cursor: disabled ? 'default' : 'pointer',
+          opacity: disabled && statusState !== 'downloading' ? 0.7 : 1,
+        }}
       >
         {content}
       </button>
-      {error && <p style={{ color: '#ff6b6b', fontSize: '12px', marginTop: '6px', maxWidth: '220px' }}>{error}</p>}
+
+      {error && (
+        <span style={{ color: '#ef4444', fontSize: '12px' }}>{error}</span>
+      )}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
