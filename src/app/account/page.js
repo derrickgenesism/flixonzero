@@ -56,8 +56,22 @@ export default async function AccountPage() {
   const availableBalance = Math.max(0, totalEarned - totalWithdrawn - totalConverted);
 
   const isSubscribed = profile?.subscription_end_date && new Date(profile.subscription_end_date) > new Date();
-  const daysLeft = isSubscribed ? Math.ceil((new Date(profile.subscription_end_date) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
+  
+  let remainingText = '';
+  if (isSubscribed) {
+    const diffMs = new Date(profile.subscription_end_date) - new Date();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
+    if (diffDays > 0) {
+      remainingText = `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
+    } else if (diffHours > 0) {
+      remainingText = `${diffHours} hour${diffHours !== 1 ? 's' : ''}`;
+    } else {
+      remainingText = `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`;
+    }
+  }
   // Conversion rate from settings
   const { data: convSetting } = await supabase.from('admin_settings').select('setting_value').eq('setting_key', 'referral_ugx_per_day').maybeSingle();
   const ugxPerDay = Number(convSetting?.setting_value || 500);
@@ -94,7 +108,7 @@ export default async function AccountPage() {
                     <span style={{ fontSize: '22px', fontWeight: '800', color: '#fff' }}>Premium Active</span>
                   </div>
                   <p style={{ margin: 0, color: 'var(--text2)', fontSize: '15px' }}>
-                    <strong style={{ color: '#fff' }}>{daysLeft} days</strong> remaining · Expires {new Date(profile.subscription_end_date).toLocaleDateString('en-UG', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    <strong style={{ color: '#fff' }}>{remainingText}</strong> remaining · Expires {new Date(profile.subscription_end_date).toLocaleDateString('en-UG', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
                 </>
               ) : (
