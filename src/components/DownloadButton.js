@@ -12,6 +12,9 @@ export default function DownloadButton({ movieId, title }) {
   });
   const abortRef = useRef(null);
 
+  const [statusState, setStatusState] = useState(null); // null, 'downloading', 'paused', 'completed'
+  const [pausedProgress, setPausedProgress] = useState(0);
+
   useEffect(() => {
     const handleMessage = (event) => {
       try {
@@ -22,13 +25,19 @@ export default function DownloadButton({ movieId, title }) {
           if (!mine) {
             // Deleted from mobile downloads -> reset button to idle state
             setProgress(null);
+            setStatusState(null);
           } else if (mine.status === 'completed') {
             setProgress(1);
-          } else if (mine.status === 'paused' || mine.status === 'error') {
-            // Paused or error -> reset button to idle state
-            setProgress(null);
+            setStatusState('completed');
+          } else if (mine.status === 'paused') {
+            setStatusState('paused');
+            setPausedProgress(mine.progress || 0);
           } else if (mine.status === 'downloading') {
+            setStatusState('downloading');
             setProgress(mine.progress || 0);
+          } else if (mine.status === 'error') {
+            setProgress(null);
+            setStatusState(null);
           }
         }
       } catch (_) {}
@@ -42,6 +51,16 @@ export default function DownloadButton({ movieId, title }) {
   }, [movieId]);
 
   const handleDownload = async () => {
+    // If paused in React Native app, send RESUME_DOWNLOAD message
+    if (statusState === 'paused' && (isNative || window.ReactNativeWebView)) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'RESUME_DOWNLOAD',
+        payload: { movieId },
+      }));
+      setStatusState('downloading');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -60,6 +79,7 @@ export default function DownloadButton({ movieId, title }) {
           return;
         }
         setProgress(0);
+        setStatusState('downloading');
         window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'DOWNLOAD_VIDEO',
           payload: {
@@ -88,14 +108,12 @@ export default function DownloadButton({ movieId, title }) {
       }
 
       // Trigger browser native download via location assignment.
-      // Because both R2 and external links send Content-Disposition: attachment,
-      // the browser will NOT navigate away from the page; it will hand the stream directly
-      // to the native background download manager without cross-origin anchor blocks.
       window.location.href = dlData.downloadUrl;
 
     } catch (err) {
       if (err.name === 'AbortError') {
         setProgress(null);
+        setStatusState(null);
         return;
       }
       setError('Network error. Please try again.');
@@ -108,7 +126,7 @@ export default function DownloadButton({ movieId, title }) {
   let content;
   let disabled = false;
 
-  if (progress === 1) {
+  if (statusState === 'completed' || progress === 1) {
     content = (
       <>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -118,7 +136,16 @@ export default function DownloadButton({ movieId, title }) {
       </>
     );
     disabled = true;
-  } else if (progress !== null) {
+  } else if (statusState === 'paused') {
+    content = (
+      <>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#fbbf24" stroke="none">
+          <polygon points="5 3 19 12 5 21 5 3" />
+        </svg>
+        <span style={{ color: '#fbbf24' }}>Resume ({Math.round((pausedProgress || 0) * 100)}%)</span>
+      </>
+    );
+  } else if (statusState === 'downloading' || progress !== null) {
     const pct = Math.round((progress || 0) * 100);
     content = (
       <>
