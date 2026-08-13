@@ -148,14 +148,60 @@ export default function DownloadButton({ movieId, title }) {
   } else if (statusState === 'downloading' || progress !== null) {
     const pct = Math.round((progress || 0) * 100);
     content = (
-      <>
-        <div style={{ width: '80px', height: '5px', background: 'rgba(255,255,255,0.15)', borderRadius: '3px', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ width: '70px', height: '5px', background: 'rgba(255,255,255,0.15)', borderRadius: '3px', overflow: 'hidden' }}>
           <div style={{ width: `${pct}%`, height: '100%', background: 'var(--acc)', transition: 'width 0.3s' }} />
         </div>
         <span style={{ fontSize: '12px' }}>{pct}%</span>
-      </>
+
+        {/* Pause Icon Button */}
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isNative || window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'PAUSE_DOWNLOAD',
+                payload: { movieId }
+              }));
+              setStatusState('paused');
+            }
+          }}
+          title="Pause Download"
+          style={{ cursor: 'pointer', padding: '2px 4px', display: 'inline-flex', alignItems: 'center', opacity: 0.9 }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#fbbf24">
+            <rect x="6" y="4" width="4" height="16" rx="1" />
+            <rect x="14" y="4" width="4" height="16" rx="1" />
+          </svg>
+        </span>
+
+        {/* Stop / Cancel Icon Button */}
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isNative || window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'DELETE_DOWNLOAD',
+                payload: { movieId }
+              }));
+              setProgress(null);
+              setStatusState(null);
+            }
+          }}
+          title="Stop & Cancel Download"
+          style={{ cursor: 'pointer', padding: '2px 4px', display: 'inline-flex', alignItems: 'center', opacity: 0.9 }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#ff6b6b">
+            <rect x="4" y="4" width="16" height="16" rx="2" />
+          </svg>
+        </span>
+      </div>
     );
-    disabled = true;
+    disabled = false;
   } else if (loading) {
     content = (
       <>
