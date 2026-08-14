@@ -2,7 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import UsersClient from './UsersClient'
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({ searchParams }) {
   const supabase = await createClient()
 
   // Ensure they are an administrator
@@ -24,11 +24,20 @@ export default async function AdminUsersPage() {
     )
   }
 
-  // Fetch all user profiles
-  const { data: users } = await supabase
+  const query = (await searchParams)?.q || '';
+
+  // Fetch user profiles (server-side search)
+  let dbQuery = supabase
     .from('user_profiles')
     .select('*')
     .order('id', { ascending: false })
+    .limit(100);
+
+  if (query) {
+    dbQuery = dbQuery.or(`email.ilike.%${query}%,username.ilike.%${query}%`);
+  }
+
+  const { data: users } = await dbQuery;
 
   return (
     <div>
@@ -37,7 +46,7 @@ export default async function AdminUsersPage() {
         Manage users, assign roles, or add new team members.
       </p>
 
-      <UsersClient users={users || []} />
+      <UsersClient users={users || []} initialSearch={query} />
     </div>
   )
 }

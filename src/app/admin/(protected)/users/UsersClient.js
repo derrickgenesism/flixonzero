@@ -1,14 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { updateUserRole, addNewUser, updateSubscriptionDays } from './actions'
 
-export default function UsersClient({ users }) {
+export default function UsersClient({ users, initialSearch }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
   const [loading, setLoading] = useState(false)
   const [addingUser, setAddingUser] = useState(false)
   const [error, setError] = useState(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(initialSearch || '')
   const [daysInput, setDaysInput] = useState({})
+
+  // Debounce search
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      const params = new URLSearchParams(searchParams)
+      if (searchQuery) {
+        params.set('q', searchQuery)
+      } else {
+        params.delete('q')
+      }
+      router.replace(`${pathname}?${params.toString()}`)
+    }, 500)
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [searchQuery, pathname, router, searchParams])
 
   async function handleRoleChange(userId, newRole) {
     setLoading(userId)
@@ -51,11 +71,6 @@ export default function UsersClient({ users }) {
     setLoading(null)
   }
 
-  const filteredUsers = users.filter(u => 
-    u.email?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    u.username?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
   return (
     <div>
       <div style={{ background: 'var(--bg2)', padding: '20px', borderRadius: '10px', marginBottom: '30px' }}>
@@ -87,7 +102,7 @@ export default function UsersClient({ users }) {
       <div style={{ marginBottom: '20px' }}>
         <input 
           type="text" 
-          placeholder="Search users by email or username..." 
+          placeholder="Search all database users by email or username..." 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{ width: '100%', maxWidth: '400px', padding: '12px 15px', background: 'var(--bg2)', border: '1px solid #333', color: '#fff', borderRadius: '6px' }}
@@ -107,7 +122,7 @@ export default function UsersClient({ users }) {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map(u => {
+            {users.map(u => {
               const hasSub = u.subscription_end_date && new Date(u.subscription_end_date) > new Date();
               return (
                 <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -152,10 +167,10 @@ export default function UsersClient({ users }) {
                 </tr>
               )
             })}
-            {filteredUsers.length === 0 && (
+            {users.length === 0 && (
               <tr>
                 <td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: 'var(--text2)' }}>
-                  No users found.
+                  No users found in database.
                 </td>
               </tr>
             )}
