@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
@@ -43,10 +44,15 @@ export async function GET() {
     const totalConverted  = Number(earnings?.amount_converted || 0);
     const available       = totalEarned - totalWithdrawn - totalConverted;
 
+    const headersList = await headers();
+    const host = headersList.get('host') || 'flixon.com';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const siteUrl = `${protocol}://${host}`;
+
     return NextResponse.json({
       data: {
         ref_code: profile?.ref_code,
-        referral_link: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://flixon.com'}/login?ref=${profile?.ref_code}`,
+        referral_link: `${siteUrl}/login?ref=${profile?.ref_code}`,
         stats: {
           total_referrals: totalReferrals || 0,
           paid_referrals: paidReferrals || 0,

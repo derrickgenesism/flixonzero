@@ -1,5 +1,6 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
@@ -60,6 +61,11 @@ export async function processDirectCharge(planId, phoneNumber, network) {
     return { error: 'Failed to initiate transaction' };
   }
 
+  const headersList = await headers();
+  const host = headersList.get('host') || 'localhost:3000';
+  const protocol = host.includes('localhost') ? 'http' : 'https';
+  const siteUrl = `${protocol}://${host}`;
+
   // Request direct charge from Flutterwave v3 API
   const payload = {
     tx_ref,
@@ -69,7 +75,7 @@ export async function processDirectCharge(planId, phoneNumber, network) {
     fullname: profile?.username || (profile?.email || user.email).split('@')[0],
     phone_number: phoneNumber,
     network: network || 'MTN',
-    redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/checkout/verify`
+    redirect_url: `${siteUrl}/checkout/verify`
   };
 
   try {

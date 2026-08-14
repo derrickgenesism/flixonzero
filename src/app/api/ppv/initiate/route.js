@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { createClient } from '@supabase/supabase-js';
@@ -47,12 +48,17 @@ export async function POST(request) {
       status: 'pending'
     }, { onConflict: 'user_id,movie_id' });
 
+    const headersList = await headers();
+    const host = headersList.get('host') || 'localhost:3000';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const siteUrl = `${protocol}://${host}`;
+
     // Create Flutterwave payment link
     const flwPayload = {
       tx_ref,
       amount: ppvPrice,
       currency: 'UGX',
-      redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/movie/${movieId}?ppv=success`,
+      redirect_url: `${siteUrl}/movie/${movieId}?ppv=success`,
       customer: { email: user.email },
       customizations: {
         title: 'Flixon',

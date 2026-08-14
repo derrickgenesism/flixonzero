@@ -5,8 +5,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+import { headers } from 'next/headers';
+
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://flixon.com';
+  const headersList = await headers();
+  const host = headersList.get('host') || 'flixon.com';
+  const protocol = host.includes('localhost') ? 'http' : 'https';
+  const baseUrl = `${protocol}://${host}`;
 
   const { data: movies } = await supabase
     .from('movies')
