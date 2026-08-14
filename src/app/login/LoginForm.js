@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { login, signup, signInWithGoogle } from './actions';
 import Link from 'next/link';
 
@@ -8,6 +8,14 @@ export default function LoginForm({ refCode }) {
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [localRef, setLocalRef] = useState(refCode);
+
+  useEffect(() => {
+    if (!localRef) {
+      const storedRef = localStorage.getItem('affiliate_ref');
+      if (storedRef) setLocalRef(storedRef);
+    }
+  }, [localRef]);
 
   async function handleSubmit(formData) {
     setLoading(true);
@@ -62,8 +70,8 @@ export default function LoginForm({ refCode }) {
           required
           className="flx-form-input"
         />
-        {!isLogin && refCode && (
-          <input type="hidden" name="refCode" value={refCode} />
+        {!isLogin && localRef && (
+          <input type="hidden" name="refCode" value={localRef} />
         )}
 
         <button

@@ -154,62 +154,71 @@ export async function POST(req) {
 
       console.log(`Successfully processed subscription for user ${transaction.user_id} (${transaction.plan_type})`);
 
-      // 6. Referral Processing
+      // 6. Referral Processing (CPA)
       try {
         const { data: allSettings } = await supabase.from('admin_settings').select('*');
-        const refEnabled = allSettings?.find(s => s.setting_key === 'referrals_enabled')?.setting_value === 'true';
+        const cpaEnabled = allSettings?.find(s => s.setting_key === 'affiliate_cpa_enabled')?.setting_value === 'true';
         
-        if (refEnabled) {
-          const { data: referral } = await supabase
-            .from('referrals')
-            .select('*')
-            .eq('referred_id', transaction.user_id)
-            .eq('status', 'pending')
+        if (cpaEnabled && userEmail) {
+          // Check if this user was referred by an affiliate
+          const { data: profileWithRef } = await supabase
+            .from('user_profiles')
+            .select('id, referred_by')
+            .eq('email', userEmail)
             .single();
 
-          if (referral) {
-            // Calculate reward
-            const refType = allSettings?.find(s => s.setting_key === 'referral_reward_type')?.setting_value || 'flat';
-            const refAmount = Number(allSettings?.find(s => s.setting_key === 'referral_reward_amount')?.setting_value || 0);
-            
-            let reward = 0;
-            if (refType === 'percentage') {
-              reward = (transaction.amount * refAmount) / 100;
-            } else {
-              reward = refAmount;
-            }
+          if (profileWithRef && profileWithRef.referred_by) {
+            // Check if we have a reward configured for this plan
+            // E.g., setting_key could be 'affiliate_plan_1_reward' (using plan.id, but transaction has plan_name or duration?
+            // transaction.plan_type is usually 'Monthly Pass' or 'Daily Pass' or 'extra_profile'
+            // We should just use a generic 'affiliate_cpa_reward' or map it if we know the plan IDs.
+            // Wait, we need to map the plan name or ID. Let's look up the plan by name.
+            const { data: planData } = await supabase
+              .from('subscription_plans')
+              .select('id')
+              .eq('name', transaction.plan_type)
+              .maybeSingle();
 
-            if (reward > 0) {
-              // Get current earnings of referrer
-              const { data: referrerEarnings } = await supabase
-                .from('referral_earnings')
-                .select('*')
-                .eq('user_id', referral.referrer_id)
-                .maybeSingle();
+            if (planData) {
+              const rewardSettingKey = `affiliate_plan_${planData.id}_reward`;
+              const rewardAmountStr = allSettings?.find(s => s.setting_key === rewardSettingKey)?.setting_value;
+              const reward = Number(rewardAmountStr || 0);
 
-              if (referrerEarnings) {
-                await supabase
-                  .from('referral_earnings')
-                  .update({ amount_earned: Number(referrerEarnings.amount_earned) + reward })
-                  .eq('user_id', referral.referrer_id);
-              } else {
-                await supabase
-                  .from('referral_earnings')
-                  .insert({ user_id: referral.referrer_id, amount_earned: reward });
+              if (reward > 0) {
+                // Get affiliate
+                const { data: affiliate } = await supabase
+                  .from('affiliates')
+                  .select('id, balance, total_earned')
+                  .eq('id', profileWithRef.referred_by)
+                  .single();
+
+                if (affiliate) {
+                  // Add balance
+                  await supabase
+                    .from('affiliates')
+                    .update({ 
+                      balance: Number(affiliate.balance) + reward,
+                      total_earned: Number(affiliate.total_earned) + reward
+                    })
+                    .eq('id', affiliate.id);
+
+                  // Record commission
+                  await supabase.from('affiliate_commissions').insert({
+                    affiliate_id: affiliate.id,
+                    amount: reward,
+                    type: 'subscription',
+                    description: `Commission for ${transaction.plan_type}`,
+                    referred_user_id: profileWithRef.id
+                  });
+
+                  console.log(`Credited affiliate ${affiliate.id} with ${reward} UGX for subscription of ${profileWithRef.id}`);
+                }
               }
-
-              // Mark referral as converted
-              await supabase
-                .from('referrals')
-                .update({ status: 'converted' })
-                .eq('id', referral.id);
-                
-              console.log(`Credited referrer ${referral.referrer_id} with ${reward} UGX for user ${transaction.user_id}`);
             }
           }
         }
       } catch (refErr) {
-        console.error('Error processing referral:', refErr);
+        console.error('Error processing affiliate commission:', refErr);
       }
 
       return NextResponse.json({ status: 'success' }, { status: 200 });

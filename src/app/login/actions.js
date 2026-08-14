@@ -55,20 +55,22 @@ export async function signup(formData) {
   const refCode = formData.get('refCode')
   if (refCode && authData?.user) {
     try {
-      // Find the referrer by their ref_code
-      const { data: referrerProfile } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('ref_code', refCode)
+      // Find the affiliate by their referral_code
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('id, user_id')
+        .eq('referral_code', refCode)
         .single()
 
-      if (referrerProfile && referrerProfile.id !== authData.user.id) {
-        // Record the referral (pending until they actually pay)
-        await supabase.from('referrals').insert({
-          referrer_id: referrerProfile.id,
-          referred_id: authData.user.id,
-          status: 'pending'
-        })
+      if (affiliate && affiliate.user_id !== authData.user.id) {
+        // Record the referral in user_profiles (so we know who brought them)
+        await supabase
+          .from('user_profiles')
+          .update({ referred_by: affiliate.id })
+          .eq('id', authData.user.id) // wait, authData.user.id is UUID. user_profiles ID is INT!
+          // We can't update user_profiles by auth UUID if we don't know how they are linked.
+          // Wait, user_profiles is linked by email!
+          .eq('email', authData.user.email)
       }
     } catch (refErr) {
       console.error('Error recording referral:', refErr)

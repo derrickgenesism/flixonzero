@@ -4,6 +4,8 @@ import MobileBottomNav from "@/components/MobileBottomNav";
 import NextTopLoader from 'nextjs-toploader';
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
+import AffiliateTracker from "@/components/AffiliateTracker";
+import React from 'react';
 
 const inter = Inter({
   variable: "--font-inter",
@@ -43,6 +45,9 @@ export default function RootLayout({ children }) {
           speed={200}
           shadow="0 0 10px #e50914,0 0 5px #e50914"
         />
+        <React.Suspense fallback={null}>
+          <AffiliateTracker />
+        </React.Suspense>
         {children}
         <PWAInstallPrompt />
         <MobileBottomNav />
