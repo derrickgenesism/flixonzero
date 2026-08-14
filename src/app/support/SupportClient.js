@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import Navbar from '@/components/Navbar';
 
 export default function SupportClient({ initialMessages, threadId, userProfile }) {
   const [messages, setMessages] = useState(initialMessages);
@@ -59,9 +58,7 @@ export default function SupportClient({ initialMessages, threadId, userProfile }
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Navbar />
-
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: '80px', paddingBottom: '60px', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
         <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'var(--bg2)', zIndex: 10 }}>
           <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>Support Chat</h1>

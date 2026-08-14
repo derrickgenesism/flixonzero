@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
+import Navbar from '@/components/Navbar';
 import SupportClient from './SupportClient';
 
 export const metadata = {
@@ -49,5 +50,10 @@ export default async function SupportPage() {
     .eq('thread_id', thread.id)
     .order('created_at', { ascending: true });
 
-  return <SupportClient initialMessages={messages || []} threadId={thread.id} userProfile={profile} />;
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+      <Navbar />
+      <SupportClient initialMessages={messages || []} threadId={thread.id} userProfile={profile} />
+    </div>
+  );
 }
