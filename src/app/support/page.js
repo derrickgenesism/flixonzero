@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { redirect } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import SupportClient from './SupportClient';
@@ -9,6 +10,7 @@ export const metadata = {
 
 export default async function SupportPage() {
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -69,6 +71,16 @@ export default async function SupportPage() {
       );
     }
     thread = newThread;
+
+    // Send the default welcome message from Admin
+    await adminSupabase
+      .from('support_messages')
+      .insert({
+        thread_id: thread.id,
+        sender_role: 'admin',
+        content: 'Hi! Welcome to Flixon. Let me know if you need any help with your account, payments, or have any other issues.',
+        is_read: false
+      });
   }
 
   // Get Messages
@@ -79,7 +91,7 @@ export default async function SupportPage() {
     .order('created_at', { ascending: true });
 
   // Mark unread messages from admin as read
-  await supabase
+  await adminSupabase
     .from('support_messages')
     .update({ is_read: true })
     .eq('thread_id', thread.id)
