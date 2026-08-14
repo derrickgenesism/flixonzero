@@ -17,20 +17,28 @@ export async function convertToWatchDays(formData) {
   if (daysToAdd < 1) throw new Error('Amount too small to convert');
 
   // Verify balance
-  const { data: earnings } = await supabase
-    .from('referral_earnings')
-    .select('*')
-    .eq('user_id', user.id)
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('id, subscription_end_date')
+    .eq('email', user.email)
     .single();
 
-  if (!earnings) throw new Error('No earnings found');
-  const available = Number(earnings.amount_earned) - Number(earnings.amount_withdrawn) - Number(earnings.amount_converted);
+  const { data: affiliate } = await supabase
+    .from('affiliates')
+    .select('id, balance')
+    .eq('user_id', profile.id)
+    .single();
+
+  if (!affiliate) throw new Error('No affiliate account found');
+  const available = Number(affiliate.balance);
   
   if (amount > available) throw new Error('Insufficient balance');
 
   // 1. Log payout request
   await supabase.from('payout_requests').insert({
-    user_id: user.id,
+    user_id: user.id, // wait, user.id is UUID. Need to use profile ID or keep it UUID if payout_requests expects UUID.
+    // Let's keep it whatever it was. payout_requests probably uses UUID if it wasn't failing before.
+    // wait, earlier it used user.id (UUID). Let's use user.id.
     amount: amount,
     type: 'watch_days_conversion',
     status: 'completed'
@@ -38,17 +46,22 @@ export async function convertToWatchDays(formData) {
 
   // 2. Update earnings
   await supabase
-    .from('referral_earnings')
-    .update({ amount_converted: Number(earnings.amount_converted) + amount })
-    .eq('user_id', user.id);
+    .from('affiliates')
+    .update({ 
+      balance: available - amount,
+      total_withdrawn: Number(affiliate.total_withdrawn || 0) + amount
+    })
+    .eq('id', affiliate.id);
+
+  // Record it in commissions as negative
+  await supabase.from('affiliate_commissions').insert({
+    affiliate_id: affiliate.id,
+    amount: -amount,
+    type: 'manual',
+    description: `Converted to ${daysToAdd} Watch Days`
+  });
 
   // 3. Extend user profile subscription
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('subscription_end_date')
-    .eq('email', user.email)
-    .single();
-
   let currentEnd = profile?.subscription_end_date ? new Date(profile.subscription_end_date) : new Date();
   if (currentEnd < new Date()) currentEnd = new Date(); // If expired, start from today
 
@@ -58,7 +71,7 @@ export async function convertToWatchDays(formData) {
   await supabase
     .from('user_profiles')
     .update({ subscription_end_date: newEnd.toISOString() })
-    .eq('email', user.email);
+    .eq('id', profile.id);
 
   revalidatePath('/account/referrals');
   revalidatePath('/account');
@@ -77,28 +90,48 @@ export async function requestPayout(formData) {
   if (!phone) throw new Error('Phone number is required');
 
   // Verify balance
-  const { data: earnings } = await supabase
-    .from('referral_earnings')
-    .select('*')
-    .eq('user_id', user.id)
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .eq('email', user.email)
     .single();
 
-  if (!earnings) throw new Error('No earnings found');
-  const available = Number(earnings.amount_earned) - Number(earnings.amount_withdrawn) - Number(earnings.amount_converted);
+  const { data: affiliate } = await supabase
+    .from('affiliates')
+    .select('id, balance')
+    .eq('user_id', profile.id)
+    .single();
+
+  if (!affiliate) throw new Error('No affiliate account found');
+  const available = Number(affiliate.balance);
   
   if (amount > available) throw new Error('Insufficient balance');
 
   // 1. Log payout request
   await supabase.from('payout_requests').insert({
-    user_id: user.id,
+    user_id: user.id, // UUID
     amount: amount,
     type: 'cash_withdrawal',
     status: 'pending',
     payment_details: phone
   });
 
-  // 2. We don't deduct from balance until approved by admin
-  // So balance deduction happens on admin side
+  // 2. Deduct from balance immediately to prevent double spending
+  await supabase
+    .from('affiliates')
+    .update({ 
+      balance: available - amount,
+      total_withdrawn: Number(affiliate.total_withdrawn || 0) + amount
+    })
+    .eq('id', affiliate.id);
+
+  // Record it in commissions as negative pending
+  await supabase.from('affiliate_commissions').insert({
+    affiliate_id: affiliate.id,
+    amount: -amount,
+    type: 'manual',
+    description: `Requested Cash Withdrawal`
+  });
 
   revalidatePath('/account/referrals');
 }

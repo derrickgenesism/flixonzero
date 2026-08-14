@@ -44,6 +44,7 @@ export default async function AdminLayout({ children }) {
           <Link href="/admin/plans" style={{ color: '#fff', fontSize: '14px' }}>💳 Subscription Plans</Link>
           <Link href="/admin/transactions" style={{ color: '#fff', fontSize: '14px' }}>💰 Transactions</Link>
           <Link href="/admin/payouts" style={{ color: '#fff', fontSize: '14px' }}>💸 Payout Requests</Link>
+          <Link href="/admin/affiliates" style={{ color: '#fff', fontSize: '14px' }}>🤝 Affiliates & Referrals</Link>
           <Link href="/admin/promo-codes" style={{ color: '#fff', fontSize: '14px' }}>🎁 Promo & Gift Codes</Link>
 
           <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px', color: 'var(--text3)', textTransform: 'uppercase', margin: '12px 0 4px' }}>Users</div>

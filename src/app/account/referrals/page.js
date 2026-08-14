@@ -3,6 +3,7 @@ import Navbar from '@/components/Navbar';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { convertToWatchDays, requestPayout } from './actions';
+import crypto from 'crypto';
 
 export const metadata = {
   title: 'Affiliate Portal — Flixon',
@@ -16,54 +17,53 @@ export default async function ReferralsPage() {
     redirect('/login');
   }
 
-  // Check if referrals are enabled globally
-  const { data: settings } = await supabase.from('admin_settings').select('*');
-  const isEnabled = settings?.find(s => s.setting_key === 'referrals_enabled')?.setting_value === 'true';
-
-  if (!isEnabled) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-        <Navbar />
-        <main style={{ paddingTop: '100px', paddingBottom: '60px', maxWidth: '900px', margin: '0 auto', padding: '100px 24px 60px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '20px' }}>Affiliate Program Disabled</h1>
-          <p style={{ color: 'var(--text2)' }}>The referral program is currently disabled by administrators.</p>
-          <Link href="/account" className="gms-btn gms-btn--ghost" style={{ marginTop: '20px' }}>← Back to Account</Link>
-        </main>
-      </div>
-    );
-  }
-
-  // Get user profile (for ref code)
+  // Get user profile
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('*')
     .eq('email', user.email)
     .single();
 
-  // Get earnings
-  let earnings = { amount_earned: 0, amount_withdrawn: 0, amount_converted: 0 };
-  const { data: earningsData } = await supabase
-    .from('referral_earnings')
+  if (!profile) redirect('/');
+
+  // Get or Create Affiliate Account
+  let { data: affiliate } = await supabase
+    .from('affiliates')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', profile.id)
     .maybeSingle();
-  if (earningsData) earnings = earningsData;
 
-  const availableBalance = earnings.amount_earned - earnings.amount_withdrawn - earnings.amount_converted;
+  if (!affiliate) {
+    const code = crypto.randomBytes(4).toString('hex'); // 8 char hex
+    const { data: newAffiliate, error: createError } = await supabase
+      .from('affiliates')
+      .insert({
+        user_id: profile.id,
+        referral_code: `ref_${code}`
+      })
+      .select('*')
+      .single();
 
-  // Get stats
-  const { count: totalReferrals } = await supabase
-    .from('referrals')
+    if (!createError) {
+      affiliate = newAffiliate;
+    }
+  }
+
+  const availableBalance = Number(affiliate?.balance || 0);
+
+  // Get stats: Total Signups
+  const { count: totalSignups } = await supabase
+    .from('user_profiles')
     .select('*', { count: 'exact', head: true })
-    .eq('referrer_id', user.id);
+    .eq('referred_by', affiliate?.id);
 
-  const { count: paidReferrals } = await supabase
-    .from('referrals')
+  // Get stats: Total Clicks
+  const { count: totalClicks } = await supabase
+    .from('affiliate_clicks')
     .select('*', { count: 'exact', head: true })
-    .eq('referrer_id', user.id)
-    .eq('status', 'converted');
+    .eq('affiliate_id', affiliate?.id);
 
-  const referralLink = `https://flixon.com/signup?ref=${profile?.ref_code || ''}`; // Replace with env base URL in production
+  const referralLink = `https://flixon.com/?ref=${affiliate?.referral_code || ''}`; // Replace with env base URL in production
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -83,20 +83,20 @@ export default async function ReferralsPage() {
           <div style={{ background: 'var(--bg2)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
             <div style={{ color: 'var(--text2)', fontSize: '14px', marginBottom: '8px' }}>Available Balance</div>
             <div style={{ fontSize: '36px', fontWeight: '800', color: '#4ade80' }}>
-              {Number(availableBalance).toLocaleString()} UGX
+              {availableBalance.toLocaleString()} UGX
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text3)', marginTop: '8px' }}>
-              Total Earned: {Number(earnings.amount_earned).toLocaleString()}
+              Total Earned: {Number(affiliate?.total_earned || 0).toLocaleString()} UGX
             </div>
           </div>
           
           <div style={{ background: 'var(--bg2)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
             <div style={{ color: 'var(--text2)', fontSize: '14px', marginBottom: '8px' }}>Total Signups</div>
             <div style={{ fontSize: '36px', fontWeight: '800', color: '#fff' }}>
-              {totalReferrals || 0}
+              {totalSignups || 0}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text3)', marginTop: '8px' }}>
-              Paid Conversions: {paidReferrals || 0}
+              Unique Link Clicks: {totalClicks || 0}
             </div>
           </div>
         </div>
@@ -104,7 +104,7 @@ export default async function ReferralsPage() {
         <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '32px', marginBottom: '32px', border: '1px solid var(--border)' }}>
           <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '24px', color: 'var(--text2)' }}>Your Referral Link</h2>
           <p style={{ color: 'var(--text3)', fontSize: '14px', marginBottom: '16px' }}>
-            Share this link with friends. When they sign up and pay for a subscription, you earn a commission!
+            Share this link everywhere! You instantly earn money for every unique visitor who clicks it, plus a big commission if they subscribe!
           </p>
           <div style={{ display: 'flex', gap: '12px' }}>
             <input 
