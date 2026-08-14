@@ -82,3 +82,23 @@ export async function updateTelegramSettings(formData) {
   revalidatePath('/admin/support');
   return { success: true };
 }
+
+export async function deleteThread(threadId) {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+
+  if (!user) return { error: 'Unauthorized' };
+
+  const supabaseAdmin = createAdminClient();
+
+  // Delete the thread (cascades to messages)
+  const { error } = await supabaseAdmin
+    .from('support_threads')
+    .delete()
+    .eq('id', threadId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin/support');
+  return { success: true };
+}

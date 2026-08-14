@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { updateTelegramSettings, getThreadMessages, replyToThread } from './actions';
+import { updateTelegramSettings, getThreadMessages, replyToThread, deleteThread } from './actions';
 import { createClient } from '@/utils/supabase/client';
 
 export default function SupportAdminClient({ data }) {
@@ -77,6 +77,20 @@ export default function SupportAdminClient({ data }) {
       alert('Failed to send reply');
     }
     setIsReplying(false);
+  };
+
+  const handleClearThread = async () => {
+    if (!activeThread) return;
+    if (!confirm('Are you sure you want to resolve and delete this ticket? All messages will be permanently cleared for both you and the user.')) return;
+    
+    const res = await deleteThread(activeThread.id);
+    if (res.success) {
+      setActiveThread(null);
+      setMessages([]);
+      alert('Ticket resolved and cleared.');
+    } else {
+      alert('Failed to clear ticket.');
+    }
   };
 
   return (
@@ -159,9 +173,26 @@ export default function SupportAdminClient({ data }) {
           {activeThread ? (
             <>
               {/* Header */}
-              <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>Chat with {activeThread.user_profiles?.username}</h3>
-                <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px' }}>{activeThread.user_profiles?.email}</div>
+              <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>Chat with {activeThread.user_profiles?.username}</h3>
+                  <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px' }}>{activeThread.user_profiles?.email}</div>
+                </div>
+                <button 
+                  onClick={handleClearThread}
+                  style={{ 
+                    background: 'rgba(239, 68, 68, 0.1)', 
+                    color: '#ef4444', 
+                    border: '1px solid rgba(239, 68, 68, 0.2)', 
+                    padding: '8px 16px', 
+                    borderRadius: '8px', 
+                    fontSize: '13px', 
+                    cursor: 'pointer',
+                    fontWeight: '600'
+                  }}
+                >
+                  Resolve & Clear Ticket
+                </button>
               </div>
 
               {/* Messages */}
