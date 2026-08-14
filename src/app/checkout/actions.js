@@ -14,7 +14,7 @@ export async function processDirectCharge(planId, phoneNumber, network) {
 
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('email')
+    .select('email, username')
     .eq('id', user.id)
     .single();
 
@@ -66,6 +66,7 @@ export async function processDirectCharge(planId, phoneNumber, network) {
     amount,
     currency: 'UGX',
     email: profile?.email || user.email,
+    fullname: profile?.username || (profile?.email || user.email).split('@')[0],
     phone_number: phoneNumber,
     network: network || 'MTN',
     redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/checkout/verify`

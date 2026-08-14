@@ -43,6 +43,7 @@ export async function POST(request) {
       amount: ppvPrice,
       currency: 'UGX',
       email: user.email,
+      fullname: user.email.split('@')[0],
       phone_number: phoneNumber,
       network: network || 'MTN',
       redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/movie/${movieId}?ppv=success`
