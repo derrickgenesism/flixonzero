@@ -157,22 +157,31 @@ export async function getUserAnalytics(userId) {
     return { error: 'Only administrators can view analytics.' }
   }
 
-  // Use admin client to get auth user for last login
-  const { createAdminClient } = await import('@/utils/supabase/admin')
-  const supabaseAdmin = createAdminClient()
-
-  const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId)
-  
-  if (authError) {
-    return { error: 'Failed to fetch user auth details.' }
-  }
-
-  // Get user profile
+  // Get user profile first to get email
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('*')
     .eq('id', userId)
     .single()
+
+  if (!profile) {
+    return { error: 'User profile not found in database.' }
+  }
+
+  // Use admin client to get auth user for last login
+  const { createAdminClient } = await import('@/utils/supabase/admin')
+  const supabaseAdmin = createAdminClient()
+
+  let authUser = null;
+  if (profile.email) {
+    // We cannot use getUserById because userId is the integer profile ID, not the auth UUID.
+    // Instead, search by email.
+    const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({ search: profile.email })
+    if (!listError && listData?.users) {
+      // Find exact email match in search results
+      authUser = listData.users.find(u => u.email === profile.email) || listData.users[0];
+    }
+  }
 
   // Get watch history
   const { data: watchHistory, error: watchError } = await supabase
@@ -187,8 +196,8 @@ export async function getUserAnalytics(userId) {
     data: {
       profile,
       authData: {
-        created_at: authUser?.user?.created_at,
-        last_sign_in_at: authUser?.user?.last_sign_in_at,
+        created_at: authUser?.created_at,
+        last_sign_in_at: authUser?.last_sign_in_at,
       },
       watchHistory: watchHistory || []
     }
