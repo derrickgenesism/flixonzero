@@ -135,10 +135,10 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
             <p style={{ color: '#fff', marginBottom: '10px', fontSize: '13px' }}>
               Please complete the security check below for <strong>{phoneNumber}</strong>.
             </p>
-            <div style={{ background: '#fff', padding: '0', borderRadius: '8px', marginBottom: '15px', overflow: 'hidden' }}>
+            <div style={{ background: '#fff', padding: '0', borderRadius: '8px', marginBottom: '15px', overflow: 'hidden', height: '75vh', minHeight: '600px', position: 'relative' }}>
               <iframe 
                 src={captchaUrl} 
-                style={{ width: '100%', height: '75vh', minHeight: '600px', border: 'none', display: 'block' }}
+                style={{ width: '100%', height: 'calc(100% + 120px)', border: 'none', display: 'block', position: 'absolute', top: '-120px', left: 0 }}
                 title="Security Check"
               />
             </div>
