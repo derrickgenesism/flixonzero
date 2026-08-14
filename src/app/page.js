@@ -106,9 +106,29 @@ export default async function Home({ searchParams }) {
   const heroMovies = safeMovies.filter(m => m.thumbnail_url).slice(0, 6);
   const latest2026 = safeMovies.filter(m => new Date(m.created_at).getFullYear() === 2026).slice(0, 15);
   const premium = safeMovies.filter(m => m.type === 'video').slice(0, 15);
-  const series = safeMovies.filter(m => m.type === 'gsm_series').slice(0, 15);
   const freeMovies = safeMovies.filter(m => m.type === 'genesis_free_movie').slice(0, 15);
   const comingSoon = safeMovies.filter(m => m.is_coming_soon).slice(0, 10);
+
+  // Series setting & Fetch
+  const { data: settingSeries } = await supabase
+    .from('admin_settings')
+    .select('setting_value')
+    .eq('setting_key', 'series_enabled')
+    .maybeSingle();
+  const seriesEnabled = settingSeries?.setting_value === 'true';
+
+  let series = [];
+  if (seriesEnabled && isSectionEnabled('Popular Series')) {
+    const { data: fetchedSeries } = await supabase
+      .from('series')
+      .select('id, title, thumbnail_url, categories, created_at')
+      .order('created_at', { ascending: false })
+      .limit(15);
+    
+    if (fetchedSeries) {
+      series = fetchedSeries.map(s => ({ ...s, is_series: true }));
+    }
+  }
 
   // Smart rows - Trending (by view_count), New Arrivals (last 30 days), Top Rated
   // eslint-disable-next-line react-hooks/purity
@@ -191,7 +211,7 @@ export default async function Home({ searchParams }) {
             )}
 
             {isSectionEnabled('Popular Series') && series.length > 0 && (
-              <MovieRow title="Popular Series" movies={series} href="/?category=Popular%20Series" />
+              <MovieRow title="Popular Series" movies={series} href="/series" />
             )}
 
             {isSectionEnabled('Coming Soon') && comingSoon.length > 0 && (

@@ -2,7 +2,7 @@ import { createClient } from '@/utils/supabase/server';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { convertToWatchDays, requestPayout } from './actions';
+import { applyForAffiliate, convertToWatchDays, requestPayout } from './actions';
 import crypto from 'crypto';
 
 export const metadata = {

@@ -1,22 +1,23 @@
 import Link from 'next/link';
 import { firstCleanCategory } from '@/utils/categories';
 
-export default function MovieCard({ id, title, type, thumbnail_url, categories }) {
+export default function MovieCard({ id, title, type, thumbnail_url, categories, is_series }) {
   const thumb = thumbnail_url || 'https://via.placeholder.com/360x540/1a1a1a/444?text=No+Image';
 
   const typeLabel = type === 'genesis_free_movie' ? 'Free'
-    : type === 'gsm_series' ? 'Series'
+    : (type === 'gsm_series' || is_series) ? 'Series'
     : 'Premium';
 
   const badgeClass = type === 'genesis_free_movie' ? 'gms-card-badge--free'
-    : type === 'gsm_series' ? 'gms-card-badge--series'
+    : (type === 'gsm_series' || is_series) ? 'gms-card-badge--series'
     : 'gms-card-badge--premium';
 
   const firstCat = firstCleanCategory(categories);
+  const href = is_series ? `/series/${id}` : `/movie/${id}`;
 
   return (
     <div className="gms-card">
-      <Link href={`/movie/${id}`} className="gms-card-link">
+      <Link href={href} className="gms-card-link">
         <div className="gms-card-thumb">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={thumb} alt={title} loading="lazy" />

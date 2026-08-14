@@ -263,6 +263,21 @@ export default async function AdminSettingsPage() {
 
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '30px 0' }} />
 
+        <h3 style={{ margin: '0 0 6px', color: 'var(--acc)' }}>TV Series System</h3>
+        <p style={{ margin: '0 0 15px', fontSize: '13px', color: 'var(--text3)' }}>Enable or disable the Series feature across the platform (Navbar, Homepage, Browsing).</p>
+        <div style={{ marginBottom: '25px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              name="series_enabled"
+              defaultChecked={settings?.find(s => s.setting_key === 'series_enabled')?.setting_value === 'true'}
+            />
+            Enable TV Series System
+          </label>
+        </div>
+
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '30px 0' }} />
+
         <h3 style={{ margin: '0 0 6px', color: 'var(--acc)' }}>Multiple Profiles</h3>
         <p style={{ margin: '0 0 15px', fontSize: '13px', color: 'var(--text3)' }}>Allow users to create multiple sub-profiles and charge for extra slots.</p>
         <div style={{ marginBottom: '15px' }}>

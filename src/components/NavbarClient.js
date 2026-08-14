@@ -9,7 +9,7 @@ import { logoutAndClearProfile } from '@/app/profiles/actions';
 
 import { createClient } from '@/utils/supabase/client';
 
-export default function NavbarClient({ user, activeProfile, isActive, daysLeft }) {
+export default function NavbarClient({ user, activeProfile, isActive, daysLeft, seriesEnabled }) {
   const [scrolled, setScrolled] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
@@ -92,6 +92,7 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft }
       </Link>
       <div className="flx-nav__links">
         <Link href="/" className={`flx-nav__link${pathname === '/' ? ' flx-nav__link--active' : ''}`}>Home</Link>
+        {seriesEnabled && <Link href="/series" className={`flx-nav__link${pathname.startsWith('/series') ? ' flx-nav__link--active' : ''}`}>Series</Link>}
         <Link href="/movies" className={`flx-nav__link${pathname === '/movies' ? ' flx-nav__link--active' : ''}`}>Movies</Link>
         <Link href="/my-list" className={`flx-nav__link${pathname === '/my-list' ? ' flx-nav__link--active' : ''}`}>My List</Link>
       </div>

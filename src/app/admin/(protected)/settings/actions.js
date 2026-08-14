@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 export async function saveSettings(formData) {
   const supabase = await createClient()
 
-  const checkboxKeys = ['referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled']
+  const checkboxKeys = ['referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled', 'series_enabled']
   const keys = [
     'tmdb_api_key',
     'app_download_url',
@@ -27,7 +27,8 @@ export async function saveSettings(formData) {
     'r2_access_key',
     'r2_secret_key',
     'r2_bucket_name',
-    'cdn_domain'
+    'cdn_domain',
+    'series_enabled'
   ]
 
   for (const key of keys) {
