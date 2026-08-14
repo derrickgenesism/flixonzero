@@ -27,11 +27,11 @@ export default async function UserAnalyticsPage({ params }) {
 
   const res = await getUserAnalytics(id);
   
-  if (res.error) {
+  if (res.error || !res.data?.profile) {
     return (
       <div>
         <h1 style={{ fontSize: '32px', marginBottom: '20px' }}>Error</h1>
-        <p style={{ color: '#e50914' }}>{res.error}</p>
+        <p style={{ color: '#e50914' }}>{res.error || 'User not found in database.'}</p>
         <Link href="/admin/users" style={{ color: 'var(--acc)' }}>&larr; Back to Users</Link>
       </div>
     )

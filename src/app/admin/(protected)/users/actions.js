@@ -55,12 +55,8 @@ export async function addNewUser(formData) {
   const password = formData.get('password')
   const role = formData.get('role')
 
-  // Since createClient from utils/supabase/server is custom, we must import standard @supabase/supabase-js for the admin task
-  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
-  const supabaseAdmin = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL, 
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
+  const { createAdminClient } = await import('@/utils/supabase/admin')
+  const supabaseAdmin = createAdminClient()
 
   // Create user in Auth
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -162,11 +158,8 @@ export async function getUserAnalytics(userId) {
   }
 
   // Use admin client to get auth user for last login
-  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
-  const supabaseAdmin = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL, 
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
+  const { createAdminClient } = await import('@/utils/supabase/admin')
+  const supabaseAdmin = createAdminClient()
 
   const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId)
   
