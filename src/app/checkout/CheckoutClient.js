@@ -125,25 +125,25 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
   // Payment Initiated View (Waiting for PIN or Captcha)
   if (paymentInitiated) {
     return (
-      <div style={{ textAlign: 'center', background: 'var(--bg2)', padding: '40px', borderRadius: '12px', border: '1px solid var(--acc)', maxWidth: '600px', margin: '0 auto' }}>
-        <h2 style={{ color: 'var(--acc)', marginBottom: '20px' }}>
+      <div style={{ textAlign: 'center', background: 'var(--bg2)', padding: '20px 15px', borderRadius: '12px', border: '1px solid var(--acc)', maxWidth: '600px', margin: '0 auto' }}>
+        <h2 style={{ color: 'var(--acc)', marginBottom: '10px', fontSize: '18px' }}>
           {captchaUrl ? 'Security Verification Required' : 'Waiting for Payment...'}
         </h2>
         
         {captchaUrl ? (
           <>
-            <p style={{ color: '#fff', marginBottom: '15px' }}>
-              Please complete the security check below to receive the payment prompt on your phone (<strong>{phoneNumber}</strong>).
+            <p style={{ color: '#fff', marginBottom: '10px', fontSize: '13px' }}>
+              Please complete the security check below for <strong>{phoneNumber}</strong>.
             </p>
-            <div style={{ background: '#fff', padding: '10px', borderRadius: '8px', marginBottom: '20px' }}>
+            <div style={{ background: '#fff', padding: '0', borderRadius: '8px', marginBottom: '15px', overflow: 'hidden' }}>
               <iframe 
                 src={captchaUrl} 
-                style={{ width: '100%', height: '70vh', minHeight: '600px', border: 'none', borderRadius: '4px' }}
+                style={{ width: '100%', height: '75vh', minHeight: '600px', border: 'none', display: 'block' }}
                 title="Security Check"
               />
             </div>
-            <p style={{ color: 'var(--text2)', marginBottom: '20px', fontSize: '14px' }}>
-              Once you pass the security check and receive/approve the PIN prompt on your phone, click the button below.
+            <p style={{ color: 'var(--text2)', marginBottom: '15px', fontSize: '12px' }}>
+              Once you pass the security check and receive the PIN prompt on your phone, click the button below.
             </p>
           </>
         ) : (
