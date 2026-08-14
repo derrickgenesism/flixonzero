@@ -92,3 +92,62 @@ export async function adjustBalance(affiliateId, amountChange, reason) {
   revalidatePath('/admin/affiliates')
   return { success: true }
 }
+
+export async function approveAffiliate(affiliateId) {
+  const supabase = await createClient()
+
+  const { data: affiliate } = await supabase
+    .from('affiliates')
+    .select('id, user_id, user_profiles(username)')
+    .eq('id', affiliateId)
+    .single();
+
+  if (!affiliate) return { error: 'Affiliate not found' }
+
+  await supabase
+    .from('affiliates')
+    .update({ status: 'approved' })
+    .eq('id', affiliateId);
+
+  // Send a congratulatory message
+  // 1. Ensure support thread exists
+  let { data: thread } = await supabase
+    .from('support_threads')
+    .select('id')
+    .eq('user_id', affiliate.user_id)
+    .maybeSingle();
+
+  if (!thread) {
+    const { data: newThread } = await supabase
+      .from('support_threads')
+      .insert({ user_id: affiliate.user_id, subject: `Support Request - ${affiliate.user_profiles?.username || 'User'}` })
+      .select('id')
+      .single();
+    thread = newThread;
+  }
+
+  // 2. Insert message
+  if (thread) {
+    await supabase.from('support_messages').insert({
+      thread_id: thread.id,
+      sender_role: 'admin',
+      content: 'Congratulations! Your application to the Affiliate Program has been approved. You can now access your tracking link in your account dashboard and start earning commissions immediately!',
+      is_read: false
+    });
+  }
+
+  revalidatePath('/admin/affiliates')
+  return { success: true }
+}
+
+export async function rejectAffiliate(affiliateId) {
+  const supabase = await createClient()
+
+  await supabase
+    .from('affiliates')
+    .update({ status: 'rejected' })
+    .eq('id', affiliateId);
+
+  revalidatePath('/admin/affiliates')
+  return { success: true }
+}

@@ -141,6 +141,7 @@ export default function AffiliatesClient({ data }) {
           <thead>
             <tr style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--text3)' }}>
               <th style={{ padding: '16px 24px', fontWeight: '500' }}>User</th>
+              <th style={{ padding: '16px 24px', fontWeight: '500' }}>Status</th>
               <th style={{ padding: '16px 24px', fontWeight: '500' }}>Code</th>
               <th style={{ padding: '16px 24px', fontWeight: '500' }}>Balance</th>
               <th style={{ padding: '16px 24px', fontWeight: '500' }}>Total Earned</th>
@@ -150,13 +151,19 @@ export default function AffiliatesClient({ data }) {
           <tbody>
             {affiliates.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: 'var(--text3)' }}>No affiliates found.</td>
+                <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--text3)' }}>No affiliates found.</td>
               </tr>
             ) : affiliates.map(aff => (
               <tr key={aff.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <td style={{ padding: '16px 24px' }}>
                   <div style={{ fontWeight: '500' }}>{aff.user_profiles?.username}</div>
                   <div style={{ color: 'var(--text3)', fontSize: '12px' }}>{aff.user_profiles?.email}</div>
+                </td>
+                <td style={{ padding: '16px 24px' }}>
+                  {aff.status === 'approved' && <span style={{ color: '#4ade80', background: 'rgba(74,222,128,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Approved</span>}
+                  {aff.status === 'pending' && <span style={{ color: '#fbbf24', background: 'rgba(251,191,36,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Pending</span>}
+                  {aff.status === 'rejected' && <span style={{ color: '#f87171', background: 'rgba(248,113,113,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Rejected</span>}
+                  {!aff.status && <span style={{ color: '#4ade80', background: 'rgba(74,222,128,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Approved (Legacy)</span>}
                 </td>
                 <td style={{ padding: '16px 24px', fontFamily: 'monospace', color: 'var(--acc)' }}>
                   {aff.referral_code}
@@ -168,13 +175,46 @@ export default function AffiliatesClient({ data }) {
                   {Number(aff.total_earned).toLocaleString()} UGX
                 </td>
                 <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                  <button 
-                    onClick={() => { setSelectedUser(aff); setShowModal(true); }}
-                    className="gms-btn" 
-                    style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(255,255,255,0.1)' }}
-                  >
-                    Adjust Balance
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    {aff.status === 'pending' && (
+                      <>
+                        <button 
+                          onClick={async () => {
+                            setLoading(true);
+                            const { approveAffiliate } = await import('./actions');
+                            await approveAffiliate(aff.id);
+                            setLoading(false);
+                          }}
+                          className="gms-btn" 
+                          style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(74,222,128,0.1)', color: '#4ade80' }}
+                          disabled={loading}
+                        >
+                          Approve
+                        </button>
+                        <button 
+                          onClick={async () => {
+                            setLoading(true);
+                            const { rejectAffiliate } = await import('./actions');
+                            await rejectAffiliate(aff.id);
+                            setLoading(false);
+                          }}
+                          className="gms-btn" 
+                          style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(248,113,113,0.1)', color: '#f87171' }}
+                          disabled={loading}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    <button 
+                      onClick={() => { setSelectedUser(aff); setShowModal(true); }}
+                      className="gms-btn" 
+                      style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(255,255,255,0.1)' }}
+                      disabled={loading}
+                    >
+                      Adjust Balance
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

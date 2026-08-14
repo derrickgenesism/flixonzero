@@ -26,29 +26,82 @@ export default async function ReferralsPage() {
 
   if (!profile) redirect('/');
 
-  // Get or Create Affiliate Account
-  let { data: affiliate } = await supabase
+  // Get Affiliate Account
+  const { data: affiliate } = await supabase
     .from('affiliates')
     .select('*')
     .eq('user_id', profile.id)
     .maybeSingle();
 
+  // STATE 1: No Record (Needs to Apply)
   if (!affiliate) {
-    const code = crypto.randomBytes(4).toString('hex'); // 8 char hex
-    const { data: newAffiliate, error: createError } = await supabase
-      .from('affiliates')
-      .insert({
-        user_id: profile.id,
-        referral_code: `ref_${code}`
-      })
-      .select('*')
-      .single();
-
-    if (!createError) {
-      affiliate = newAffiliate;
-    }
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+        <Navbar />
+        <main style={{ paddingTop: '100px', paddingBottom: '60px', maxWidth: '600px', margin: '0 auto', padding: '120px 24px 60px', textAlign: 'center' }}>
+          <div style={{ fontSize: '60px', marginBottom: '20px' }}>🤝</div>
+          <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '16px', color: '#fff' }}>Join the Affiliate Program</h1>
+          <p style={{ color: 'var(--text2)', fontSize: '16px', marginBottom: '32px', lineHeight: '1.6' }}>
+            Partner with Flixon and start earning! Get paid for every unique visitor you bring to our platform, plus huge commissions when they subscribe. 
+          </p>
+          <div style={{ background: 'var(--bg2)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)', marginBottom: '32px', textAlign: 'left' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '12px', color: '#fff' }}>Why Join?</h3>
+            <ul style={{ color: 'var(--text2)', fontSize: '14px', lineHeight: '1.8', paddingLeft: '20px', margin: 0 }}>
+              <li>Instant cash for unique link clicks.</li>
+              <li>High commissions on daily and monthly passes.</li>
+              <li>Convert earnings to free Watch Days or withdraw cash directly to Mobile Money.</li>
+              <li>Real-time tracking dashboard.</li>
+            </ul>
+          </div>
+          <form action={applyForAffiliate}>
+            <button type="submit" className="gms-btn gms-btn--primary" style={{ width: '100%', padding: '16px', fontSize: '16px' }}>
+              Apply Now
+            </button>
+          </form>
+        </main>
+      </div>
+    );
   }
 
+  // STATE 2: Pending Approval
+  if (affiliate.status === 'pending') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+        <Navbar />
+        <main style={{ paddingTop: '100px', paddingBottom: '60px', maxWidth: '600px', margin: '0 auto', padding: '120px 24px 60px', textAlign: 'center' }}>
+          <div style={{ fontSize: '60px', marginBottom: '20px' }}>⏳</div>
+          <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '16px', color: '#fff' }}>Application Under Review</h1>
+          <p style={{ color: 'var(--text2)', fontSize: '16px', marginBottom: '32px', lineHeight: '1.6' }}>
+            Thanks for applying! Our team is currently reviewing your application. You will receive an in-app message once you are approved and your tracking link is ready.
+          </p>
+          <Link href="/account" className="gms-btn" style={{ background: 'var(--bg2)' }}>
+            Return to Account
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  // STATE 3: Rejected
+  if (affiliate.status === 'rejected') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+        <Navbar />
+        <main style={{ paddingTop: '100px', paddingBottom: '60px', maxWidth: '600px', margin: '0 auto', padding: '120px 24px 60px', textAlign: 'center' }}>
+          <div style={{ fontSize: '60px', marginBottom: '20px' }}>❌</div>
+          <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '16px', color: '#fff' }}>Application Denied</h1>
+          <p style={{ color: 'var(--text2)', fontSize: '16px', marginBottom: '32px', lineHeight: '1.6' }}>
+            Unfortunately, your affiliate application was not approved at this time.
+          </p>
+          <Link href="/account" className="gms-btn" style={{ background: 'var(--bg2)' }}>
+            Return to Account
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  // STATE 4: Approved (Dashboard)
   const availableBalance = Number(affiliate?.balance || 0);
 
   // Get stats: Total Signups

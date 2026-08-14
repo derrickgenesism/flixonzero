@@ -2,6 +2,34 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
+import crypto from 'crypto';
+
+export async function applyForAffiliate() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Unauthorized');
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .eq('email', user.email)
+    .single();
+
+  if (!profile) throw new Error('Profile not found');
+
+  const code = crypto.randomBytes(4).toString('hex'); // 8 char hex
+  
+  await supabase
+    .from('affiliates')
+    .insert({
+      user_id: profile.id,
+      referral_code: `ref_${code}`,
+      status: 'pending' // Enforce pending status on application
+    });
+
+  revalidatePath('/account/referrals');
+}
 
 export async function convertToWatchDays(formData) {
   const supabase = await createClient();
