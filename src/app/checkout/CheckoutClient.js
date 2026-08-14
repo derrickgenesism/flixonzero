@@ -317,47 +317,71 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
         </p>
       </div>
 
-      <div className="flx-plan-grid">
-      {plans.map((plan, index) => {
-        const isBest = index === 1 || (plans.length === 1);
-        return (
-          <div
-            key={plan.id}
-            className={`flx-plan-card${isBest ? ' flx-plan-card--best' : ''}`}
-            onClick={() => handleSelectPlan(plan)}
-            style={{ cursor: 'pointer' }}
-          >
-            {isBest && <div className="flx-plan-badge">Most Popular</div>}
-
-            <div className="flx-plan-name">{plan.name}</div>
-
-            <div className="flx-plan-price">
-              <span className="flx-plan-price-amount">{Number(plan.price).toLocaleString()}</span>
-              <span className="flx-plan-price-currency">UGX</span>
-            </div>
-            <div className="flx-plan-duration">Access for {plan.duration_days} day{plan.duration_days !== 1 ? 's' : ''}</div>
-
-            <ul className="flx-plan-features">
-              {plan.features.split(',').map((f, i) => (
-                <li key={i} className="flx-plan-feature">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  {f.trim()}
-                </li>
-              ))}
-            </ul>
-
-            <button
-              onClick={(e) => { e.stopPropagation(); handleSelectPlan(plan); }}
-              className={`gms-btn${isBest ? ' gms-btn--primary' : ' gms-btn--ghost'}`}
-              style={{ width: '100%', padding: '14px', fontSize: '15px', fontWeight: '700' }}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '700px', margin: '0 auto' }}>
+        {plans.map((plan, index) => {
+          const isBest = index === 1 || (plans.length === 1);
+          return (
+            <div
+              key={plan.id}
+              onClick={() => handleSelectPlan(plan)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '24px',
+                background: isBest ? 'rgba(229, 9, 20, 0.05)' : 'var(--bg2)',
+                border: isBest ? '2px solid var(--acc)' : '2px solid rgba(255,255,255,0.08)',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              onMouseEnter={(e) => {
+                if (!isBest) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3)';
+              }}
+              onMouseLeave={(e) => {
+                if (!isBest) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             >
-              Get {plan.name}
-            </button>
-          </div>
-        );
-      })}
+              {isBest && (
+                <div style={{ position: 'absolute', top: 0, right: 0, background: 'var(--acc)', color: '#fff', fontSize: '11px', fontWeight: '800', padding: '4px 16px', borderBottomLeftRadius: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  Most Popular
+                </div>
+              )}
+              
+              <div style={{ flex: 1, paddingRight: '20px' }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: '22px', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {plan.name}
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text2)', background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '20px' }}>
+                    {plan.duration_days} day{plan.duration_days !== 1 ? 's' : ''}
+                  </span>
+                </h3>
+                
+                <p style={{ margin: 0, fontSize: '14px', color: 'var(--text3)', lineHeight: '1.6' }}>
+                  {plan.features.split(',').slice(0, 3).join(' • ')}
+                </p>
+              </div>
+
+              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
+                <div style={{ color: '#fff', fontSize: '26px', fontWeight: '900', display: 'flex', alignItems: 'baseline', gap: '4px', lineHeight: 1 }}>
+                  {Number(plan.price).toLocaleString()} <span style={{ fontSize: '14px', color: 'var(--text2)', fontWeight: '600' }}>UGX</span>
+                </div>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleSelectPlan(plan); }}
+                  className={`gms-btn ${isBest ? 'gms-btn--primary' : 'gms-btn--ghost'}`}
+                  style={{ padding: '8px 24px', borderRadius: '8px', fontSize: '14px', minWidth: '120px' }}
+                >
+                  Select Plan
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Trust badges */}
