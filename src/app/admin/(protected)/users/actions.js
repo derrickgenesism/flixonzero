@@ -91,3 +91,55 @@ export async function addNewUser(formData) {
   revalidatePath('/admin/users')
   return { success: true }
 }
+
+export async function updateSubscriptionDays(profileId, daysToAdd) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Check if current user is an administrator
+  const { data: currentProfile } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('email', user.email)
+    .single()
+
+  if (currentProfile?.role !== 'administrator') {
+    return { error: 'Only administrators can modify subscriptions.' }
+  }
+
+  // Get user's current subscription end date
+  const { data: targetProfile, error: targetError } = await supabase
+    .from('user_profiles')
+    .select('subscription_end_date')
+    .eq('id', profileId)
+    .single()
+
+  if (targetError || !targetProfile) {
+    return { error: 'Failed to fetch user profile.' }
+  }
+
+  let currentExpiry = new Date();
+  if (targetProfile.subscription_end_date) {
+    const profileExpiry = new Date(targetProfile.subscription_end_date);
+    if (profileExpiry > currentExpiry) {
+      currentExpiry = profileExpiry;
+    }
+  }
+
+  currentExpiry.setDate(currentExpiry.getDate() + Number(daysToAdd));
+
+  // Update the target user's subscription
+  const { error: updateError } = await supabase
+    .from('user_profiles')
+    .update({ subscription_end_date: currentExpiry.toISOString() })
+    .eq('id', profileId)
+
+  if (updateError) {
+    return { error: updateError.message }
+  }
+
+  revalidatePath('/admin/users')
+  return { success: true }
+}
