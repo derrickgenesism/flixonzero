@@ -155,7 +155,14 @@ export default function SupportAdminClient({ data }) {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <div style={{ fontWeight: '600', fontSize: '14px' }}>{thread.user_profiles?.username}</div>
+                  <div style={{ fontWeight: '600', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {thread.user_profiles?.username}
+                    {thread.unreadCount > 0 && (
+                      <span style={{ background: '#e50914', color: '#fff', fontSize: '10px', padding: '2px 6px', borderRadius: '10px' }}>
+                        {thread.unreadCount}
+                      </span>
+                    )}
+                  </div>
                   <div style={{ fontSize: '11px', color: 'var(--text3)' }}>
                     {new Date(thread.last_message_at).toLocaleDateString()}
                   </div>

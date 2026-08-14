@@ -78,6 +78,14 @@ export default async function SupportPage() {
     .eq('thread_id', thread.id)
     .order('created_at', { ascending: true });
 
+  // Mark unread messages from admin as read
+  await supabase
+    .from('support_messages')
+    .update({ is_read: true })
+    .eq('thread_id', thread.id)
+    .eq('sender_role', 'admin')
+    .eq('is_read', false);
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       <Navbar />

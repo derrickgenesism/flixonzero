@@ -19,10 +19,17 @@ export async function getSupportData() {
   // 2. Get Threads
   const { data: threads } = await supabase
     .from('support_threads')
-    .select('*, user_profiles(email, username)')
+    .select('*, user_profiles(email, username), support_messages(is_read, sender_role)')
     .order('last_message_at', { ascending: false });
 
-  return { config, threads: threads || [] };
+  const threadsWithUnread = threads?.map(t => {
+    const unreadCount = t.support_messages?.filter(m => !m.is_read && m.sender_role === 'user').length || 0;
+    // Don't send all messages to client, just the count
+    const { support_messages, ...rest } = t;
+    return { ...rest, unreadCount };
+  }) || [];
+
+  return { config, threads: threadsWithUnread };
 }
 
 export async function getThreadMessages(threadId) {
@@ -33,6 +40,14 @@ export async function getThreadMessages(threadId) {
     .eq('thread_id', threadId)
     .order('created_at', { ascending: true });
   
+  // Mark user messages as read
+  await supabase
+    .from('support_messages')
+    .update({ is_read: true })
+    .eq('thread_id', threadId)
+    .eq('sender_role', 'user')
+    .eq('is_read', false);
+
   return messages || [];
 }
 
