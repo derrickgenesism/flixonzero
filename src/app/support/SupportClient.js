@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createClient } from '@/utils/supabase/client';
 
 export default function SupportClient({ initialMessages, threadId, userProfile }) {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef(null);
+  const supabase = createClient();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -15,6 +17,30 @@ export default function SupportClient({ initialMessages, threadId, userProfile }
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`support_thread_${threadId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'support_messages',
+        filter: `thread_id=eq.${threadId}`
+      }, (payload) => {
+        setMessages(prev => {
+          // Check if message already exists (from optimistic UI)
+          if (prev.some(m => m.content === payload.new.content && m.sender_role === payload.new.sender_role && Math.abs(new Date(m.created_at) - new Date(payload.new.created_at)) < 5000)) {
+            return prev;
+          }
+          return [...prev, payload.new];
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [threadId, supabase]);
 
   const handleSend = async (e) => {
     e.preventDefault();

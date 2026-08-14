@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { updateTelegramSettings, getThreadMessages, replyToThread } from './actions';
+import { createClient } from '@/utils/supabase/client';
 
 export default function SupportAdminClient({ data }) {
   const { config, threads } = data;
@@ -9,9 +10,39 @@ export default function SupportAdminClient({ data }) {
   const [activeThread, setActiveThread] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const messagesEndRef = useRef(null);
   
   const [replyInput, setReplyInput] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+  const supabase = createClient();
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  useEffect(() => {
+    if (!activeThread) return;
+
+    const channel = supabase
+      .channel(`admin_support_thread_${activeThread.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'support_messages',
+        filter: `thread_id=eq.${activeThread.id}`
+      }, (payload) => {
+        setMessages(prev => {
+          // Check if message already exists (e.g. from our optimistic UI/state)
+          if (prev.some(m => m.id === payload.new.id)) return prev;
+          return [...prev, payload.new];
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeThread, supabase]);
 
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState(null);
@@ -164,6 +195,7 @@ export default function SupportAdminClient({ data }) {
                     )
                   })
                 )}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Reply Form */}
