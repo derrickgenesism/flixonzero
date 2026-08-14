@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { createClient } from '@/utils/supabase/client';
 
 const PAGE_SIZE = 50;
 import Link from 'next/link';
@@ -12,20 +13,40 @@ const TYPE_LABELS = {
 };
 
 export default function MoviesManagerClient({ initialMovies }) {
+  const supabase = createClient();
+  const [movies, setMovies] = useState(initialMovies);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [isDeleting, setIsDeleting] = useState(null);
 
   const filtered = useMemo(() => {
     setVisibleCount(PAGE_SIZE); // reset when filter changes
-    return initialMovies.filter(m => {
+    return movies.filter(m => {
       const matchSearch = m.title?.toLowerCase().includes(search.toLowerCase());
       const matchType = filterType === 'all' || m.type === filterType;
       return matchSearch && matchType;
     });
-  }, [initialMovies, search, filterType]);
+  }, [movies, search, filterType]);
 
   const visible = filtered.slice(0, visibleCount);
+
+  const handleDelete = async (movie) => {
+    if (!window.confirm(`Are you sure you want to delete "${movie.title}"? This cannot be undone.`)) return;
+    
+    setIsDeleting(movie.id);
+    
+    try {
+      const { error } = await supabase.from('movies').delete().eq('id', movie.id);
+      if (error) throw error;
+      
+      setMovies(prev => prev.filter(m => m.id !== movie.id));
+    } catch (err) {
+      alert('Failed to delete movie: ' + err.message);
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   return (
     <div>
@@ -34,7 +55,7 @@ export default function MoviesManagerClient({ initialMovies }) {
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#fff', margin: 0 }}>📽️ Published Movies</h1>
           <p style={{ color: 'var(--text2)', margin: '6px 0 0', fontSize: '14px' }}>
-            {initialMovies.length} movie{initialMovies.length !== 1 ? 's' : ''} total
+            {movies.length} movie{movies.length !== 1 ? 's' : ''} total
           </p>
         </div>
         <Link href="/admin/movies/add" style={{
@@ -105,6 +126,8 @@ export default function MoviesManagerClient({ initialMovies }) {
                     style={{
                       borderTop: i > 0 ? '1px solid var(--border)' : 'none',
                       transition: 'background 0.15s',
+                      opacity: isDeleting === movie.id ? 0.5 : 1,
+                      pointerEvents: isDeleting === movie.id ? 'none' : 'auto'
                     }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -169,21 +192,39 @@ export default function MoviesManagerClient({ initialMovies }) {
 
                     {/* Actions */}
                     <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                      <Link
-                        href={`/admin/movies/${movie.id}/edit`}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '6px',
-                          background: 'rgba(255,255,255,0.07)', color: '#fff',
-                          border: '1px solid var(--border)',
-                          padding: '7px 14px', borderRadius: '6px',
-                          fontSize: '13px', fontWeight: '600', textDecoration: 'none',
-                          transition: 'all 0.15s'
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--acc)'; e.currentTarget.style.borderColor = 'var(--acc)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
-                      >
-                        ✏️ Edit
-                      </Link>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <Link
+                          href={`/admin/movies/${movie.id}/edit`}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            background: 'rgba(255,255,255,0.07)', color: '#fff',
+                            border: '1px solid var(--border)',
+                            padding: '7px 14px', borderRadius: '6px',
+                            fontSize: '13px', fontWeight: '600', textDecoration: 'none',
+                            transition: 'all 0.15s'
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--acc)'; e.currentTarget.style.borderColor = 'var(--acc)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+                        >
+                          ✏️ Edit
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(movie)}
+                          disabled={isDeleting === movie.id}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            background: 'rgba(255,59,48,0.1)', color: '#ff3b30',
+                            border: '1px solid rgba(255,59,48,0.3)',
+                            padding: '7px 14px', borderRadius: '6px',
+                            fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#ff3b30'; e.currentTarget.style.color = '#fff'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,59,48,0.1)'; e.currentTarget.style.color = '#ff3b30'; }}
+                        >
+                          {isDeleting === movie.id ? 'Deleting...' : '🗑️ Delete'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
