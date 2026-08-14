@@ -1,10 +1,11 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
 export async function getSupportData() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // 1. Get Telegram Settings
   const { data: settings } = await supabase
@@ -25,7 +26,7 @@ export async function getSupportData() {
 }
 
 export async function getThreadMessages(threadId) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: messages } = await supabase
     .from('support_messages')
     .select('*')
@@ -36,17 +37,19 @@ export async function getThreadMessages(threadId) {
 }
 
 export async function replyToThread(threadId, content) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
 
   if (!user) return { error: 'Unauthorized' };
 
+  const supabaseAdmin = createAdminClient();
+
   // Insert admin reply
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('support_messages')
     .insert({
       thread_id: threadId,
-      sender_id: user.id,
+      sender_id: null, // Admin
       sender_role: 'admin',
       content: content
     });
@@ -54,7 +57,7 @@ export async function replyToThread(threadId, content) {
   if (error) return { error: error.message };
 
   // Update thread last_message_at
-  await supabase
+  await supabaseAdmin
     .from('support_threads')
     .update({ last_message_at: new Date().toISOString(), status: 'open' })
     .eq('id', threadId);
@@ -64,7 +67,7 @@ export async function replyToThread(threadId, content) {
 }
 
 export async function updateTelegramSettings(formData) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   
   const token = formData.get('telegram_bot_token');
   const chatId = formData.get('telegram_chat_id');
