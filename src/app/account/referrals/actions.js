@@ -20,13 +20,18 @@ export async function applyForAffiliate() {
 
   const code = crypto.randomBytes(4).toString('hex'); // 8 char hex
   
-  await supabase
+  const { error } = await supabase
     .from('affiliates')
     .insert({
       user_id: profile.id,
       referral_code: `ref_${code}`,
       status: 'pending' // Enforce pending status on application
     });
+
+  if (error) {
+    console.error('Error joining affiliate:', error);
+    throw new Error('Failed to join affiliate program. Please try again.');
+  }
 
   revalidatePath('/account/referrals');
 }
