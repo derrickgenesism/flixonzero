@@ -51,6 +51,7 @@ export default async function AdminLayout({ children }) {
           <Link href="/admin/users" style={{ color: '#fff', fontSize: '14px' }}>👥 User Management</Link>
           <Link href="/admin/users/migrate-manually" style={{ color: '#fff', fontSize: '14px' }}>📥 Migrate Users</Link>
           <Link href="/admin/notifications" style={{ color: '#fff', fontSize: '14px' }}>🔔 Send Notifications</Link>
+          <Link href="/admin/support" style={{ color: '#fff', fontSize: '14px' }}>💬 Support Tickets</Link>
 
           <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px', color: 'var(--text3)', textTransform: 'uppercase', margin: '12px 0 4px' }}>Config</div>
           <Link href="/admin/homepage" style={{ color: '#fff', fontSize: '14px' }}>🏠 Homepage Layout</Link>
