@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { updateUserRole, addNewUser, updateSubscriptionDays } from './actions'
 
-export default function UsersClient({ users, initialSearch }) {
+export default function UsersClient({ users, initialSearch, initialFilter }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -13,9 +14,10 @@ export default function UsersClient({ users, initialSearch }) {
   const [addingUser, setAddingUser] = useState(false)
   const [error, setError] = useState(null)
   const [searchQuery, setSearchQuery] = useState(initialSearch || '')
+  const [filter, setFilter] = useState(initialFilter || 'all')
   const [daysInput, setDaysInput] = useState({})
 
-  // Debounce search
+  // Debounce search and filter
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       const params = new URLSearchParams(searchParams)
@@ -24,11 +26,18 @@ export default function UsersClient({ users, initialSearch }) {
       } else {
         params.delete('q')
       }
+      
+      if (filter !== 'all') {
+        params.set('filter', filter)
+      } else {
+        params.delete('filter')
+      }
+
       router.replace(`${pathname}?${params.toString()}`)
     }, 500)
 
     return () => clearTimeout(delayDebounceFn)
-  }, [searchQuery, pathname, router, searchParams])
+  }, [searchQuery, filter, pathname, router, searchParams])
 
   async function handleRoleChange(userId, newRole) {
     setLoading(userId)
@@ -71,6 +80,15 @@ export default function UsersClient({ users, initialSearch }) {
     setLoading(null)
   }
 
+  function getDaysLeft(endDateString) {
+    if (!endDateString) return null;
+    const end = new Date(endDateString);
+    const now = new Date();
+    const diffTime = end - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }
+
   return (
     <div>
       <div style={{ background: 'var(--bg2)', padding: '20px', borderRadius: '10px', marginBottom: '30px' }}>
@@ -99,14 +117,23 @@ export default function UsersClient({ users, initialSearch }) {
         </form>
       </div>
 
-      <div style={{ marginBottom: '20px' }}>
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
         <input 
           type="text" 
           placeholder="Search all database users by email or username..." 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ width: '100%', maxWidth: '400px', padding: '12px 15px', background: 'var(--bg2)', border: '1px solid #333', color: '#fff', borderRadius: '6px' }}
+          style={{ flex: '1 1 300px', maxWidth: '400px', padding: '12px 15px', background: 'var(--bg2)', border: '1px solid #333', color: '#fff', borderRadius: '6px' }}
         />
+        <select 
+          value={filter} 
+          onChange={(e) => setFilter(e.target.value)}
+          style={{ padding: '12px 15px', background: 'var(--bg2)', border: '1px solid #333', color: '#fff', borderRadius: '6px', minWidth: '150px' }}
+        >
+          <option value="all">All Users</option>
+          <option value="active">Active Subscriptions</option>
+          <option value="expired">Expired Subscriptions</option>
+        </select>
       </div>
 
       <div style={{ background: 'var(--bg2)', borderRadius: '10px', overflowX: 'auto' }}>
@@ -124,6 +151,8 @@ export default function UsersClient({ users, initialSearch }) {
           <tbody>
             {users.map(u => {
               const hasSub = u.subscription_end_date && new Date(u.subscription_end_date) > new Date();
+              const daysLeft = getDaysLeft(u.subscription_end_date);
+              
               return (
                 <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                   <td style={{ padding: '15px', fontSize: '14px' }}>{u.email}</td>
@@ -141,7 +170,14 @@ export default function UsersClient({ users, initialSearch }) {
                     </select>
                   </td>
                   <td style={{ padding: '15px', fontSize: '14px', color: hasSub ? '#4CAF50' : 'var(--text2)' }}>
-                    {u.subscription_end_date ? new Date(u.subscription_end_date).toLocaleDateString() : 'None'}
+                    {u.subscription_end_date ? (
+                      <div>
+                        {new Date(u.subscription_end_date).toLocaleDateString()}
+                        <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>
+                          {daysLeft > 0 ? `(${daysLeft} days left)` : '(Expired)'}
+                        </div>
+                      </div>
+                    ) : 'None'}
                   </td>
                   <td style={{ padding: '15px' }}>
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -162,7 +198,15 @@ export default function UsersClient({ users, initialSearch }) {
                     </div>
                   </td>
                   <td style={{ padding: '15px', fontSize: '13px', color: 'var(--text2)' }}>
-                    {loading === u.id ? 'Updating...' : ''}
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <Link 
+                        href={`/admin/users/${u.id}`}
+                        style={{ padding: '6px 12px', background: '#333', color: '#fff', textDecoration: 'none', borderRadius: '4px', fontSize: '12px', display: 'inline-block' }}
+                      >
+                        View Activity
+                      </Link>
+                      {loading === u.id ? 'Updating...' : ''}
+                    </div>
                   </td>
                 </tr>
               )

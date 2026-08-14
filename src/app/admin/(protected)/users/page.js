@@ -25,6 +25,7 @@ export default async function AdminUsersPage({ searchParams }) {
   }
 
   const query = (await searchParams)?.q || '';
+  const filter = (await searchParams)?.filter || 'all';
 
   // Fetch user profiles (server-side search)
   let dbQuery = supabase
@@ -37,6 +38,12 @@ export default async function AdminUsersPage({ searchParams }) {
     dbQuery = dbQuery.or(`email.ilike.%${query}%,username.ilike.%${query}%`);
   }
 
+  if (filter === 'active') {
+    dbQuery = dbQuery.gt('subscription_end_date', new Date().toISOString());
+  } else if (filter === 'expired') {
+    dbQuery = dbQuery.lt('subscription_end_date', new Date().toISOString());
+  }
+
   const { data: users } = await dbQuery;
 
   return (
@@ -46,7 +53,7 @@ export default async function AdminUsersPage({ searchParams }) {
         Manage users, assign roles, or add new team members.
       </p>
 
-      <UsersClient users={users || []} initialSearch={query} />
+      <UsersClient users={users || []} initialSearch={query} initialFilter={filter} />
     </div>
   )
 }

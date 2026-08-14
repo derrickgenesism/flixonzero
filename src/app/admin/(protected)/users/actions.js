@@ -143,3 +143,61 @@ export async function updateSubscriptionDays(profileId, daysToAdd) {
   revalidatePath('/admin/users')
   return { success: true }
 }
+
+export async function getUserAnalytics(userId) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Check if current user is an administrator
+  const { data: currentProfile } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('email', user.email)
+    .single()
+
+  if (currentProfile?.role !== 'administrator') {
+    return { error: 'Only administrators can view analytics.' }
+  }
+
+  // Use admin client to get auth user for last login
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
+  const supabaseAdmin = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL, 
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
+
+  const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId)
+  
+  if (authError) {
+    return { error: 'Failed to fetch user auth details.' }
+  }
+
+  // Get user profile
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single()
+
+  // Get watch history
+  const { data: watchHistory, error: watchError } = await supabase
+    .from('watch_history')
+    .select('*, movies(id, title, poster_path)')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(50)
+
+  return {
+    success: true,
+    data: {
+      profile,
+      authData: {
+        created_at: authUser?.user?.created_at,
+        last_sign_in_at: authUser?.user?.last_sign_in_at,
+      },
+      watchHistory: watchHistory || []
+    }
+  }
+}
