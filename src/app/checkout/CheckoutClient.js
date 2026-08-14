@@ -125,7 +125,7 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
   // Payment Initiated View (Waiting for PIN or Captcha)
   if (paymentInitiated) {
     return (
-      <div style={{ textAlign: 'center', background: 'var(--bg2)', padding: '20px 15px', borderRadius: '12px', border: '1px solid var(--acc)', maxWidth: '600px', margin: '0 auto' }}>
+      <div style={{ textAlign: 'center', background: 'var(--bg2)', padding: '15px', borderRadius: '12px', border: '1px solid var(--acc)', maxWidth: '600px', margin: '-70px auto 0' }}>
         <h2 style={{ color: 'var(--acc)', marginBottom: '10px', fontSize: '18px' }}>
           {captchaUrl ? 'Security Verification Required' : 'Waiting for Payment...'}
         </h2>
