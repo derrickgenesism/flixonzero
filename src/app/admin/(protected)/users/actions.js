@@ -184,12 +184,18 @@ export async function getUserAnalytics(userId) {
   }
 
   // Get watch history
-  const { data: watchHistory, error: watchError } = await supabase
-    .from('watch_history')
-    .select('*, movies(id, title, poster_path)')
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false })
-    .limit(50)
+  // Note: watch_history uses auth.users UUID, not user_profiles integer ID
+  let watchHistory = [];
+  if (authUser) {
+    const { data, error: watchError } = await supabase
+      .from('watch_history')
+      .select('*, movies(id, title, poster_path)')
+      .eq('user_id', authUser.id)
+      .order('updated_at', { ascending: false })
+      .limit(50);
+      
+    if (data) watchHistory = data;
+  }
 
   return {
     success: true,
