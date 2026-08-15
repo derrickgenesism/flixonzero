@@ -1,7 +1,7 @@
+import { createAdminClient } from '@/utils/supabase/admin'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { getUserAnalytics } from '../actions'
 
 export default async function UserAnalyticsPage({ params }) {
   try {
@@ -26,19 +26,63 @@ export default async function UserAnalyticsPage({ params }) {
       )
     }
 
-    const res = await getUserAnalytics(id);
-    
-    if (res.error || !res.data?.profile) {
+    // Fetch target user profile directly
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (!userProfile) {
       return (
         <div>
           <h1 style={{ fontSize: '32px', marginBottom: '20px' }}>Error</h1>
-          <p style={{ color: '#e50914' }}>{res.error || 'User not found in database.'}</p>
+          <p style={{ color: '#e50914' }}>User profile not found in database.</p>
           <Link href="/admin/users" style={{ color: 'var(--acc)' }}>&larr; Back to Users</Link>
         </div>
       )
     }
 
-    const { profile: userProfile, authData, watchHistory } = res.data;
+    // Find auth user details
+    const supabaseAdmin = createAdminClient()
+    let authUser = null;
+    if (userProfile.email) {
+      const targetEmail = userProfile.email.toLowerCase().trim();
+      let page = 1;
+      let found = false;
+      // Loop with safety cap of 10 pages to prevent infinite loops
+      while (!found && page <= 10) {
+        const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+        if (listError || !listData?.users || listData.users.length === 0) break;
+        
+        const match = listData.users.find(u => u.email?.toLowerCase().trim() === targetEmail);
+        if (match) {
+          authUser = match;
+          found = true;
+          break;
+        }
+        if (listData.users.length < 1000) break;
+        page++;
+      }
+    }
+
+    // Get watch history using admin client to bypass RLS policies
+    let watchHistory = [];
+    if (authUser) {
+      const { data, error: watchError } = await supabaseAdmin
+        .from('watch_history')
+        .select('*, movies(id, title, poster_path)')
+        .eq('user_id', authUser.id)
+        .order('updated_at', { ascending: false })
+        .limit(50);
+        
+      if (data) watchHistory = data;
+    }
+
+    const authData = {
+      created_at: authUser?.created_at,
+      last_sign_in_at: authUser?.last_sign_in_at,
+    };
 
     // Calculate activity score based on recent watch history
     const activeViews = watchHistory.filter(w => {
