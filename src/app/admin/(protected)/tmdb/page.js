@@ -1,20 +1,28 @@
 import { createClient } from '@/utils/supabase/server'
 import TMDBImporterClient from './TMDBImporterClient'
 
-export default async function AdminTMDBPage() {
+export default async function AdminTMDBPage({ searchParams }) {
+  const params = await searchParams;
+  const sort = params?.sort || 'missing';
+
   const supabase = await createClient()
 
   // Fetch API key
   const { data: settings } = await supabase.from('admin_settings').select('*')
   const tmdbKey = settings?.find(s => s.setting_key === 'tmdb_api_key')?.setting_value || ''
 
-  // Fetch movies, prioritize ones missing a description
-  const { data: movies } = await supabase
-    .from('movies')
-    .select('id, title, thumbnail_url, description')
-    .order('description', { ascending: true, nullsFirst: true }) // Movies with null description first
-    .order('created_at', { ascending: true }) // Then oldest first
-    .limit(500)
+  let query = supabase.from('movies').select('id, title, thumbnail_url, description');
+
+  if (sort === 'missing') {
+    query = query.order('description', { ascending: true, nullsFirst: true }).order('created_at', { ascending: true });
+  } else if (sort === 'latest') {
+    query = query.order('created_at', { ascending: false });
+  } else if (sort === 'oldest') {
+    query = query.order('created_at', { ascending: true });
+  }
+
+  // Fetch movies
+  const { data: movies } = await query.limit(500);
 
   if (!tmdbKey) {
     return (

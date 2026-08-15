@@ -1,9 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { updateMovieWithTMDB } from './actions'
 
 export default function TMDBImporterClient({ movies, apiKey }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const currentSort = searchParams.get('sort') || 'missing'
+
   const [loadingId, setLoadingId] = useState(null)
   const [results, setResults] = useState({})
   const [query, setQuery] = useState('')
@@ -83,6 +88,30 @@ export default function TMDBImporterClient({ movies, apiKey }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      
+      {/* Sort Options */}
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '10px' }}>
+        <span style={{ color: 'var(--text2)', fontSize: '14px', fontWeight: 'bold' }}>Sort Order:</span>
+        <select 
+          value={currentSort}
+          onChange={(e) => router.push(`?sort=${e.target.value}`)}
+          style={{ 
+            padding: '8px 12px', 
+            borderRadius: '6px', 
+            background: 'var(--bg2)', 
+            border: '1px solid var(--border)', 
+            color: '#fff', 
+            outline: 'none',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }}
+        >
+          <option value="missing">Prioritize Missing Descriptions</option>
+          <option value="latest">Latest Added First</option>
+          <option value="oldest">Oldest Added First</option>
+        </select>
+      </div>
+
       {movies.map(movie => (
         <div key={movie.id} style={{ background: 'var(--bg2)', padding: '20px', borderRadius: '10px', display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
           <img 
