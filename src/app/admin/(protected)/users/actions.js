@@ -198,7 +198,7 @@ export async function getUserAnalytics(userId) {
   // Note: watch_history uses auth.users UUID, not user_profiles integer ID
   let watchHistory = [];
   if (authUser) {
-    const { data, error: watchError } = await supabase
+    const { data, error: watchError } = await supabaseAdmin
       .from('watch_history')
       .select('*, movies(id, title, poster_path)')
       .eq('user_id', authUser.id)
