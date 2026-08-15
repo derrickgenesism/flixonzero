@@ -197,6 +197,18 @@ export default async function Home({ searchParams }) {
             )}
 
             {dynamicCategories.map(cat => {
+              if (cat === 'All Movies') {
+                return (
+                  <PaginatedMovieGrid 
+                    key={cat}
+                    title="All Movies" 
+                    initialMovies={safeMovies.slice(0, 24)} 
+                    totalCount={safeMovies.length} 
+                    fetchAction={fetchMoviesPage} 
+                    actionArg="All" 
+                  />
+                );
+              }
               const catMovies = safeMovies.filter(m => m.categories?.includes(cat) && !m.is_coming_soon).slice(0, 15);
               if (catMovies.length === 0) return null;
               return <MovieRow key={cat} title={cat} movies={catMovies} href={`/?category=${encodeURIComponent(cat)}`} />;
