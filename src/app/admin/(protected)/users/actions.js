@@ -175,11 +175,22 @@ export async function getUserAnalytics(userId) {
   let authUser = null;
   if (profile.email) {
     // We cannot use getUserById because userId is the integer profile ID, not the auth UUID.
-    // Instead, search by email.
-    const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({ search: profile.email })
-    if (!listError && listData?.users) {
-      // Find exact email match in search results
-      authUser = listData.users.find(u => u.email === profile.email) || listData.users[0];
+    // listUsers doesn't have an email search filter, so we must find it manually.
+    let page = 1;
+    let found = false;
+    while (!found) {
+      const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (listError || !listData?.users || listData.users.length === 0) break;
+      
+      const match = listData.users.find(u => u.email === profile.email);
+      if (match) {
+        authUser = match;
+        found = true;
+        break;
+      }
+      
+      if (listData.users.length < 1000) break; // Last page
+      page++;
     }
   }
 
