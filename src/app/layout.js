@@ -5,6 +5,7 @@ import NextTopLoader from 'nextjs-toploader';
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import AffiliateTracker from "@/components/AffiliateTracker";
+import AnalyticsTracker from "@/components/AnalyticsTracker";
 import React from 'react';
 
 const inter = Inter({
@@ -47,6 +48,7 @@ export default function RootLayout({ children }) {
         />
         <React.Suspense fallback={null}>
           <AffiliateTracker />
+          <AnalyticsTracker />
         </React.Suspense>
         {children}
         <PWAInstallPrompt />

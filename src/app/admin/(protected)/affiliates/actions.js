@@ -22,10 +22,12 @@ export async function getAffiliateSettings() {
   })
 
   // get all affiliates
-  const { data: affiliates } = await supabase
+  const { data: affiliates, error } = await supabase
     .from('affiliates')
-    .select('*, user_profiles(email, username)')
+    .select('*, user_profiles!affiliates_user_id_fkey(email, username)')
     .order('total_earned', { ascending: false })
+    
+  if (error) console.error('Error fetching affiliates:', error);
 
   return { config, affiliates: affiliates || [] }
 }
@@ -98,7 +100,7 @@ export async function approveAffiliate(affiliateId) {
 
   const { data: affiliate } = await supabase
     .from('affiliates')
-    .select('id, user_id, user_profiles(username)')
+    .select('id, user_id, user_profiles!affiliates_user_id_fkey(username)')
     .eq('id', affiliateId)
     .single();
 

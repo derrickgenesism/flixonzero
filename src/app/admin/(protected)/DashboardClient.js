@@ -142,6 +142,8 @@ export default function DashboardClient({ stats, transactions, recentSignups, to
     expiringIn7, expiringIn30,
     ppvRevenue, ppvCount, ppvMonthly,
     activePromos, comingSoonCount,
+    totalPageViews, totalUniqueVisitors, returningVisitors,
+    uniqueToday, uniqueYesterday, uniqueMonth
   } = stats;
 
   const growthLabel = revenueGrowth !== null
@@ -250,6 +252,14 @@ export default function DashboardClient({ stats, transactions, recentSignups, to
         <KpiCard label="PPV This Month" value={fmt(ppvMonthly)} unit="UGX" sub="Pay-per-view income" accent="#fbbf24" icon="📽️" />
         <KpiCard label="Active Promo Codes" value={fmt(activePromos)} sub="In circulation" accent="#c084fc" icon="🎁" />
         <KpiCard label="Coming Soon" value={fmt(comingSoonCount)} sub="Upcoming titles" accent="#38bdf8" icon="🚀" />
+      </div>
+
+      {/* KPIs Row 4 — Web Analytics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+        <KpiCard label="Unique Visitors" value={fmt(totalUniqueVisitors)} sub={`${returningVisitors} returning`} accent="#10b981" icon="🌐" />
+        <KpiCard label="Page Views" value={fmt(totalPageViews)} sub="Total requests" accent="#14b8a6" icon="📊" />
+        <KpiCard label="Active Today" value={fmt(uniqueToday)} sub="Unique visitors today" accent="#0ea5e9" icon="📈" />
+        <KpiCard label="Active Yesterday" value={fmt(uniqueYesterday)} sub="Unique visitors yesterday" accent="#6366f1" icon="📉" />
       </div>
 
       {/* Tables Grid */}

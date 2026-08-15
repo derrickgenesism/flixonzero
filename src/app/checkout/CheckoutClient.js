@@ -317,7 +317,7 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
         </p>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '700px', margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', maxWidth: '1000px', margin: '0 auto' }}>
         {plans.map((plan, index) => {
           const isBest = index === 1 || (plans.length === 1);
           return (
@@ -326,8 +326,7 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
               onClick={() => handleSelectPlan(plan)}
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                flexDirection: 'column',
                 padding: '24px',
                 background: isBest ? 'rgba(229, 9, 20, 0.05)' : 'var(--bg2)',
                 border: isBest ? '2px solid var(--acc)' : '2px solid rgba(255,255,255,0.08)',
@@ -339,8 +338,8 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
               }}
               onMouseEnter={(e) => {
                 if (!isBest) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3)';
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.4)';
               }}
               onMouseLeave={(e) => {
                 if (!isBest) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
@@ -349,34 +348,42 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
               }}
             >
               {isBest && (
-                <div style={{ position: 'absolute', top: 0, right: 0, background: 'var(--acc)', color: '#fff', fontSize: '11px', fontWeight: '800', padding: '4px 16px', borderBottomLeftRadius: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', background: 'var(--acc)', color: '#fff', fontSize: '11px', fontWeight: '800', padding: '4px 16px', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
                   Most Popular
                 </div>
               )}
               
-              <div style={{ flex: 1, paddingRight: '20px' }}>
-                <h3 style={{ margin: '0 0 8px', fontSize: '22px', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ flex: 1, textAlign: 'center', marginTop: isBest ? '16px' : '0' }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: '24px', fontWeight: '800', color: '#fff' }}>
                   {plan.name}
-                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text2)', background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '20px' }}>
-                    {plan.duration_days} day{plan.duration_days !== 1 ? 's' : ''}
-                  </span>
                 </h3>
+                <div style={{ display: 'inline-block', fontSize: '12px', fontWeight: '700', color: 'var(--text2)', background: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '20px', marginBottom: '16px' }}>
+                  {plan.duration_days} day{plan.duration_days !== 1 ? 's' : ''}
+                </div>
                 
-                <p style={{ margin: 0, fontSize: '14px', color: 'var(--text3)', lineHeight: '1.6' }}>
-                  {plan.features.split(',').slice(0, 3).join(' • ')}
-                </p>
+                <div style={{ color: '#fff', fontSize: '36px', fontWeight: '900', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '6px', lineHeight: 1, marginBottom: '20px' }}>
+                  {Number(plan.price).toLocaleString()} <span style={{ fontSize: '16px', color: 'var(--text2)', fontWeight: '600' }}>UGX</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px', textAlign: 'left' }}>
+                  {plan.features.split(',').slice(0, 4).map((feature, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text3)', fontSize: '14px' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      {feature.trim()}
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
-                <div style={{ color: '#fff', fontSize: '26px', fontWeight: '900', display: 'flex', alignItems: 'baseline', gap: '4px', lineHeight: 1 }}>
-                  {Number(plan.price).toLocaleString()} <span style={{ fontSize: '14px', color: 'var(--text2)', fontWeight: '600' }}>UGX</span>
-                </div>
+              <div style={{ textAlign: 'center' }}>
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleSelectPlan(plan); }}
                   className={`gms-btn ${isBest ? 'gms-btn--primary' : 'gms-btn--ghost'}`}
-                  style={{ padding: '8px 24px', borderRadius: '8px', fontSize: '14px', minWidth: '120px' }}
+                  style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '15px', fontWeight: '700' }}
                 >
-                  Select Plan
+                  Select {plan.name}
                 </button>
               </div>
             </div>

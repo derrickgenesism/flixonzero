@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
-export async function saveHomepageCategories(categories) {
+export async function saveHomepageSettings(categories, sections) {
   const supabaseAdmin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -24,16 +24,16 @@ export async function saveHomepageCategories(categories) {
     return { error: 'Access Denied: Admin only.' };
   }
 
-  // UPSERT the setting
+  // UPSERT the settings
   const { error } = await supabaseAdmin
     .from('admin_settings')
-    .upsert(
+    .upsert([
       { setting_key: 'homepage_categories', setting_value: JSON.stringify(categories) },
-      { onConflict: 'setting_key' }
-    );
+      { setting_key: 'homepage_sections', setting_value: JSON.stringify(sections) }
+    ], { onConflict: 'setting_key' });
 
   if (error) {
-    console.error("Save categories error:", error);
+    console.error("Save settings error:", error);
     return { error: 'Failed to save layout.' };
   }
 

@@ -68,10 +68,10 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
     };
   }, [streamUrl, initialProgress, movieId]);
 
-  const handleTimeUpdate = () => {
+  const handleTimeUpdate = (force = false) => {
     if (!videoRef.current) return;
     const currentTime = Math.floor(videoRef.current.currentTime);
-    if (currentTime > 0 && currentTime - lastSavedTime.current >= 10) {
+    if (currentTime > 0 && (force || currentTime - lastSavedTime.current >= 10)) {
       lastSavedTime.current = currentTime;
       saveWatchProgress(movie.id, currentTime).catch(console.error);
     }
@@ -103,7 +103,9 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
       autoPlay
       playsInline
       poster={movie.thumbnail_url}
-      onTimeUpdate={handleTimeUpdate}
+      onTimeUpdate={() => handleTimeUpdate(false)}
+      onPause={() => handleTimeUpdate(true)}
+      onEnded={() => handleTimeUpdate(true)}
       style={{ width: '100%', height: '100%', objectFit: 'contain' }}
       preload="auto"
     >

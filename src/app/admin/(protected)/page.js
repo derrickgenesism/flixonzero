@@ -145,6 +145,42 @@ export default async function AdminDashboardPage() {
     return end > now && end <= in30Days;
   }).length || 0;
 
+  // ── 6. Analytics (Site Visits) ───────────────────────────────────────────
+  const { data: visitsRaw } = await supabase
+    .from('site_visits')
+    .select('visitor_id, created_at');
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  let totalPageViews = 0;
+  let uniqueToday = new Set();
+  let uniqueYesterday = new Set();
+  let uniqueMonth = new Set();
+  const visitorCounts = {};
+
+  visitsRaw?.forEach(v => {
+    totalPageViews++;
+    const vDate = new Date(v.created_at);
+    const vid = v.visitor_id;
+
+    if (!visitorCounts[vid]) visitorCounts[vid] = 0;
+    visitorCounts[vid]++;
+
+    if (vDate >= today) uniqueToday.add(vid);
+    else if (vDate >= yesterday) uniqueYesterday.add(vid);
+    
+    if (vDate >= thisMonth) uniqueMonth.add(vid);
+  });
+
+  const totalUniqueVisitors = Object.keys(visitorCounts).length;
+  const returningVisitors = Object.values(visitorCounts).filter(c => c > 1).length;
+
   return (
     <DashboardClient
       stats={{
@@ -169,6 +205,12 @@ export default async function AdminDashboardPage() {
         ppvMonthly,
         activePromos: activePromos || 0,
         comingSoonCount: comingSoonCount || 0,
+        totalPageViews,
+        totalUniqueVisitors,
+        returningVisitors,
+        uniqueToday: uniqueToday.size,
+        uniqueYesterday: uniqueYesterday.size,
+        uniqueMonth: uniqueMonth.size,
       }}
       transactions={enrichedTxs.slice(0, 50)}
       recentSignups={recentSignups}

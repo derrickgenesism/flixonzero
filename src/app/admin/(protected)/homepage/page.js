@@ -24,31 +24,35 @@ export default async function AdminHomepageLayoutPage() {
   }
 
   // Fetch current setting
-  const { data: setting } = await supabase
+  const { data: settings } = await supabase
     .from('admin_settings')
-    .select('setting_value')
-    .eq('setting_key', 'homepage_categories')
-    .single();
+    .select('setting_key, setting_value')
+    .in('setting_key', ['homepage_categories', 'homepage_sections']);
 
   let activeCategories = [];
-  try {
-    if (setting?.setting_value) {
-      activeCategories = JSON.parse(setting.setting_value);
+  let activeSections = {};
+  
+  settings?.forEach(setting => {
+    try {
+      if (setting.setting_key === 'homepage_categories' && setting.setting_value) {
+        activeCategories = JSON.parse(setting.setting_value);
+      }
+      if (setting.setting_key === 'homepage_sections' && setting.setting_value) {
+        activeSections = JSON.parse(setting.setting_value);
+      }
+    } catch(e) {
+      console.error(`Failed to parse ${setting.setting_key}`);
     }
-  } catch(e) {
-    console.error("Failed to parse homepage_categories");
-  }
+  });
 
   return (
     <div>
-      <h1 style={{ fontSize: '32px', marginBottom: '10px' }}>Homepage Layout</h1>
+      <h1 style={{ fontSize: '32px', margin: '0 0 10px 0' }}>Homepage Layout</h1>
       <p style={{ color: 'var(--text2)', marginBottom: '30px' }}>
-        Select which categories you want to display on the homepage, and re-arrange them in any order you like.
-        <br />
-        <small style={{ color: 'var(--acc)' }}>Note: 'Continue Watching' and 'Latest Movies 2026' are pinned to the top automatically.</small>
+        Select which categories and sections you want to display on the homepage. You can re-arrange dynamic categories in any order.
       </p>
 
-      <HomepageClient initialActiveCategories={activeCategories} />
+      <HomepageClient initialActiveCategories={activeCategories} initialSections={activeSections} />
     </div>
   );
 }
