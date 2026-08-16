@@ -134,10 +134,7 @@ export default function RootLayout({ children }) {
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {VJ_CATEGORIES.map(vj => (
                     <li key={vj.slug}>
-                      <Link href={`/category/${encodeURIComponent(vj.slug)}`} style={{ color: 'var(--text3)', fontSize: '13px', textDecoration: 'none', transition: 'color 0.2s' }}
-                        onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
-                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text3)'}
-                      >
+                      <Link href={`/category/${encodeURIComponent(vj.slug)}`} style={{ color: 'var(--text3)', fontSize: '13px', textDecoration: 'none' }}>
                         {vj.name} Translated Movies
                       </Link>
                     </li>
@@ -149,10 +146,7 @@ export default function RootLayout({ children }) {
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {GENRE_CATEGORIES.map(g => (
                     <li key={g.slug}>
-                      <Link href={`/category/${encodeURIComponent(g.slug)}`} style={{ color: 'var(--text3)', fontSize: '13px', textDecoration: 'none', transition: 'color 0.2s' }}
-                        onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
-                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text3)'}
-                      >
+                      <Link href={`/category/${encodeURIComponent(g.slug)}`} style={{ color: 'var(--text3)', fontSize: '13px', textDecoration: 'none' }}>
                         {g.name} Movies
                       </Link>
                     </li>
@@ -170,10 +164,7 @@ export default function RootLayout({ children }) {
                     { label: 'Top Rated Movies', href: '/?category=Top%20Rated' },
                   ].map(l => (
                     <li key={l.href}>
-                      <Link href={l.href} style={{ color: 'var(--text3)', fontSize: '13px', textDecoration: 'none', transition: 'color 0.2s' }}
-                        onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
-                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text3)'}
-                      >
+                      <Link href={l.href} style={{ color: 'var(--text3)', fontSize: '13px', textDecoration: 'none' }}>
                         {l.label}
                       </Link>
                     </li>
