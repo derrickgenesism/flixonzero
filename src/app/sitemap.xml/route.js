@@ -1,19 +1,35 @@
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { headers } from 'next/headers';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
-// All known categories and VJ translators — hard-coded to ensure they're always indexed
+// ALL known VJ and genre category pages — hardcoded so they ALWAYS appear in sitemap
+// regardless of DB connectivity. These are our highest-value SEO pages.
 const STATIC_CATEGORIES = [
-  // VJ Translators — highest priority (our main competitive edge)
-  'VJ Junior', 'VJ Emmy', 'VJ ICE P', 'VJ Jingo', 'VJ Mark', 'VJ Kamil',
-  // Genres
-  'Action', 'Adventure', 'Drama', 'Comedy', 'Science Fiction', 'Horror',
-  'Thriller', 'Romance', 'Family', 'Animation', 'Crime', 'Mystery',
-  'Biography', 'History', 'Sport', 'War', 'Music', 'Documentary',
+  // VJ Translators — priority 0.95
+  { slug: 'VJ Junior', isVJ: true },
+  { slug: 'VJ Emmy', isVJ: true },
+  { slug: 'VJ ICE P', isVJ: true },
+  { slug: 'VJ Jingo', isVJ: true },
+  { slug: 'VJ Mark', isVJ: true },
+  { slug: 'VJ Kamil', isVJ: true },
+  // Genres — priority 0.80
+  { slug: 'Action', isVJ: false },
+  { slug: 'Adventure', isVJ: false },
+  { slug: 'Drama', isVJ: false },
+  { slug: 'Comedy', isVJ: false },
+  { slug: 'Science Fiction', isVJ: false },
+  { slug: 'Horror', isVJ: false },
+  { slug: 'Thriller', isVJ: false },
+  { slug: 'Romance', isVJ: false },
+  { slug: 'Family', isVJ: false },
+  { slug: 'Animation', isVJ: false },
+  { slug: 'Crime', isVJ: false },
+  { slug: 'Mystery', isVJ: false },
+  { slug: 'Biography', isVJ: false },
+  { slug: 'History', isVJ: false },
+  { slug: 'Sport', isVJ: false },
+  { slug: 'War', isVJ: false },
+  { slug: 'Music', isVJ: false },
+  { slug: 'Documentary', isVJ: false },
 ];
 
 export async function GET() {
@@ -21,38 +37,6 @@ export async function GET() {
   const host = headersList.get('host') || 'flixon.ug';
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const baseUrl = `${protocol}://${host}`;
-
-  // Movies
-  const { data: movies } = await supabase
-    .from('movies')
-    .select('id, updated_at, title')
-    .order('updated_at', { ascending: false });
-
-  // Series
-  const { data: series } = await supabase
-    .from('series')
-    .select('id, created_at')
-    .order('created_at', { ascending: false });
-
-  // Collections
-  const { data: collections } = await supabase
-    .from('collections')
-    .select('slug, created_at')
-    .eq('is_active', true);
-
-  // Dynamic categories from DB (in case there are more)
-  const { data: dbCategories } = await supabase
-    .from('movies')
-    .select('categories');
-
-  const allDbCategories = new Set(STATIC_CATEGORIES);
-  dbCategories?.forEach(row => {
-    if (Array.isArray(row.categories)) {
-      row.categories.forEach(cat => {
-        if (cat && cat.trim()) allDbCategories.add(cat.trim());
-      });
-    }
-  });
 
   // Static pages
   const staticPages = [
@@ -62,45 +46,90 @@ export async function GET() {
     { url: '/search', priority: '0.7', changefreq: 'weekly' },
   ];
 
-  // Category pages — VJ pages get highest priority
-  const categoryUrls = Array.from(allDbCategories).map(cat => {
-    const isVJ = cat.toLowerCase().startsWith('vj');
-    return {
-      url: `/category/${encodeURIComponent(cat)}`,
-      priority: isVJ ? '0.95' : '0.80',
-      changefreq: 'daily',
-    };
-  });
-
-  // Movie pages
-  const movieUrls = (movies || []).map(m => ({
-    url: `/movie/${m.id}`,
-    priority: '0.9',
-    changefreq: 'weekly',
-    lastmod: m.updated_at ? new Date(m.updated_at).toISOString().split('T')[0] : undefined,
-    // extra: use title in comment for readability
+  // Hardcoded category pages — always included, never fail
+  const categoryUrls = STATIC_CATEGORIES.map(cat => ({
+    url: `/category/${encodeURIComponent(cat.slug)}`,
+    priority: cat.isVJ ? '0.95' : '0.80',
+    changefreq: 'daily',
   }));
 
-  // Series pages
-  const seriesUrls = (series || []).map(s => ({
-    url: `/series/${s.id}`,
-    priority: '0.75',
-    changefreq: 'weekly',
-    lastmod: s.created_at ? new Date(s.created_at).toISOString().split('T')[0] : undefined,
-  }));
+  // Fetch movies from DB — graceful fallback to empty if it fails
+  let movieUrls = [];
+  let seriesUrls = [];
+  let collectionUrls = [];
 
-  // Collection pages
-  const collectionUrls = (collections || []).map(c => ({
-    url: `/collection/${c.slug}`,
-    priority: '0.70',
-    changefreq: 'weekly',
-  }));
+  try {
+    const supabase = createAdminClient();
+
+    const { data: movies } = await supabase
+      .from('movies')
+      .select('id, updated_at')
+      .order('updated_at', { ascending: false });
+
+    movieUrls = (movies || []).map(m => ({
+      url: `/movie/${m.id}`,
+      priority: '0.9',
+      changefreq: 'weekly',
+      lastmod: m.updated_at ? new Date(m.updated_at).toISOString().split('T')[0] : undefined,
+    }));
+
+    const { data: series } = await supabase
+      .from('series')
+      .select('id, created_at')
+      .order('created_at', { ascending: false });
+
+    seriesUrls = (series || []).map(s => ({
+      url: `/series/${s.id}`,
+      priority: '0.75',
+      changefreq: 'weekly',
+      lastmod: s.created_at ? new Date(s.created_at).toISOString().split('T')[0] : undefined,
+    }));
+
+    const { data: collections } = await supabase
+      .from('collections')
+      .select('slug, created_at')
+      .eq('is_active', true);
+
+    collectionUrls = (collections || []).map(c => ({
+      url: `/collection/${c.slug}`,
+      priority: '0.70',
+      changefreq: 'weekly',
+    }));
+
+    // Also discover any extra categories from the DB not in our static list
+    const { data: dbCats } = await supabase
+      .from('movies')
+      .select('categories');
+
+    if (dbCats) {
+      const knownSlugs = new Set(STATIC_CATEGORIES.map(c => c.slug.toLowerCase()));
+      const extraCats = new Set();
+      dbCats.forEach(row => {
+        if (Array.isArray(row.categories)) {
+          row.categories.forEach(cat => {
+            if (cat && cat.trim() && !knownSlugs.has(cat.toLowerCase().trim())) {
+              extraCats.add(cat.trim());
+            }
+          });
+        }
+      });
+      extraCats.forEach(cat => {
+        categoryUrls.push({
+          url: `/category/${encodeURIComponent(cat)}`,
+          priority: cat.toLowerCase().startsWith('vj') ? '0.90' : '0.75',
+          changefreq: 'daily',
+        });
+      });
+    }
+  } catch (err) {
+    // DB failed — static URLs still included above
+    console.error('Sitemap DB error (non-fatal):', err.message);
+  }
 
   const allUrls = [...staticPages, ...categoryUrls, ...movieUrls, ...seriesUrls, ...collectionUrls];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${allUrls.map(u => `  <url>
     <loc>${baseUrl}${u.url}</loc>
     <changefreq>${u.changefreq}</changefreq>
@@ -111,7 +140,7 @@ ${allUrls.map(u => `  <url>
   return new Response(xml, {
     headers: {
       'Content-Type': 'application/xml',
-      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400'
-    }
+      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+    },
   });
 }
