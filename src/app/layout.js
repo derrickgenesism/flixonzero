@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  metadataBase: new URL('https://flixon.ug'),
+  metadataBase: new URL('https://flixon.net'),
   title: {
     default: 'FlixOn Uganda — Watch VJ Translated Movies Online | Luganda Dubbed Films',
     template: '%s | FlixOn Uganda',

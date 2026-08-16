@@ -191,7 +191,7 @@ export default async function MoviePage({ params }) {
   const castList = Array.isArray(movie.cast_list) ? movie.cast_list : [];
 
   const vjName = detectVJ(movie.categories);
-  const baseUrl = 'https://flixon.ug';
+  const baseUrl = 'https://flixon.net';
   const movieUrl = `${baseUrl}/movie/${movie.id}`;
   const plainDescForSchema = movie.description?.replace(/<[^>]+>/g, '').slice(0, 500) || `Watch ${movie.title} on FlixOn Uganda.`;
 

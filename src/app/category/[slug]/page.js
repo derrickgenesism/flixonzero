@@ -73,7 +73,7 @@ export default async function CategoryPage({ params, searchParams }) {
   const { movies, total } = await fetchMoviesPage(name, page, 24);
 
   // Build JSON-LD ItemList for Google
-  const baseUrl = 'https://flixon.ug';
+  const baseUrl = 'https://flixon.net';
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',

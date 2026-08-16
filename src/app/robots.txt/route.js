@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 
 export async function GET() {
   const headersList = await headers();
-  const host = headersList.get('host') || 'flixon.ug';
+  const host = headersList.get('host') || 'flixon.net';
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const baseUrl = `${protocol}://${host}`;
 
