@@ -9,6 +9,7 @@ export default function LoginForm({ refCode }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [localRef, setLocalRef] = useState(refCode);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!localRef) {
@@ -34,12 +35,37 @@ export default function LoginForm({ refCode }) {
         <img src="/logo.png" alt="FlixOn" style={{ height: '80px', width: 'auto', objectFit: 'contain' }} />
       </div>
 
-      <h1 style={{ margin: '0 0 6px', fontSize: '26px', fontWeight: '800' }}>
-        {isLogin ? 'Welcome back' : 'Create account'}
-      </h1>
-      <p style={{ margin: '0 0 28px', color: 'var(--text2)', fontSize: '14px' }}>
-        {isLogin ? 'Sign in to continue streaming' : 'Join FlixOn and start watching today'}
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+        <div>
+          <h1 style={{ margin: '0 0 6px', fontSize: '24px', fontWeight: '800' }}>
+            {isLogin ? 'Welcome back' : 'Create account'}
+          </h1>
+          <p style={{ margin: 0, color: 'var(--text2)', fontSize: '14px' }}>
+            {isLogin ? 'Sign in to continue' : 'Join FlixOn today'}
+          </p>
+        </div>
+        <button
+          onClick={() => { setIsLogin(!isLogin); setError(null); }}
+          style={{
+            background: 'rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            padding: '8px 16px',
+            borderRadius: '20px',
+            color: '#fff',
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            marginLeft: '12px',
+            transition: 'background 0.2s'
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+        >
+          {isLogin ? 'Create Account' : 'Sign In'}
+        </button>
+      </div>
 
       {error && (
         <div style={{
@@ -63,13 +89,45 @@ export default function LoginForm({ refCode }) {
           required
           className="flx-form-input"
         />
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          required
-          className="flx-form-input"
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            name="password"
+            placeholder="Password"
+            required
+            className="flx-form-input"
+            style={{ width: '100%', paddingRight: '40px' }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            style={{
+              position: 'absolute',
+              right: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'none',
+              border: 'none',
+              color: 'var(--text3)',
+              cursor: 'pointer',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            {showPassword ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            )}
+          </button>
+        </div>
         {!isLogin && localRef && (
           <input type="hidden" name="refCode" value={localRef} />
         )}

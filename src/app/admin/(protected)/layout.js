@@ -20,6 +20,13 @@ export default async function AdminLayout({ children }) {
     redirect('/')
   }
 
+  // Fetch unread support messages count
+  const { count: unreadSupportCount } = await supabase
+    .from('support_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_read', false)
+    .eq('sender_role', 'user');
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
       {/* Sidebar */}
@@ -51,11 +58,19 @@ export default async function AdminLayout({ children }) {
           <Link href="/admin/users" style={{ color: '#fff', fontSize: '14px' }}>👥 User Management</Link>
           <Link href="/admin/users/migrate-manually" style={{ color: '#fff', fontSize: '14px' }}>📥 Migrate Users</Link>
           <Link href="/admin/notifications" style={{ color: '#fff', fontSize: '14px' }}>🔔 Send Notifications</Link>
-          <Link href="/admin/support" style={{ color: '#fff', fontSize: '14px' }}>💬 Support Tickets</Link>
+          <Link href="/admin/support" style={{ color: '#fff', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>💬 Support Tickets</span>
+            {unreadSupportCount > 0 && (
+              <span style={{ background: 'red', color: '#fff', fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '10px' }}>
+                {unreadSupportCount}
+              </span>
+            )}
+          </Link>
 
           <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px', color: 'var(--text3)', textTransform: 'uppercase', margin: '12px 0 4px' }}>Config</div>
           <Link href="/admin/homepage" style={{ color: '#fff', fontSize: '14px' }}>🏠 Homepage Layout</Link>
           <Link href="/admin/settings" style={{ color: '#fff', fontSize: '14px' }}>⚙️ Settings & API Keys</Link>
+          <Link href="/admin/backups" style={{ color: '#fff', fontSize: '14px' }}>💾 Database Backups</Link>
           <Link href="/admin/cache-warmer" style={{ color: '#fff', fontSize: '14px' }}>🔥 Cache Warmer</Link>
           <Link href="/" style={{ color: 'var(--text2)', fontSize: '13px', marginTop: '20px' }}>← Back to Site</Link>
         </nav>

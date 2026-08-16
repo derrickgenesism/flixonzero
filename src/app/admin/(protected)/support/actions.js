@@ -24,10 +24,11 @@ export async function getSupportData() {
 
   const threadsWithUnread = threads?.map(t => {
     const unreadCount = t.support_messages?.filter(m => !m.is_read && m.sender_role === 'user').length || 0;
+    const hasUserMessage = t.support_messages?.some(m => m.sender_role === 'user');
     // Don't send all messages to client, just the count
     const { support_messages, ...rest } = t;
-    return { ...rest, unreadCount };
-  }) || [];
+    return { ...rest, unreadCount, hasUserMessage };
+  }).filter(t => t.hasUserMessage) || [];
 
   return { config, threads: threadsWithUnread };
 }

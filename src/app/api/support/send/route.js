@@ -32,6 +32,12 @@ export async function POST(req) {
       throw dbError;
     }
 
+    // Update thread last_message_at
+    await supabase
+      .from('support_threads')
+      .update({ last_message_at: new Date().toISOString(), status: 'open' })
+      .eq('id', threadId);
+
     // 2. Fetch Telegram Settings
     const { data: settings } = await supabase
       .from('admin_settings')
