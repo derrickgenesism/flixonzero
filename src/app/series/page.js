@@ -4,7 +4,10 @@ import PaginatedSeriesGrid from '@/components/PaginatedSeriesGrid';
 import { notFound } from 'next/navigation';
 
 export const metadata = {
-  title: 'TV Series — Flixon',
+  title: 'TV Series Uganda | Watch Online in Luganda — FlixOn',
+  description: 'Stream the best TV series in Uganda on FlixOn. Watch popular drama, action, and comedy series translated in Luganda by top Ugandan VJ translators — VJ Junior, VJ Emmy, VJ Ice P and more. Uganda\'s #1 streaming platform for VJ translated series.',
+  keywords: ['TV series Uganda', 'watch series Uganda', 'Luganda series', 'VJ translated series Uganda', 'Uganda series online', 'drama series Uganda', 'action series Uganda'],
+  alternates: { canonical: '/series' },
 };
 
 export default async function AllSeriesPage() {

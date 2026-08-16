@@ -10,18 +10,65 @@ import StarRating from '@/components/StarRating';
 import ShareButton from '@/components/ShareButton';
 import PayPerViewButton from '@/components/PayPerViewButton';
 
+const VJ_NAMES = ['VJ Junior', 'VJ Emmy', 'VJ Ice P', 'VJ ICE P', 'VJ Jingo', 'VJ Mark', 'VJ Kamil'];
+
+function detectVJ(categories) {
+  if (!Array.isArray(categories)) return null;
+  return VJ_NAMES.find(vj => categories.some(c => c.toLowerCase().includes(vj.toLowerCase().replace('vj ', 'vj')))) || null;
+}
+
 export async function generateMetadata({ params }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: movie } = await supabase.from('movies').select('title, description, thumbnail_url').eq('id', id).single();
-  
-  const movieTitle = movie?.title ? `${movie.title} — Flixon` : 'Watch on Flixon';
-  const movieDesc = movie?.description?.replace(/<[^>]+>/g, '').slice(0, 160) || 'Watch on Flixon';
+  const { data: movie } = await supabase.from('movies').select('title, description, thumbnail_url, categories, release_date, imdb_rating').eq('id', id).single();
+
+  const vjName = detectVJ(movie?.categories);
+  const plainDesc = movie?.description?.replace(/<[^>]+>/g, '').slice(0, 140) || '';
+  const genre = Array.isArray(movie?.categories) ? movie.categories.filter(c => !VJ_NAMES.some(vj => c.toLowerCase().includes(vj.toLowerCase().replace('vj ', 'vj')))).join(', ') : '';
+
+  const movieTitle = vjName
+    ? `${movie.title} — Translated by ${vjName} | Luganda Movies Uganda`
+    : movie?.title
+      ? `${movie.title} | Watch Full Movie Online Uganda — FlixOn`
+      : 'Watch on FlixOn Uganda';
+
+  const movieDesc = vjName
+    ? `Watch "${movie.title}" translated by ${vjName} in Luganda on FlixOn Uganda. ${plainDesc ? plainDesc + '. ' : ''}Stream or download ${genre || 'this'} movie with ${vjName}'s Ugandan voice-over. Uganda's #1 VJ movie streaming platform.`
+    : movie?.title
+      ? `Watch "${movie.title}" online on FlixOn Uganda. ${plainDesc ? plainDesc + '. ' : ''}Stream ${genre || ''} movies in Luganda with top Ugandan VJ translations. Stream or download anytime.`
+      : 'Watch on FlixOn Uganda';
+
+  const keywords = vjName
+    ? [
+        `${movie.title} ${vjName}`, `${movie.title} Luganda`, `${movie.title} translated Uganda`,
+        `${vjName} movies`, `${vjName} translated`, `watch ${movie.title} online Uganda`,
+        `${movie.title} Uganda`, 'VJ translated movies Uganda', 'Luganda movies online',
+      ]
+    : [
+        `${movie?.title} Uganda`, `watch ${movie?.title} online`, `${movie?.title} stream`,
+        'Uganda movies online', 'FlixOn Uganda', 'watch movies online Uganda',
+      ];
 
   return {
     title: movieTitle,
-    description: movieDesc,
-    openGraph: { images: [movie?.thumbnail_url].filter(Boolean) }
+    description: movieDesc.slice(0, 160),
+    keywords,
+    openGraph: {
+      title: movieTitle,
+      description: movieDesc.slice(0, 160),
+      type: 'video.movie',
+      siteName: 'FlixOn Uganda',
+      images: movie?.thumbnail_url ? [{ url: movie.thumbnail_url, width: 1280, height: 720, alt: vjName ? `Watch ${movie.title} translated by ${vjName}` : `Watch ${movie.title} on FlixOn Uganda` }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: movieTitle,
+      description: movieDesc.slice(0, 160),
+      images: movie?.thumbnail_url ? [movie.thumbnail_url] : [],
+    },
+    alternates: {
+      canonical: `/movie/${id}`,
+    },
   };
 }
 
@@ -143,8 +190,88 @@ export default async function MoviePage({ params }) {
 
   const castList = Array.isArray(movie.cast_list) ? movie.cast_list : [];
 
+  const vjName = detectVJ(movie.categories);
+  const baseUrl = 'https://flixon.ug';
+  const movieUrl = `${baseUrl}/movie/${movie.id}`;
+  const plainDescForSchema = movie.description?.replace(/<[^>]+>/g, '').slice(0, 500) || `Watch ${movie.title} on FlixOn Uganda.`;
+
+  // Movie JSON-LD Schema
+  const movieSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Movie',
+    'name': movie.title,
+    'url': movieUrl,
+    'description': vjName
+      ? `${movie.title} translated by ${vjName} in Luganda. ${plainDescForSchema}`
+      : plainDescForSchema,
+    'image': movie.thumbnail_url || undefined,
+    'datePublished': movie.release_date || undefined,
+    'inLanguage': vjName ? 'Luganda' : (movie.language || 'en'),
+    'genre': cats.filter(c => !VJ_NAMES.some(vj => c.toLowerCase().includes(vj.toLowerCase().replace('vj ', 'vj')))),
+    'contentRating': movie.content_rating || undefined,
+    'director': movie.director ? { '@type': 'Person', 'name': movie.director } : undefined,
+    'actor': castList.slice(0, 5).map(p => ({ '@type': 'Person', 'name': p.name })),
+    ...(avgRating && ratingCount > 2 ? {
+      'aggregateRating': {
+        '@type': 'AggregateRating',
+        'ratingValue': avgRating,
+        'bestRating': '5',
+        'worstRating': '1',
+        'ratingCount': ratingCount,
+      }
+    } : {}),
+    'offers': {
+      '@type': 'Offer',
+      'category': 'subscription',
+      'url': `${baseUrl}/checkout`,
+      'availableAtOrFrom': { '@type': 'Place', 'name': 'Uganda' },
+    },
+    'potentialAction': {
+      '@type': 'WatchAction',
+      'target': movieUrl,
+    },
+  };
+
+  // VideoObject JSON-LD Schema — makes thumbnail appear in Google Search
+  const videoSchema = actualVideoUrl ? {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    'name': vjName ? `${movie.title} — ${vjName} Translated (Luganda)` : movie.title,
+    'description': vjName
+      ? `Watch ${movie.title} translated by ${vjName} in Luganda on FlixOn Uganda.`
+      : `Watch ${movie.title} on FlixOn Uganda.`,
+    'thumbnailUrl': movie.thumbnail_url || undefined,
+    'uploadDate': movie.created_at ? new Date(movie.created_at).toISOString() : undefined,
+    'contentUrl': movieUrl,
+    'embedUrl': movieUrl,
+    'publisher': {
+      '@type': 'Organization',
+      'name': 'FlixOn Uganda',
+      'logo': { '@type': 'ImageObject', 'url': `${baseUrl}/logo.png` },
+    },
+    'potentialAction': {
+      '@type': 'WatchAction',
+      'target': movieUrl,
+    },
+  } : null;
+
+  // BreadcrumbList JSON-LD
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    'itemListElement': [
+      { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': baseUrl },
+      ...(cats[0] ? [{ '@type': 'ListItem', 'position': 2, 'name': cats[0], 'item': `${baseUrl}/category/${encodeURIComponent(cats[0])}` }] : []),
+      { '@type': 'ListItem', 'position': cats[0] ? 3 : 2, 'name': movie.title, 'item': movieUrl },
+    ],
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      {/* JSON-LD Structured Data */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(movieSchema) }} />
+      {videoSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(videoSchema) }} />}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
       <Navbar />
 
       {/* Video / Paywall */}
@@ -228,6 +355,7 @@ export default async function MoviePage({ params }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
               <h1 style={{ fontSize: 'clamp(22px, 4vw, 40px)', fontWeight: '900', margin: 0, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
                 {movie.title}
+                {vjName && <span style={{ display: 'block', fontSize: 'clamp(13px, 2vw, 16px)', fontWeight: '600', color: 'var(--acc)', marginTop: '4px', letterSpacing: '0' }}>Translated by {vjName} (Luganda)</span>}
               </h1>
               <span style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase', padding: '4px 10px', borderRadius: '6px', flexShrink: 0, ...typeBadgeStyle }}>
                 {typeLabel}
