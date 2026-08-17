@@ -304,22 +304,23 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
   // Plans List View
   return (
     <>
-      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(229,9,20,0.1)', border: '1px solid rgba(229,9,20,0.25)', borderRadius: '20px', padding: '6px 16px', marginBottom: '20px' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--acc)', display: 'inline-block' }} />
-          <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--acc)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Premium Membership</span>
+      <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(229,9,20,0.1)', border: '1px solid rgba(229,9,20,0.25)', borderRadius: '20px', padding: '5px 14px', marginBottom: '16px' }}>
+          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--acc)', display: 'inline-block' }} />
+          <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--acc)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Premium Membership</span>
         </div>
-        <h1 style={{ fontSize: 'clamp(28px, 5vw, 48px)', fontWeight: '900', margin: '0 0 14px', letterSpacing: '-1px', lineHeight: 1.05 }}>
+        <h1 style={{ fontSize: 'clamp(22px, 4vw, 36px)', fontWeight: '900', margin: '0 0 10px', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
           Choose Your Plan
         </h1>
-        <p style={{ color: 'var(--text2)', fontSize: '16px', maxWidth: '400px', margin: '0 auto', lineHeight: '1.6' }}>
-          Unlock unlimited streaming of premium movies and series. Cancel anytime.
+        <p style={{ color: 'var(--text2)', fontSize: '14px', maxWidth: '360px', margin: '0 auto', lineHeight: '1.6' }}>
+          Unlock unlimited streaming. Cancel anytime.
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 300px))', gap: '12px', maxWidth: '960px', margin: '0 auto', justifyContent: 'center' }}>
         {plans.map((plan, index) => {
           const isBest = index === 1 || (plans.length === 1);
+          const features = plan.features?.split(',').slice(0, 3) || [];
           return (
             <div
               key={plan.id}
@@ -327,19 +328,19 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
               style={{
                 display: 'flex',
                 flexDirection: 'column',
-                padding: '24px',
-                background: isBest ? 'rgba(229, 9, 20, 0.05)' : 'var(--bg2)',
+                padding: '16px',
+                background: isBest ? 'rgba(229, 9, 20, 0.06)' : 'var(--bg2)',
                 border: isBest ? '2px solid var(--acc)' : '2px solid rgba(255,255,255,0.08)',
-                borderRadius: '16px',
+                borderRadius: '14px',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
               }}
               onMouseEnter={(e) => {
                 if (!isBest) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.4)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
               }}
               onMouseLeave={(e) => {
                 if (!isBest) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
@@ -348,54 +349,61 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
               }}
             >
               {isBest && (
-                <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', background: 'var(--acc)', color: '#fff', fontSize: '11px', fontWeight: '800', padding: '4px 16px', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', background: 'var(--acc)', color: '#fff', fontSize: '10px', fontWeight: '800', padding: '3px 12px', borderBottomLeftRadius: '6px', borderBottomRightRadius: '6px', textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>
                   Most Popular
                 </div>
               )}
-              
-              <div style={{ flex: 1, textAlign: 'center', marginTop: isBest ? '16px' : '0' }}>
-                <h3 style={{ margin: '0 0 8px', fontSize: '24px', fontWeight: '800', color: '#fff' }}>
-                  {plan.name}
-                </h3>
-                <div style={{ display: 'inline-block', fontSize: '12px', fontWeight: '700', color: 'var(--text2)', background: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '20px', marginBottom: '16px' }}>
-                  {plan.duration_days} day{plan.duration_days !== 1 ? 's' : ''}
-                </div>
-                
-                <div style={{ color: '#fff', fontSize: '36px', fontWeight: '900', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '6px', lineHeight: 1, marginBottom: '20px' }}>
-                  {Number(plan.price).toLocaleString()} <span style={{ fontSize: '16px', color: 'var(--text2)', fontWeight: '600' }}>UGX</span>
-                </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px', textAlign: 'left' }}>
-                  {plan.features.split(',').slice(0, 4).map((feature, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text3)', fontSize: '14px' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              {/* Top row: Name + Price */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: isBest ? '14px' : '0', marginBottom: '10px' }}>
+                <div>
+                  <h3 style={{ margin: '0 0 3px', fontSize: '16px', fontWeight: '800', color: '#fff' }}>
+                    {plan.name}
+                  </h3>
+                  <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text3)', background: 'rgba(255,255,255,0.07)', padding: '2px 8px', borderRadius: '20px', display: 'inline-block' }}>
+                    {plan.duration_days} day{plan.duration_days !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                  <div style={{ fontSize: '22px', fontWeight: '900', color: isBest ? 'var(--acc)' : '#fff', lineHeight: 1 }}>
+                    {Number(plan.price).toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: '600' }}>UGX</div>
+                </div>
+              </div>
+
+              {/* Features */}
+              {features.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '14px' }}>
+                  {features.map((feature, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text3)', fontSize: '12px' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                       {feature.trim()}
                     </div>
                   ))}
                 </div>
-              </div>
+              )}
 
-              <div style={{ textAlign: 'center' }}>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); handleSelectPlan(plan); }}
-                  className={`gms-btn ${isBest ? 'gms-btn--primary' : 'gms-btn--ghost'}`}
-                  style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '15px', fontWeight: '700' }}
-                >
-                  Select {plan.name}
-                </button>
-              </div>
+              {/* CTA Button */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleSelectPlan(plan); }}
+                className={`gms-btn ${isBest ? 'gms-btn--primary' : 'gms-btn--ghost'}`}
+                style={{ width: '100%', padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: '700', marginTop: 'auto' }}
+              >
+                Select {plan.name}
+              </button>
             </div>
           );
         })}
       </div>
 
       {/* Trust badges */}
-      <div style={{ textAlign: 'center', marginTop: '48px', display: 'flex', justifyContent: 'center', gap: '32px', flexWrap: 'wrap' }}>
-        {['Secure payments via Mobile Money', 'Cancel anytime', 'Instant activation'].map(text => (
-          <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text3)', fontSize: '13px' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <div style={{ textAlign: 'center', marginTop: '32px', display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap' }}>
+        {['Secure Mobile Money payments', 'Cancel anytime', 'Instant activation'].map(text => (
+          <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text3)', fontSize: '12px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             {text}
@@ -405,3 +413,4 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
     </>
   );
 }
+
