@@ -11,13 +11,12 @@ export const metadata = {
 export default async function SupportPage() {
   const supabase = await createClient();
   const adminSupabase = createAdminClient();
+
+  // Auth check using user client
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-  if (!user) {
-    redirect('/login');
-  }
-
-  // Get user profile
+  // Get user profile — use user client (fine, reading own profile)
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('id, username, email')
@@ -26,15 +25,17 @@ export default async function SupportPage() {
 
   if (!profile) redirect('/');
 
-  // Get or Create Support Thread
-  let { data: thread, error: fetchError } = await supabase
+  // Get or Create Support Thread — use admin client to bypass RLS
+  let { data: thread, error: fetchError } = await adminSupabase
     .from('support_threads')
     .select('*')
     .eq('user_id', profile.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (fetchError && fetchError.code !== 'PGRST116') {
-    // Possibly table doesn't exist yet
+    console.error('Thread fetch error:', fetchError);
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
         <Navbar />
@@ -51,16 +52,19 @@ export default async function SupportPage() {
   }
 
   if (!thread) {
-    const { data: newThread, error: insertError } = await supabase
+    // Create new thread using admin client to ensure it always succeeds
+    const { data: newThread, error: insertError } = await adminSupabase
       .from('support_threads')
       .insert({
         user_id: profile.id,
-        subject: `Support Request - ${profile.username}`,
+        subject: `Support Request - ${profile.username || profile.email}`,
+        status: 'open',
       })
       .select('*')
       .single();
-      
+
     if (insertError) {
+      console.error('Thread create error:', insertError);
       return (
         <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
           <Navbar />
@@ -72,25 +76,30 @@ export default async function SupportPage() {
     }
     thread = newThread;
 
-    // Send the default welcome message from Admin
+    // Send welcome message from Admin using admin client
     await adminSupabase
       .from('support_messages')
       .insert({
         thread_id: thread.id,
         sender_role: 'admin',
-        content: 'Hi! Welcome to Flixon. Let me know if you need any help with your account, payments, or have any other issues.',
-        is_read: false
+        sender_id: null,
+        content: 'Hi! Welcome to FlixOn Support. How can we help you today? Feel free to ask about your account, subscription, payments, or any technical issues.',
+        is_read: false,
       });
   }
 
-  // Get Messages
-  const { data: messages } = await supabase
+  // Fetch messages using admin client — ensures all messages always load
+  const { data: messages, error: msgError } = await adminSupabase
     .from('support_messages')
     .select('*')
     .eq('thread_id', thread.id)
     .order('created_at', { ascending: true });
 
-  // Mark unread messages from admin as read
+  if (msgError) {
+    console.error('Messages fetch error:', msgError);
+  }
+
+  // Mark admin messages as read (user has seen them)
   await adminSupabase
     .from('support_messages')
     .update({ is_read: true })

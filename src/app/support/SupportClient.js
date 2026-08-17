@@ -67,14 +67,20 @@ export default function SupportClient({ initialMessages, threadId, userProfile }
         body: JSON.stringify({ threadId, content: messageText, userProfile })
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        throw new Error('Failed to send message');
+        console.error('Send failed:', data.error);
+        throw new Error(data.error || 'Failed to send message');
       }
 
-      // Fetch the latest messages from DB or just rely on optimistic UI for now.
-      // Usually, we'd use Supabase real-time here.
+      // Replace the temp message with the real one from DB
+      if (data.message) {
+        setMessages(prev => prev.map(m => m.id === tempId ? data.message : m));
+      }
     } catch (err) {
-      alert('Failed to send message. Please try again.');
+      console.error('Support send error:', err);
+      alert(`Failed to send message: ${err.message}. Please try again.`);
       // Remove optimistic message if failed
       setMessages(prev => prev.filter(m => m.id !== tempId));
       setInput(messageText);
@@ -82,6 +88,7 @@ export default function SupportClient({ initialMessages, threadId, userProfile }
       setIsSending(false);
     }
   };
+
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
