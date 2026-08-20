@@ -62,10 +62,26 @@ export default function WarmerClient({ dbMovies }) {
 
       let hls = null;
       let timeoutId = null;
+      let fallbackTimeoutId = null;
       let settled = false;
+      let hasStartedTimer = false;
+
+      const duration = warmDurationRef.current * 1000;
+      const MAX_WAIT_TIME = 120000; // max wait for buffering (2 mins)
+
+      const startTimer = () => {
+        if (!hasStartedTimer && !settled) {
+          hasStartedTimer = true;
+          timeoutId = setTimeout(() => finish(null), duration);
+        }
+      };
+
+      const onPlaying = () => startTimer();
 
       const cleanup = () => {
         clearTimeout(timeoutId);
+        clearTimeout(fallbackTimeoutId);
+        video.removeEventListener('playing', onPlaying);
         video.pause();
         video.removeAttribute('src');
         video.load();
@@ -79,7 +95,12 @@ export default function WarmerClient({ dbMovies }) {
         if (err) reject(err); else resolve();
       };
 
-      const duration = warmDurationRef.current * 1000;
+      // Fallback timeout to prevent hanging forever if it never plays
+      fallbackTimeoutId = setTimeout(() => {
+        if (!settled) finish(new Error('Timed out waiting for video to play'));
+      }, MAX_WAIT_TIME);
+
+      video.addEventListener('playing', onPlaying);
 
       if (window.Hls && window.Hls.isSupported() && url.includes('.m3u8')) {
         hls = new window.Hls({
@@ -92,10 +113,10 @@ export default function WarmerClient({ dbMovies }) {
         hls.attachMedia(video);
 
         hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch(() => {
+          video.play().catch((e) => {
             // Autoplay blocked is OK — segments still load
+            if (e.name === 'NotAllowedError') startTimer();
           });
-          timeoutId = setTimeout(() => finish(null), duration);
         });
 
         hls.on(window.Hls.Events.ERROR, (event, data) => {
@@ -107,12 +128,13 @@ export default function WarmerClient({ dbMovies }) {
         // Native or MP4/MKV fallback
         video.src = url;
         video.addEventListener('loadedmetadata', () => {
-          video.play().catch(() => {});
-          timeoutId = setTimeout(() => finish(null), duration);
+          video.play().catch((e) => {
+            if (e.name === 'NotAllowedError') startTimer();
+          });
         }, { once: true });
         video.addEventListener('error', () => {
           // Network hit happened even if browser can't decode (e.g. MKV)
-          timeoutId = setTimeout(() => finish(null), duration);
+          startTimer();
         }, { once: true });
       }
     });
