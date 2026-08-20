@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { queueCompressionJob } from './actions';
+import { queueCompressionJob, uploadUrlToR2 } from './actions';
 
 export default function UploadClient() {
   const [uploadMode, setUploadMode] = useState('file'); // 'file' or 'url'
@@ -82,7 +82,7 @@ export default function UploadClient() {
 
       } else {
         // Direct Link Mode
-        setStatusMsg('Adding URL to upload queue...');
+        setStatusMsg('Streaming URL directly to R2 Storage...');
         setProgress(50);
         
         const timestamp = Date.now();
@@ -92,17 +92,14 @@ export default function UploadClient() {
         } catch(e) {}
         const generatedKey = rawFilename;
         
-        // Format: URL|downloadUrl|uploadKey
-        const magicKey = `URL|${videoUrl}|${generatedKey}`;
-        
-        const queueRes = await queueCompressionJob(magicKey);
-        if (queueRes.error) throw new Error(queueRes.error);
+        const uploadRes = await uploadUrlToR2(videoUrl, generatedKey);
+        if (uploadRes.error) throw new Error(uploadRes.error);
         
         setProgress(100);
         setVideoUrl('');
       }
 
-      setStatusMsg(uploadMode === 'file' ? 'Upload complete! Video is now in your Cloudflare R2 bucket.' : 'Link queued for direct upload successfully!');
+      setStatusMsg(uploadMode === 'file' ? 'Upload complete! Video is now in your Cloudflare R2 bucket.' : 'Direct link streamed to R2 successfully!');
       setProgress(100);
     } catch (err) {
       console.error(err);
@@ -196,7 +193,7 @@ export default function UploadClient() {
 
       {progress === 100 && !errorMsg && !uploading && (
         <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(70, 180, 80, 0.1)', border: '1px solid #46b450', borderRadius: '4px', color: '#fff' }}>
-          <strong>Success!</strong> {uploadMode === 'file' ? 'The video was securely uploaded to your Cloudflare R2 bucket.' : 'The URL was added to the direct upload queue.'} {uploadMode === 'url' && 'Leave your background worker running to process it.'}
+          <strong>Success!</strong> {uploadMode === 'file' ? 'The video was securely uploaded to your Cloudflare R2 bucket.' : 'The URL was successfully streamed directly to your Cloudflare R2 bucket!'}
         </div>
       )}
     </div>
