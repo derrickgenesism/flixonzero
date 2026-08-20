@@ -17,6 +17,11 @@ function WarmingPlayer({ url, duration, onDone, onError }) {
     const video = videoRef.current;
     if (!video || settledRef.current) return;
 
+    // Strictly enforce muted attributes to satisfy strict browser autoplay policies
+    video.defaultMuted = true;
+    video.setAttribute('muted', '');
+    video.setAttribute('playsinline', '');
+
     const MAX_WAIT = Math.max(120000, (duration + 60) * 1000);
 
     const finish = (err) => {
@@ -32,6 +37,14 @@ function WarmingPlayer({ url, duration, onDone, onError }) {
       else onDone();
     };
 
+    const handlePlayError = (e) => {
+      if (e.name === 'NotAllowedError') {
+        finish(new Error('Autoplay blocked by browser'));
+      } else {
+        console.warn('Play error:', e);
+      }
+    };
+
     const onTimeUpdate = () => {
       if (settledRef.current) return;
       setPlayTime(Math.floor(video.currentTime));
@@ -45,9 +58,6 @@ function WarmingPlayer({ url, duration, onDone, onError }) {
     };
 
     const onNativeError = () => {
-      // Browser can't decode this format (e.g. MKV), but the network request
-      // to the CDN still happened, which is the whole point of warming.
-      // Wait the duration then mark as done.
       if (!settledRef.current) {
         setTimeout(() => {
           if (!settledRef.current) finish(null);
@@ -55,16 +65,14 @@ function WarmingPlayer({ url, duration, onDone, onError }) {
       }
     };
 
-    // Fallback timeout — don't hang forever
     fallbackTimerRef.current = setTimeout(() => {
-      if (!settledRef.current) finish(new Error('Timed out waiting for video'));
+      if (!settledRef.current) finish(new Error('Timed out waiting for video to play'));
     }, MAX_WAIT);
 
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('ended', onEnded);
     video.addEventListener('error', onNativeError);
 
-    // Start loading
     if (window.Hls && window.Hls.isSupported() && url.includes('.m3u8')) {
       const hls = new window.Hls({
         autoStartLoad: true,
@@ -77,7 +85,7 @@ function WarmingPlayer({ url, duration, onDone, onError }) {
       hls.attachMedia(video);
 
       hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-        video.play().catch(() => {});
+        video.play().catch(handlePlayError);
       });
 
       hls.on(window.Hls.Events.ERROR, (event, data) => {
@@ -86,11 +94,10 @@ function WarmingPlayer({ url, duration, onDone, onError }) {
         }
       });
     } else {
-      // MP4/MKV/direct URL
       video.src = url;
       video.load();
       video.addEventListener('loadeddata', () => {
-        video.play().catch(() => {});
+        video.play().catch(handlePlayError);
       }, { once: true });
     }
 
