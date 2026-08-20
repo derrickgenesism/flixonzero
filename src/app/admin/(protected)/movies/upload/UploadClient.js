@@ -82,9 +82,6 @@ export default function UploadClient() {
 
       } else {
         // Direct Link Mode
-        setStatusMsg('Streaming URL directly to R2 Storage...');
-        setProgress(50);
-        
         const timestamp = Date.now();
         let rawFilename = videoUrl.split('/').pop().split('?')[0] || `video_${timestamp}.mp4`;
         try {
@@ -92,10 +89,35 @@ export default function UploadClient() {
         } catch(e) {}
         const generatedKey = rawFilename;
         
-        const uploadRes = await uploadUrlToR2(videoUrl, generatedKey);
-        if (uploadRes.error) throw new Error(uploadRes.error);
+        await new Promise((resolve, reject) => {
+          const sse = new EventSource(`/api/upload-direct?url=${encodeURIComponent(videoUrl)}&key=${encodeURIComponent(generatedKey)}`);
+          
+          sse.onmessage = (event) => {
+            try {
+              const { type, data } = JSON.parse(event.data);
+              if (type === 'progress') {
+                setProgress(data);
+              } else if (type === 'status') {
+                setStatusMsg(data);
+              } else if (type === 'error') {
+                sse.close();
+                reject(new Error(data));
+              } else if (type === 'done') {
+                sse.close();
+                resolve();
+              }
+            } catch(e) {
+              sse.close();
+              reject(new Error('Invalid SSE message'));
+            }
+          };
+
+          sse.onerror = () => {
+            sse.close();
+            reject(new Error('Connection lost to upload stream'));
+          };
+        });
         
-        setProgress(100);
         setVideoUrl('');
       }
 

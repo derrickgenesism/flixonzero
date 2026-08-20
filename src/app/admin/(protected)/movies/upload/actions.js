@@ -42,12 +42,14 @@ export async function uploadUrlToR2(videoUrl, generatedKey) {
     const response = await fetch(videoUrl);
     if (!response.ok) throw new Error(`Failed to fetch URL: ${response.statusText}`);
 
+    const { Readable } = require('stream');
+    
     const upload = new Upload({
       client: s3,
       params: {
         Bucket: bucketName,
         Key: generatedKey,
-        Body: response.body, // Stream it directly
+        Body: Readable.fromWeb(response.body), // Stream it directly and safely
         ContentType: 'video/mp4'
       }
     });
