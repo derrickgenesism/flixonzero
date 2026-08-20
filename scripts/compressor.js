@@ -121,12 +121,34 @@ async function processNextJob() {
     const outputPath = path.join(TEMP_DIR, `compressed_${job.id}.mp4`);
 
     // 3. Download the raw file
-    console.log(`[Job ${job.id}] Downloading raw video from R2...`);
-    const getCommand = new GetObjectCommand({ Bucket: bucketName, Key: job.video_key });
-    const response = await s3.send(getCommand);
-    const totalBytes = response.ContentLength || 0;
-    
-    await pipeline(response.Body, fs.createWriteStream(inputPath));
+    let downloadUrl = null;
+    let actualKey = job.video_key;
+    if (job.video_key.startsWith('URL|')) {
+      const parts = job.video_key.split('|');
+      downloadUrl = parts[1];
+      actualKey = parts[2] || `imported_${Date.now()}.mp4`;
+      
+      // Update job to reflect the actual key so that the UI can find it later
+      await supabase.from('compression_jobs')
+        .update({ video_key: actualKey })
+        .eq('id', job.id);
+    }
+
+    let totalBytes = 0;
+    if (downloadUrl) {
+      console.log(`[Job ${job.id}] Downloading raw video from URL: ${downloadUrl}...`);
+      // using dynamic import for fetch if needed, but node 18+ has fetch
+      const response = await fetch(downloadUrl);
+      if (!response.ok) throw new Error(`Failed to fetch from URL: ${response.statusText}`);
+      totalBytes = Number(response.headers.get('content-length')) || 0;
+      await pipeline(response.body, fs.createWriteStream(inputPath));
+    } else {
+      console.log(`[Job ${job.id}] Downloading raw video from R2...`);
+      const getCommand = new GetObjectCommand({ Bucket: bucketName, Key: actualKey });
+      const response = await s3.send(getCommand);
+      totalBytes = response.ContentLength || 0;
+      await pipeline(response.Body, fs.createWriteStream(inputPath));
+    }
     console.log(`[Job ${job.id}] Download complete. Raw size: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
 
     // Guesstimate frames for progress tracking if percent is unavailable
@@ -146,7 +168,7 @@ async function processNextJob() {
       client: s3,
       params: {
         Bucket: bucketName,
-        Key: job.video_key, // Overwrite original
+        Key: actualKey, // Overwrite original
         Body: uploadStream,
         ContentType: 'video/mp4'
       }

@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { queueCompressionJob } from './actions';
 
 export default function UploadClient() {
+  const [uploadMode, setUploadMode] = useState('file'); // 'file' or 'url'
   const [file, setFile] = useState(null);
+  const [videoUrl, setVideoUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [statusMsg, setStatusMsg] = useState('');
@@ -20,66 +22,89 @@ export default function UploadClient() {
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (uploadMode === 'file' && !file) return;
+    if (uploadMode === 'url' && !videoUrl) return;
+    
     setUploading(true);
     setErrorMsg('');
-    setStatusMsg('Requesting secure upload URL...');
     setProgress(5);
 
     try {
-      // 1. Get Presigned URL
-      const res = await fetch('/api/r2-presign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, contentType: file.type })
-      });
-      const data = await res.json();
-      
-      if (!res.ok) throw new Error(data.error || 'Failed to get upload URL');
+      if (uploadMode === 'file') {
+        setStatusMsg('Requesting secure upload URL...');
+        
+        // 1. Get Presigned URL
+        const res = await fetch('/api/r2-presign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, contentType: file.type })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error || 'Failed to get upload URL');
 
-      const { url, key } = data;
+        const { url, key } = data;
 
-      setStatusMsg(`Uploading ${file.name} to Cloudflare R2...`);
+        setStatusMsg(`Uploading ${file.name} to Cloudflare R2...`);
 
-      // 2. Upload file directly to R2 using XMLHttpRequest to track progress
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', url, true);
-        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+        // 2. Upload file directly to R2 using XMLHttpRequest to track progress
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', url, true);
+          xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
 
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const percentComplete = Math.round((e.loaded / e.total) * 90) + 5; // Scale 5-95%
-            setProgress(percentComplete);
-          }
-        };
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const percentComplete = Math.round((e.loaded / e.total) * 90) + 5; // Scale 5-95%
+              setProgress(percentComplete);
+            }
+          };
 
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`Upload failed with status ${xhr.status}`));
-          }
-        };
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve();
+            } else {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          };
 
-        xhr.onerror = () => reject(new Error('Network error during upload'));
-        xhr.send(file);
-      });
+          xhr.onerror = () => reject(new Error('Network error during upload'));
+          xhr.send(file);
+        });
 
-      setStatusMsg('Adding to compression queue...');
-      setProgress(98);
+        setStatusMsg('Adding to compression queue...');
+        setProgress(98);
 
-      // 3. Add to compression queue
-      const queueRes = await queueCompressionJob(key);
-      if (queueRes.error) throw new Error(queueRes.error);
+        // 3. Add to compression queue
+        const queueRes = await queueCompressionJob(key);
+        if (queueRes.error) throw new Error(queueRes.error);
 
-      setStatusMsg('Upload complete! Added to Compression Queue.');
+        setFile(null);
+        // Reset input
+        const fileInput = document.getElementById('videoFile');
+        if (fileInput) fileInput.value = '';
+
+      } else {
+        // Direct Link Mode
+        setStatusMsg('Adding URL to compression queue...');
+        setProgress(50);
+        
+        const timestamp = Date.now();
+        const filename = videoUrl.split('/').pop().split('?')[0] || `video_${timestamp}.mp4`;
+        const generatedKey = `imported_${timestamp}_${filename}`;
+        
+        // Format: URL|downloadUrl|uploadKey
+        const magicKey = `URL|${videoUrl}|${generatedKey}`;
+        
+        const queueRes = await queueCompressionJob(magicKey);
+        if (queueRes.error) throw new Error(queueRes.error);
+        
+        setProgress(100);
+        setVideoUrl('');
+      }
+
+      setStatusMsg(uploadMode === 'file' ? 'Upload complete! Added to Compression Queue.' : 'Link queued successfully!');
       setProgress(100);
-      setFile(null);
-      // Reset input
-      const fileInput = document.getElementById('videoFile');
-      if (fileInput) fileInput.value = '';
-
     } catch (err) {
       console.error(err);
       setErrorMsg(err.message);
@@ -91,29 +116,65 @@ export default function UploadClient() {
 
   return (
     <div style={{ background: 'var(--bg2)', padding: '30px', borderRadius: '8px' }}>
-      <h3 style={{ margin: '0 0 15px', color: '#fff' }}>1. Upload Video</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+        <h3 style={{ margin: '0', color: '#fff' }}>1. Upload Video</h3>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={() => setUploadMode('file')}
+            style={{ 
+              background: uploadMode === 'file' ? 'var(--acc)' : 'transparent',
+              color: '#fff', border: '1px solid var(--acc)', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'
+            }}
+          >
+            File Upload
+          </button>
+          <button 
+            onClick={() => setUploadMode('url')}
+            style={{ 
+              background: uploadMode === 'url' ? 'var(--acc)' : 'transparent',
+              color: '#fff', border: '1px solid var(--acc)', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'
+            }}
+          >
+            Direct Link
+          </button>
+        </div>
+      </div>
+      
       <p style={{ color: 'var(--text2)', marginBottom: '20px' }}>
-        Select a raw video file from your computer (.mp4, .mkv). It will be securely uploaded directly to your Cloudflare R2 bucket.
+        {uploadMode === 'file' 
+          ? 'Select a raw video file from your computer (.mp4, .mkv). It will be securely uploaded directly to your Cloudflare R2 bucket.'
+          : 'Paste a direct link to a video file (.mp4, .mkv). Our background worker will download it straight to R2.'}
       </p>
 
       <div style={{ marginBottom: '20px' }}>
-        <input 
-          type="file" 
-          id="videoFile"
-          accept="video/mp4,video/x-matroska,video/webm"
-          onChange={handleFileChange}
-          disabled={uploading}
-          style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
-        />
+        {uploadMode === 'file' ? (
+          <input 
+            type="file" 
+            id="videoFile"
+            accept="video/mp4,video/x-matroska,video/webm"
+            onChange={handleFileChange}
+            disabled={uploading}
+            style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
+          />
+        ) : (
+          <input 
+            type="url" 
+            placeholder="https://example.com/movie.mp4"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            disabled={uploading}
+            style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
+          />
+        )}
       </div>
 
       <button 
         className="gms-btn gms-btn--primary"
         onClick={handleUpload}
-        disabled={!file || uploading}
+        disabled={(uploadMode === 'file' && !file) || (uploadMode === 'url' && !videoUrl) || uploading}
         style={{ width: '100%', padding: '12px', fontSize: '15px' }}
       >
-        {uploading ? 'Uploading...' : 'Upload & Compress'}
+        {uploading ? (uploadMode === 'file' ? 'Uploading...' : 'Processing...') : (uploadMode === 'file' ? 'Upload & Compress' : 'Import Link & Compress')}
       </button>
 
       {errorMsg && (
@@ -136,7 +197,7 @@ export default function UploadClient() {
 
       {progress === 100 && !errorMsg && !uploading && (
         <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(70, 180, 80, 0.1)', border: '1px solid #46b450', borderRadius: '4px', color: '#fff' }}>
-          <strong>Success!</strong> The video was uploaded to R2 and added to the compression queue. Leave your background worker running to process it.
+          <strong>Success!</strong> {uploadMode === 'file' ? 'The video was uploaded to R2 and added to the compression queue.' : 'The URL was added to the compression queue.'} Leave your background worker running to process it.
         </div>
       )}
     </div>

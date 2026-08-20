@@ -48,15 +48,10 @@ export async function insertMovie(movieData) {
     description: movieData.description,
     type: movieData.type || 'video',
     thumbnail_url: movieData.thumbnail_url,
-    backdrop_url: movieData.backdrop_url,
     video_url: movieData.video_url || null,
     categories: categories,
     release_year: movieData.release_year,
-    actors: movieData.actors,
-    director: movieData.director || null,
-    runtime: movieData.runtime ? Number(movieData.runtime) : null,
-    imdb_rating: movieData.imdb_rating ? Number(movieData.imdb_rating) : null,
-    trailer_url: movieData.trailer_url || null
+    actors: movieData.actors
   }).select();
 
   if (error) {
