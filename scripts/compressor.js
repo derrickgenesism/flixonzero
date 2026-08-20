@@ -134,46 +134,73 @@ async function processNextJob() {
         .eq('id', job.id);
     }
 
-    let totalBytes = 0;
     if (downloadUrl) {
-      console.log(`[Job ${job.id}] Downloading raw video from URL: ${downloadUrl}...`);
-      // using dynamic import for fetch if needed, but node 18+ has fetch
+      console.log(`[Job ${job.id}] Streaming raw video from URL directly to R2...`);
       const response = await fetch(downloadUrl);
       if (!response.ok) throw new Error(`Failed to fetch from URL: ${response.statusText}`);
-      totalBytes = Number(response.headers.get('content-length')) || 0;
-      await pipeline(response.body, fs.createWriteStream(inputPath));
-    } else {
-      console.log(`[Job ${job.id}] Downloading raw video from R2...`);
-      const getCommand = new GetObjectCommand({ Bucket: bucketName, Key: actualKey });
-      const response = await s3.send(getCommand);
-      totalBytes = response.ContentLength || 0;
-      await pipeline(response.Body, fs.createWriteStream(inputPath));
+      const contentLength = Number(response.headers.get('content-length')) || 0;
+      
+      console.log(`[Job ${job.id}] Starting direct stream upload to R2...`);
+      const upload = new Upload({
+        client: s3,
+        params: {
+          Bucket: bucketName,
+          Key: actualKey,
+          Body: response.body, // Native Web Stream straight from fetch
+          ContentType: 'video/mp4'
+        }
+      });
+
+      let lastUpdate = 0;
+      upload.on('httpUploadProgress', async (progress) => {
+        if (progress.loaded && contentLength > 0) {
+          const now = Date.now();
+          if (now - lastUpdate > 3000) {
+            lastUpdate = now;
+            const percent = Math.round((progress.loaded / contentLength) * 100);
+            console.log(`[Job ${job.id}] Direct stream upload progress: ${percent}%`);
+            await supabase.from('compression_jobs')
+              .update({ progress: percent })
+              .eq('id', job.id);
+          }
+        }
+      });
+
+      await upload.done();
+      console.log(`[Job ${job.id}] Direct upload complete!`);
+
+      await supabase.from('compression_jobs')
+        .update({ 
+          status: 'completed', 
+          progress: 100,
+          original_size: contentLength,
+          compressed_size: contentLength
+        })
+        .eq('id', job.id);
+
+      return true;
     }
+
+    // Only non-URL jobs (existing R2 videos) will reach here
+    let totalBytes = 0;
+    console.log(`[Job ${job.id}] Downloading raw video from R2...`);
+    const getCommand = new GetObjectCommand({ Bucket: bucketName, Key: actualKey });
+    const response = await s3.send(getCommand);
+    totalBytes = response.ContentLength || 0;
+    await pipeline(response.Body, fs.createWriteStream(inputPath));
     console.log(`[Job ${job.id}] Download complete. Raw size: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
 
     // Guesstimate frames for progress tracking if percent is unavailable
-    // Assuming 24fps and 1MB per second roughly (very rough fallback)
     const totalFramesGuess = Math.max(24, Math.floor((totalBytes / (1024 * 1024)) * 24));
 
-    let uploadPath = outputPath;
-    let outputStats;
-
-    if (downloadUrl) {
-      console.log(`[Job ${job.id}] Skipping compression for URL upload...`);
-      uploadPath = inputPath;
-      outputStats = fs.statSync(uploadPath);
-    } else {
-      // 4. Compress the video
-      console.log(`[Job ${job.id}] Starting compression...`);
-      await compressVideo(inputPath, outputPath, job, totalFramesGuess);
-      outputStats = fs.statSync(outputPath);
-    }
+    // 4. Compress the video
+    console.log(`[Job ${job.id}] Starting compression...`);
+    await compressVideo(inputPath, outputPath, job, totalFramesGuess);
+    const outputStats = fs.statSync(outputPath);
 
     // 5. Upload the video to R2
-    console.log(`[Job ${job.id}] Uploading video back to R2...`);
-    
-    const uploadStream = fs.createReadStream(uploadPath);
-    
+    console.log(`[Job ${job.id}] Uploading compressed video back to R2...`);
+    const uploadStream = fs.createReadStream(outputPath);
     const upload = new Upload({
       client: s3,
       params: {
@@ -181,13 +208,6 @@ async function processNextJob() {
         Key: actualKey, // Overwrite original
         Body: uploadStream,
         ContentType: 'video/mp4'
-      }
-    });
-
-    upload.on('httpUploadProgress', (progress) => {
-      if (progress.loaded && progress.total) {
-        // Just log, we don't need to update Supabase for upload progress, 
-        // or we could say progress is 100% and it's finalizing.
       }
     });
 
