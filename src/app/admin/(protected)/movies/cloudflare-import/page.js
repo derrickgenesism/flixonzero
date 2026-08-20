@@ -50,27 +50,36 @@ export default async function CloudflareImportPage() {
       },
     });
 
-    const command = new ListObjectsV2Command({
-      Bucket: bucketName,
-      MaxKeys: 1000, // adjust if needed
-    });
+    let isTruncated = true;
+    let continuationToken = undefined;
 
-    const data = await s3.send(command);
-    
-    // Filter only video files (mp4, mkv, webm, m3u8)
-    if (data.Contents) {
-      s3Objects = data.Contents.filter(obj => {
-        const key = obj.Key.toLowerCase();
-        return key.endsWith('.mp4') || key.endsWith('.mkv') || key.endsWith('.webm') || key.endsWith('.m3u8');
+    while (isTruncated) {
+      const command = new ListObjectsV2Command({
+        Bucket: bucketName,
+        MaxKeys: 1000,
+        ContinuationToken: continuationToken,
       });
 
-      // Sort by latest uploaded (LastModified descending)
-      s3Objects.sort((a, b) => {
-        const dateA = a.LastModified ? new Date(a.LastModified).getTime() : 0;
-        const dateB = b.LastModified ? new Date(b.LastModified).getTime() : 0;
-        return dateB - dateA;
-      });
+      const data = await s3.send(command);
+      
+      if (data.Contents) {
+        const pageObjects = data.Contents.filter(obj => {
+          const key = obj.Key.toLowerCase();
+          return key.endsWith('.mp4') || key.endsWith('.mkv') || key.endsWith('.webm') || key.endsWith('.m3u8');
+        });
+        s3Objects.push(...pageObjects);
+      }
+
+      isTruncated = data.IsTruncated;
+      continuationToken = data.NextContinuationToken;
     }
+
+    // Sort by latest uploaded (LastModified descending)
+    s3Objects.sort((a, b) => {
+      const dateA = a.LastModified ? new Date(a.LastModified).getTime() : 0;
+      const dateB = b.LastModified ? new Date(b.LastModified).getTime() : 0;
+      return dateB - dateA;
+    });
 
   } catch (err) {
     return (
@@ -85,8 +94,25 @@ export default async function CloudflareImportPage() {
   }
 
   // 3. Fetch Existing Movies from Database to find unimported ones
-  const { data: dbMovies } = await supabase.from('movies').select('video_url');
-  const importedUrls = new Set(dbMovies?.map(m => m.video_url).filter(Boolean));
+  const importedUrls = new Set();
+  let hasMore = true;
+  let page = 0;
+  const pageSize = 1000;
+  
+  while (hasMore) {
+    const { data: dbMovies, error } = await supabase
+      .from('movies')
+      .select('video_url')
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+      
+    if (error || !dbMovies || dbMovies.length === 0) {
+      hasMore = false;
+    } else {
+      dbMovies.forEach(m => { if (m.video_url) importedUrls.add(m.video_url); });
+      if (dbMovies.length < pageSize) hasMore = false;
+      page++;
+    }
+  }
 
   const unimportedVideos = s3Objects.filter(obj => {
     const fileUrl = `${cdnDomain}/${obj.Key}`;
