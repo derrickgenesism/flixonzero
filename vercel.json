@@ -3,6 +3,10 @@
     {
       "path": "/api/v1/backups/cron",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/admin/warm-reminder",
+      "schedule": "0 9 * * *"
     }
   ]
 }
