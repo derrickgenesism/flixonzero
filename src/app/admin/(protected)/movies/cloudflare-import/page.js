@@ -115,35 +115,37 @@ export default async function CloudflareImportPage() {
   }
 
   const unimportedVideos = s3Objects.filter(obj => {
-    const fileUrl = `${cdnDomain}/${obj.Key}`;
+    const encodedKey = obj.Key.split('/').map(p => encodeURIComponent(p)).join('/');
+    const fileUrl = `${cdnDomain}/${encodedKey}`;
     return !importedUrls.has(fileUrl);
   });
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '28px', margin: 0 }}>Cloudflare R2 Video Importer</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ margin: '0', color: '#fff', fontSize: '24px' }}>Cloudflare R2 Importer</h2>
+        <span style={{ background: 'rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '4px', fontSize: '14px', color: '#ccc' }}>
+          Bucket: {bucketName}
+        </span>
       </div>
-
+      
       <p style={{ color: 'var(--text2)', marginBottom: '30px' }}>
-        Found {s3Objects.length} total videos in bucket <b>{bucketName}</b>. {unimportedVideos.length} are ready to be imported into Flixon.
+        The following videos were found in your R2 bucket but are <strong>not yet imported</strong> into the FlixOn database. Click "Add Movie" to create a new movie entry for the video.
       </p>
 
       {unimportedVideos.length === 0 ? (
-        <div style={{ background: 'var(--bg2)', padding: '40px', borderRadius: '8px', textAlign: 'center', color: 'var(--text2)' }}>
-          <div style={{ fontSize: '40px', marginBottom: '10px' }}>🎉</div>
-          <h3 style={{ margin: '0 0 10px', color: '#fff' }}>All caught up!</h3>
-          <p style={{ margin: 0 }}>There are no new videos to import from R2.</p>
+        <div style={{ padding: '40px', textAlign: 'center', background: 'var(--bg2)', borderRadius: '8px', color: 'var(--text2)' }}>
+          <p style={{ fontSize: '16px' }}>All videos in your bucket have been imported!</p>
+          <p style={{ fontSize: '14px', marginTop: '10px' }}>Upload more videos to see them here.</p>
         </div>
       ) : (
         <div style={{ background: 'var(--bg2)', borderRadius: '8px', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
-                <th style={{ padding: '15px 20px', color: 'var(--text3)', fontWeight: '600', fontSize: '13px' }}>FILE NAME</th>
-                <th style={{ padding: '15px 20px', color: 'var(--text3)', fontWeight: '600', fontSize: '13px' }}>SIZE</th>
-                <th style={{ padding: '15px 20px', color: 'var(--text3)', fontWeight: '600', fontSize: '13px' }}>LAST MODIFIED</th>
-                <th style={{ padding: '15px 20px', color: 'var(--text3)', fontWeight: '600', fontSize: '13px', textAlign: 'right' }}>ACTION</th>
+              <tr style={{ background: 'rgba(0,0,0,0.2)', color: 'var(--text2)', fontSize: '13px', textTransform: 'uppercase' }}>
+                <th style={{ padding: '15px 20px', fontWeight: '600' }}>Filename (R2 Key)</th>
+                <th style={{ padding: '15px 20px', fontWeight: '600', width: '120px' }}>Size</th>
+                <th style={{ padding: '15px 20px', fontWeight: '600', width: '150px', textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -155,7 +157,8 @@ export default async function CloudflareImportPage() {
                 cleanTitle = cleanTitle.replace(/[\._]/g, ' ').replace(/\b(1080p|720p|4k|bluray|web-dl|x264|hevc)\b/ig, '').trim();
 
                 const sizeMB = (obj.Size / (1024 * 1024)).toFixed(1);
-                const fileUrl = `${cdnDomain}/${obj.Key}`;
+                const encodedKey = obj.Key.split('/').map(p => encodeURIComponent(p)).join('/');
+                const fileUrl = `${cdnDomain}/${encodedKey}`;
                 
                 return (
                   <tr key={obj.Key} style={{ borderTop: '1px solid var(--border)' }}>

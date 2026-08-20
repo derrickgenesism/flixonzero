@@ -1,37 +1,342 @@
--- Create the site_visits table to track analytics
-CREATE TABLE IF NOT EXISTS public.site_visits (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    visitor_id UUID NOT NULL, -- Cookie based unique visitor ID
-    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL, -- Nullable if guest
-    session_id UUID NOT NULL, -- Cookie based session ID (expires on browser close)
-    path TEXT NOT NULL,
-    referrer TEXT,
-    user_agent TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+[
+{ "category": "daily", "question": "What was the best part of your day today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one little thing that made you smile today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "If I could magically be beside you right now, what would you want us to do?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is something you wish we could have shared together today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing you need from me today: comfort, laughter, attention, encouragement, or something else?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one random thing you saw today that you wish I had seen too?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "If we were together tonight, what would our perfect lazy evening look like?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing about me that crossed your mind today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What are you looking forward to most about us right now?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one small thing I could do today that would make you feel loved from far away?", "option_a": null, "option_b": null },
 
--- Enable RLS
-ALTER TABLE public.site_visits ENABLE ROW LEVEL SECURITY;
+{ "category": "deep", "question": "What part of our relationship makes you feel safest being completely yourself?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What do you think distance has taught us about loving each other?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is something you are afraid of losing in our relationship?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "When you imagine our life when distance is no longer a problem, what do you picture first?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is something you wish I understood about you without you having to explain it?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What moment made you realize that what we have is more than just a normal relationship?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What kind of partner do you want me to become for you as we grow together?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one dream you seriously want us to experience together someday?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "When we disagree, what do you need most from me to still feel loved?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "If we could sit together five years from now and look back at this long-distance season, what would you hope we say about it?", "option_a": null, "option_b": null },
 
--- Allow anyone to insert (so public API route can track visits)
-DROP POLICY IF EXISTS "Allow anon insert to site_visits" ON public.site_visits;
-CREATE POLICY "Allow anon insert to site_visits" ON public.site_visits
-    FOR INSERT WITH CHECK (true);
+{ "category": "unhinged", "question": "If we were trapped in a supermarket overnight, who would become the leader and who would immediately start causing problems?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If I suddenly became a chicken for 24 hours, would you protect me, hide me, or cook for me?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we switched phones for one day, who would panic first?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we had to communicate only through memes for a whole week, who would break first?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If our relationship had a warning label, what would it say?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If aliens landed and asked us to prove that humans can love, what ridiculous thing would we show them?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we had to survive a zombie apocalypse together, who would accidentally get us both caught?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If I became famous tomorrow, what embarrassing story about me would you absolutely refuse to let me forget?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we could teleport to each other for only 10 minutes, what is the first completely chaotic thing we would do?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If our relationship were a reality TV show, what would the title be?", "option_a": null, "option_b": null },
 
--- Only admins can read
-DROP POLICY IF EXISTS "Allow admin read site_visits" ON public.site_visits;
-CREATE POLICY "Allow admin read site_visits" ON public.site_visits
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM public.user_profiles
-            WHERE email = (auth.jwt() ->> 'email') AND (role = 'administrator' OR role = 'editor')
-        )
-    );
+{ "category": "debate", "question": "Is it acceptable to fall asleep during a call without saying goodnight first?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Who should apologize first when both people clearly contributed to the argument?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is texting 'okay' actually an innocent response, or is it secretly dangerous?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should couples tell each other everything, or is having some private space healthy?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is pineapple on pizza actually good, or is humanity just pretending?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Who should choose what to watch when one person says 'I don't mind'?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is leaving someone on read worse than replying hours later?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should couples celebrate every relationship milestone, even the tiny ones?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it possible to be too clingy in a long-distance relationship?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "When couples argue, is taking space better than talking immediately?", "option_a": null, "option_b": null },
 
--- Create basic indexes for fast aggregation
-CREATE INDEX IF NOT EXISTS idx_site_visits_created_at ON public.site_visits(created_at);
-CREATE INDEX IF NOT EXISTS idx_site_visits_visitor_id ON public.site_visits(visitor_id);
-CREATE INDEX IF NOT EXISTS idx_site_visits_path ON public.site_visits(path);
+{ "category": "would-you-rather", "question": "Would you rather have one perfect week together every year or one ordinary day together every month?", "option_a": "One perfect week together every year", "option_b": "One ordinary day together every month" },
+{ "category": "would-you-rather", "question": "Would you rather I surprise you with a visit or plan the perfect trip together months in advance?", "option_a": "Surprise visit", "option_b": "Plan the perfect trip together" },
+{ "category": "would-you-rather", "question": "Would you rather spend a whole day cuddling at home or exploring a new place together?", "option_a": "Cuddle at home all day", "option_b": "Explore somewhere new" },
+{ "category": "would-you-rather", "question": "Would you rather hear my voice every morning or see my face every night?", "option_a": "Hear your voice every morning", "option_b": "See your face every night" },
+{ "category": "would-you-rather", "question": "Would you rather relive our funniest memory or our most romantic memory?", "option_a": "Relive our funniest memory", "option_b": "Relive our most romantic memory" },
+{ "category": "would-you-rather", "question": "Would you rather have unlimited date nights together but no gifts, or unlimited gifts but only a few date nights?", "option_a": "Unlimited date nights", "option_b": "Unlimited gifts" },
+{ "category": "would-you-rather", "question": "Would you rather we accidentally become internet-famous as a couple or stay completely private forever?", "option_a": "Become internet-famous", "option_b": "Stay completely private" },
+{ "category": "would-you-rather", "question": "Would you rather cook dinner together or order food and spend the evening talking?", "option_a": "Cook dinner together", "option_b": "Order food and talk all evening" },
+{ "category": "would-you-rather", "question": "Would you rather know exactly what our future looks like or discover it together as we go?", "option_a": "Know exactly what our future looks like", "option_b": "Discover it together" },
+{ "category": "would-you-rather", "question": "Would you rather teleport to me for one hour every day or spend one full month together once a year?", "option_a": "Teleport to you for one hour every day", "option_b": "Spend one full month together once a year" }
+]
 
--- Notify PostgREST to reload schema
-NOTIFY pgrst, 'reload schema';
+[
+{ "category": "daily", "question": "What is one thing you wish I could have been there for today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What mood are you in right now, and what would make it better?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is something random you want to tell me before we sleep?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What was the most annoying thing that happened to you today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing you did today that you are proud of?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "If I showed up at your door right now, what would you do first?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is something you want us to do together the next time we meet?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What song matches your mood today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing about today you would change if you could?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one message from me that you would love to wake up to tomorrow?", "option_a": null, "option_b": null },
+
+{ "category": "deep", "question": "What do you think is the strongest part of what we have?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is something about loving me that has surprised you?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What do you think we need to work on most as a couple?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What does being loved properly mean to you?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one thing you never want distance to change about us?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "When do you feel closest to me even though we are far apart?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is something you want us to become better at communicating about?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What kind of memories do you want us to create when we finally have more time together?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one promise you would like us both to keep throughout our relationship?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "If you could remove one difficulty from our relationship, what would you choose?", "option_a": null, "option_b": null },
+
+{ "category": "unhinged", "question": "If we had to open a business together tomorrow, what ridiculous business would we start?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If I were arrested for something completely ridiculous, what would you assume I did?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we were both contestants on a cooking show, who would get eliminated first?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If our arguments had football commentary, what would the commentator say about us?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If you could give me one completely useless superpower, what would it be?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we switched personalities for a day, what is the first thing you would do as me?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we had to spend 24 hours without using our phones, who would struggle more?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If a stranger asked how we met and we had to invent the most ridiculous story possible, what would we say?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we were forced to wear matching outfits for a month, who would secretly enjoy it more?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If our relationship had a national anthem, what kind of song would it be?", "option_a": null, "option_b": null },
+
+{ "category": "debate", "question": "Is it rude to reply 'K' instead of 'Okay'?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Who is more responsible for keeping a long-distance relationship exciting?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is sending a good morning text actually necessary, or is it just a nice bonus?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should the person who starts an argument also be the first person to fix it?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is watching a movie together while barely talking still a date?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it worse to forget an important date or forget something your partner told you yesterday?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should couples have matching profile pictures, or is that too much?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is jealousy always bad, or can a little jealousy show that someone cares?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should couples tell each other when someone is flirting with them?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Who should decide where a couple spends their first holiday together?", "option_a": null, "option_b": null },
+
+{ "category": "would-you-rather", "question": "Would you rather have me beside you for one amazing weekend or talk to me every night for a whole year?", "option_a": "One amazing weekend together", "option_b": "Talk every night for a year" },
+{ "category": "would-you-rather", "question": "Would you rather receive a surprise visit from me or receive a surprise gift from me every month?", "option_a": "A surprise visit", "option_b": "A surprise gift every month" },
+{ "category": "would-you-rather", "question": "Would you rather know exactly when we will live together or know exactly where we will travel together first?", "option_a": "Know when we will live together", "option_b": "Know where we will travel first" },
+{ "category": "would-you-rather", "question": "Would you rather spend our whole day talking or spend our whole day doing things together without many words?", "option_a": "Talk all day", "option_b": "Do things together quietly" },
+{ "category": "would-you-rather", "question": "Would you rather recreate our first date or create a completely new dream date?", "option_a": "Recreate our first date", "option_b": "Create a new dream date" },
+{ "category": "would-you-rather", "question": "Would you rather have unlimited hugs or unlimited kisses whenever we are together?", "option_a": "Unlimited hugs", "option_b": "Unlimited kisses" },
+{ "category": "would-you-rather", "question": "Would you rather I plan every date for a year or you plan every date for a year?", "option_a": "I plan every date", "option_b": "You plan every date" },
+{ "category": "would-you-rather", "question": "Would you rather spend a weekend at the beach together or a weekend somewhere quiet and private?", "option_a": "Weekend at the beach", "option_b": "Quiet private weekend" },
+{ "category": "would-you-rather", "question": "Would you rather get one handwritten love letter from me every month or one long romantic video message every week?", "option_a": "A handwritten love letter every month", "option_b": "A romantic video every week" },
+{ "category": "would-you-rather", "question": "Would you rather wake up next to me every morning or fall asleep beside me every night?", "option_a": "Wake up beside you", "option_b": "Fall asleep beside you" }
+]
+
+
+[
+{ "category": "daily", "question": "What is something you wish we could talk about in person instead of over the phone?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing you want me to know about how your day really went?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What made you laugh today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What are you craving right now that you wish we could have together?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What would you want us to do if we suddenly had the whole evening together?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one photo from your day you would send me if I were standing next to you?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing you are currently excited about?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing you need a little encouragement about right now?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is something small I did recently that you appreciated?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "If today had a title, what would you call it?", "option_a": null, "option_b": null },
+
+{ "category": "deep", "question": "What do you think makes our relationship worth fighting for?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is something you have learned about yourself because of our relationship?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What do you need from me when you are having a really difficult day?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one insecurity you hope you can always feel safe sharing with me?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What does commitment mean to you when two people cannot always be physically together?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What part of our future are you most excited to build together?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one thing you never want us to stop doing for each other?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is something you have wanted to tell me but have struggled to find the right moment for?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What do you think we understand about each other better than most couples do?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "If we could solve one problem in our relationship instantly, what would you choose?", "option_a": null, "option_b": null },
+
+{ "category": "unhinged", "question": "If we were both criminals in a terrible comedy movie, what would we be arrested for?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If I challenged you to a dance battle right now, who would win and why?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we could only communicate using animal sounds for one day, which animal would you choose?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we got stuck in an elevator for six hours, who would become annoying first?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If I were a food, what food would I be and why?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we had to compete on a reality show as a couple, what would be our biggest weakness?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If you could make one completely ridiculous rule that I had to follow forever, what would it be?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we woke up tomorrow with each other's accents, who would use theirs more dramatically?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If our relationship had a mascot, what ridiculous animal would represent us?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we were forced to spend a month living in a tiny house together, what would we argue about first?", "option_a": null, "option_b": null },
+
+{ "category": "debate", "question": "Is it okay to send multiple messages when someone has not replied yet?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is calling without texting first romantic or slightly dangerous?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should the person who is less busy make more effort to communicate?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is 'I'm fine' ever actually just 'I'm fine'?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it acceptable to eat your partner's food without asking if you are already comfortable with each other?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it better for couples to have similar personalities or completely different personalities?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should couples tell each other their passwords, or should some digital privacy remain?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is replying with just an emoji a valid response to a serious message?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is a surprise visit romantic or stressful when someone is living abroad?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should the person who says 'I love you' first automatically win an argument?", "option_a": null, "option_b": null },
+
+{ "category": "would-you-rather", "question": "Would you rather spend three days together doing absolutely nothing or one day together doing everything we have ever wanted?", "option_a": "Three lazy days together", "option_b": "One unforgettable adventure day" },
+{ "category": "would-you-rather", "question": "Would you rather receive a random voice note from me every morning or a random photo from me every night?", "option_a": "A voice note every morning", "option_b": "A photo every night" },
+{ "category": "would-you-rather", "question": "Would you rather travel with me somewhere neither of us has been or visit one of our favorite places together?", "option_a": "Explore somewhere completely new", "option_b": "Return to a favorite place" },
+{ "category": "would-you-rather", "question": "Would you rather have our first home be in the city or somewhere peaceful away from the city?", "option_a": "In the city", "option_b": "Somewhere peaceful" },
+{ "category": "would-you-rather", "question": "Would you rather spend a whole night talking about our future or a whole night remembering our funniest moments?", "option_a": "Talk about our future", "option_b": "Remember our funniest moments" },
+{ "category": "would-you-rather", "question": "Would you rather I cook your favorite meal or take you to your favorite restaurant?", "option_a": "You cook my favorite meal", "option_b": "You take me to my favorite restaurant" },
+{ "category": "would-you-rather", "question": "Would you rather have a surprise date planned by me or choose exactly what we do together?", "option_a": "A surprise date", "option_b": "Choose the date myself" },
+{ "category": "would-you-rather", "question": "Would you rather spend our next holiday somewhere hot and sunny or somewhere cold and cozy?", "option_a": "Hot and sunny", "option_b": "Cold and cozy" },
+{ "category": "would-you-rather", "question": "Would you rather have one giant photo album of our relationship or one private video diary of our memories?", "option_a": "A giant photo album", "option_b": "A private video diary" },
+{ "category": "would-you-rather", "question": "Would you rather be able to teleport to me whenever you miss me or pause time whenever we are together?", "option_a": "Teleport to you whenever I miss you", "option_b": "Pause time whenever we are together" }
+]
+
+[
+{ "category": "daily", "question": "What is something you wanted to tell me today but forgot?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is your energy level right now from 1 to 10, and why?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What part of your day would you replay if you could?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing you wish I could do for you right now if I were there?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is something you saw today that instantly reminded you of me?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What are you currently overthinking?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What would make tonight feel like a really good night?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing you want us to talk about on our next call?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is something you are grateful for about us today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "If we could have dinner together tonight, what would you want us to eat?", "option_a": null, "option_b": null },
+
+{ "category": "deep", "question": "What does home mean to you, and could you imagine us creating one together?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is the hardest part of being away from each other for you?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What makes you feel truly appreciated by me?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one part of your life you want me to understand more deeply?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What do you think we will laugh about when we look back at this stage of our relationship?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What kind of life would make you feel genuinely happy five or ten years from now?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one thing you think we should protect no matter how busy life becomes?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is something you want to experience with me that you have never experienced with anyone else?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "When you picture us growing older together, what is the first scene that comes to your mind?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What would make you feel that we successfully made it through the distance?", "option_a": null, "option_b": null },
+
+{ "category": "unhinged", "question": "If we were banned from using the internet for a month, what would we even do with ourselves?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If I had to dress exactly like you for a week, what would be the hardest part for me?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we accidentally became neighbors with our biggest enemy, who would cause more trouble?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If our relationship had a group chat with itself, what would the messages look like?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If you could replace my alarm sound with anything ridiculous, what would you choose?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we were stranded somewhere and had only one suitcase, what useless thing would you insist on bringing?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If I became a professional wrestler, what ridiculous name would you give me?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we had to communicate our entire relationship using only three emojis, which three would you choose?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we entered a competition for the world's most chaotic couple, what would our talent be?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If you could make me permanently obsessed with one random food, what would you choose?", "option_a": null, "option_b": null },
+
+{ "category": "debate", "question": "Is it better to call every day for a short time or have fewer but much longer calls?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should couples have a designated date night even when they are busy?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it okay to cancel a call because you are tired without feeling guilty?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Who should choose the restaurant when a couple cannot agree?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it better to resolve an argument before sleeping or sleep and talk when both people are calmer?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is sharing your location with your partner romantic, unnecessary, or somewhere in between?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should couples have a daily good morning and goodnight routine?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is teasing your partner a good way to show affection or an easy way to start trouble?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it better to give your partner advice or simply listen when they are complaining?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Can two people love each other deeply and still need a lot of personal space?", "option_a": null, "option_b": null },
+
+{ "category": "would-you-rather", "question": "Would you rather have me surprise you at your workplace or surprise you at home?", "option_a": "Surprise you at work", "option_b": "Surprise you at home" },
+{ "category": "would-you-rather", "question": "Would you rather spend our next reunion taking lots of pictures or barely use our phones at all?", "option_a": "Take lots of pictures", "option_b": "Barely use our phones" },
+{ "category": "would-you-rather", "question": "Would you rather go on a road trip together or fly somewhere completely new?", "option_a": "Go on a road trip", "option_b": "Fly somewhere new" },
+{ "category": "would-you-rather", "question": "Would you rather have a quiet dinner together or go somewhere crowded and exciting?", "option_a": "Quiet dinner", "option_b": "Crowded and exciting place" },
+{ "category": "would-you-rather", "question": "Would you rather get one long hug after months apart or a hundred small hugs throughout the day?", "option_a": "One long hug", "option_b": "A hundred small hugs" },
+{ "category": "would-you-rather", "question": "Would you rather have our entire future planned out or have no idea what happens next?", "option_a": "Have everything planned", "option_b": "Discover everything together" },
+{ "category": "would-you-rather", "question": "Would you rather watch the sunrise together or watch the sunset together?", "option_a": "Watch the sunrise", "option_b": "Watch the sunset" },
+{ "category": "would-you-rather", "question": "Would you rather receive a romantic paragraph from me every day or one extremely meaningful letter once a year?", "option_a": "A romantic paragraph every day", "option_b": "One meaningful letter every year" },
+{ "category": "would-you-rather", "question": "Would you rather have a spontaneous weekend together or a perfectly planned two-week holiday?", "option_a": "Spontaneous weekend", "option_b": "Perfectly planned two-week holiday" },
+{ "category": "would-you-rather", "question": "Would you rather relive the day we first met or skip ahead to the day we finally stop doing long distance?", "option_a": "Relive the day we first met", "option_b": "Skip ahead to ending long distance" }
+]
+
+[
+{ "category": "daily", "question": "What is one thing you wish I had asked you about today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What was your happiest moment today, even if it was something very small?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is something you want me to hype you up about today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What are you currently looking forward to telling me?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing you wish we could have laughed about together today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "If I could send you anything right now, what would you want it to be?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing about your day that you think I would find funny?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What are you most in the mood for right now: talking, laughing, relaxing, or affection?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is something you want us to make time for this week?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one random question you want to ask me tonight?", "option_a": null, "option_b": null },
+
+{ "category": "deep", "question": "What do you think we have taught each other about love?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one thing about our relationship that you hope never becomes ordinary?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What do you think you need most from me during the moments when distance feels hardest?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one sacrifice you think is worth making for the future we want?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What would you want our relationship to be known for by the people closest to us?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is something you hope we become better at before we eventually live closer to each other?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one moment between us that changed how you saw me?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What does loyalty look like to you when your partner is far away?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What kind of couple do you hope we are when life becomes stressful and complicated?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "If you could guarantee one thing about our future together, what would you choose?", "option_a": null, "option_b": null },
+
+{ "category": "unhinged", "question": "If we had to survive on only one food for a year, what would we choose and who would get tired of it first?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If I accidentally became a viral meme, what would the meme probably be about?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we had to fake being professional chefs for a day, what dish would expose us immediately?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If you could legally rename me for one week, what ridiculous name would you give me?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we were both ghosts, where would we haunt together?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we had a couple's secret handshake, how unnecessarily complicated would we make it?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If I challenged you to a staring contest over video call, how would you cheat?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we could force one celebrity to be our relationship referee, who would survive us?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If our relationship were a WhatsApp sticker pack, what would the most-used sticker say?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we switched bodies for 24 hours, what is the first thing you would investigate?", "option_a": null, "option_b": null },
+
+{ "category": "debate", "question": "Is calling someone 'babe' after an argument enough to officially end the argument?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "If someone says 'I'm not hungry' and then eats your food, is that a relationship crime?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is falling asleep while texting cute or disrespectful?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should the person who wakes up first always send the first good morning message?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is being jealous of your partner's attention to other people normal or unnecessary?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "If your partner says 'choose whatever you want,' do they actually mean it?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it acceptable to send a serious message followed by a meme to lighten the mood?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should couples celebrate the day they first met more than Valentine's Day?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it better to talk through an issue immediately or wait until emotions cool down?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "If your partner says 'do whatever you want,' should you actually do whatever you want?", "option_a": null, "option_b": null },
+
+{ "category": "would-you-rather", "question": "Would you rather have me surprise you with flowers or surprise you with your favorite food?", "option_a": "Surprise you with flowers", "option_b": "Surprise you with your favorite food" },
+{ "category": "would-you-rather", "question": "Would you rather spend our reunion talking until sunrise or sleep beside each other all night?", "option_a": "Talk until sunrise", "option_b": "Sleep beside each other" },
+{ "category": "would-you-rather", "question": "Would you rather have our first big trip be somewhere luxurious or somewhere adventurous?", "option_a": "Somewhere luxurious", "option_b": "Somewhere adventurous" },
+{ "category": "would-you-rather", "question": "Would you rather receive ten small surprises from me or one huge surprise?", "option_a": "Ten small surprises", "option_b": "One huge surprise" },
+{ "category": "would-you-rather", "question": "Would you rather have a spontaneous date or a date planned down to every detail?", "option_a": "Spontaneous date", "option_b": "Perfectly planned date" },
+{ "category": "would-you-rather", "question": "Would you rather watch our favorite movie together or start a completely new series together?", "option_a": "Watch our favorite movie", "option_b": "Start a new series" },
+{ "category": "would-you-rather", "question": "Would you rather have unlimited video calls or unlimited visits but only for short periods?", "option_a": "Unlimited video calls", "option_b": "Unlimited short visits" },
+{ "category": "would-you-rather", "question": "Would you rather wake up one day and discover we live in the same city or discover we have a whole month-long holiday together?", "option_a": "Live in the same city", "option_b": "Have a month-long holiday" },
+{ "category": "would-you-rather", "question": "Would you rather have a private romantic dinner or a crazy night out together?", "option_a": "Private romantic dinner", "option_b": "Crazy night out" },
+{ "category": "would-you-rather", "question": "Would you rather be able to read my mind for one day or let me read yours for one day?", "option_a": "Read your mind", "option_b": "Let you read my mind" }
+]
+
+[
+{ "category": "daily", "question": "What is one thing you wish I could see from where you are right now?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing that happened today that you know I would have laughed at?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What kind of attention from me are you craving today?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is something you are currently excited to tell me when we talk?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What was the most peaceful moment of your day?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing you wish we could do together tonight?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is something small that made you think, 'I wish my partner was here'?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing you want me to remind you of when you are having a difficult day?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What part of today would you tell me about first if we were sitting together?", "option_a": null, "option_b": null },
+{ "category": "daily", "question": "What is one thing we should definitely do together the next time we are in the same place?", "option_a": null, "option_b": null },
+
+{ "category": "deep", "question": "What do you think distance has revealed about the strength of our relationship?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is something you want to feel more of in our relationship?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What part of your future do you most want me to be part of?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What do you think we should never take for granted about each other?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is something you find difficult to express over text that is easier to say in person?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What does reassurance look like for you when you are missing me?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one fear about the future that you would want us to face together rather than alone?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What do you think our relationship needs more of as we continue growing?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "What is one thing about us that you are quietly proud of?", "option_a": null, "option_b": null },
+{ "category": "deep", "question": "If we could sit down together ten years from now, what question would you want to ask our future selves?", "option_a": null, "option_b": null },
+
+{ "category": "unhinged", "question": "If we had to spend a week pretending to be married celebrities, what ridiculous couple name would the internet give us?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If I were secretly a spy, what completely obvious thing would give me away?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we had to communicate using only voice notes for a month, who would send the longest ones?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If you could make one of my habits disappear instantly, which one would you delete?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we were both contestants on a dating show despite already being together, who would accidentally flirt with the other contestants?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we had to survive one week with no money, what ridiculous plan would we come up with?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If our relationship had a smell, what would it smell like?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If you could force me to listen to one song every morning for a year, what song would you choose?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If we were both invisible for one day, what completely unnecessary thing would we do together?", "option_a": null, "option_b": null },
+{ "category": "unhinged", "question": "If someone made a documentary about us, what would be the most embarrassing episode?", "option_a": null, "option_b": null },
+
+{ "category": "debate", "question": "Is it worse to forget a birthday or forget an important conversation you had with your partner?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should the person who misses their partner more get to choose what they do on the next date?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is sending a random 'I miss you' message better than waiting for the perfect moment?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should couples tell each other when they are feeling jealous even if they think it is irrational?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it rude to fall asleep during a video call without saying goodbye?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should the person who is wrong have to buy food for the other person?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it better to receive fewer meaningful messages or lots of small messages throughout the day?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Should couples have one day every week where neither person is allowed to talk about problems?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "Is it acceptable to tease your partner about something they are sensitive about if you know they will laugh?", "option_a": null, "option_b": null },
+{ "category": "debate", "question": "When one person says 'nothing is wrong,' should the other person believe them or investigate?", "option_a": null, "option_b": null },
+
+{ "category": "would-you-rather", "question": "Would you rather have me visit you unexpectedly or have us plan the perfect reunion together?", "option_a": "Unexpected visit", "option_b": "Perfectly planned reunion" },
+{ "category": "would-you-rather", "question": "Would you rather spend our first full day together eating, talking, and relaxing or going out and exploring everywhere?", "option_a": "Eat, talk, and relax", "option_b": "Go out and explore" },
+{ "category": "would-you-rather", "question": "Would you rather have one unforgettable trip together or lots of small weekend trips?", "option_a": "One unforgettable trip", "option_b": "Lots of small trips" },
+{ "category": "would-you-rather", "question": "Would you rather receive a surprise video message from me or wake up to a surprise long text from me?", "option_a": "Surprise video message", "option_b": "Surprise long text" },
+{ "category": "would-you-rather", "question": "Would you rather spend an entire day at the beach together or an entire day in bed watching movies?", "option_a": "Beach all day", "option_b": "Movies in bed all day" },
+{ "category": "would-you-rather", "question": "Would you rather know exactly what I am thinking for one day or know exactly what I am feeling for one day?", "option_a": "Know exactly what I am thinking", "option_b": "Know exactly what I am feeling" },
+{ "category": "would-you-rather", "question": "Would you rather have our dream home immediately or have enough money to travel together for five years?", "option_a": "Our dream home immediately", "option_b": "Travel together for five years" },
+{ "category": "would-you-rather", "question": "Would you rather have a surprise romantic dinner prepared for you or have me take you somewhere completely unexpected?", "option_a": "Surprise romantic dinner", "option_b": "Unexpected destination" },
+{ "category": "would-you-rather", "question": "Would you rather relive your favorite memory with me or create a brand-new favorite memory?", "option_a": "Relive our favorite memory", "option_b": "Create a new favorite memory" },
+{ "category": "would-you-rather", "question": "Would you rather be able to instantly travel to me whenever you miss me or instantly bring me to you whenever you want?", "option_a": "Travel to you instantly", "option_b": "Bring you to me instantly" }
+]

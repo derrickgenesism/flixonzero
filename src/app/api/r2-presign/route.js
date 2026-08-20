@@ -45,8 +45,8 @@ export async function POST(request) {
     });
 
     // Use the exact filename provided by the user
-    // Clean it up just in case (remove paths)
-    const cleanFilename = filename.split(/[/\\]/).pop();
+    // Clean it up just in case (remove paths) and replace spaces with hyphens
+    const cleanFilename = filename.split(/[/\\]/).pop().replace(/\s+/g, '-');
 
     const command = new PutObjectCommand({
       Bucket: bucketName,

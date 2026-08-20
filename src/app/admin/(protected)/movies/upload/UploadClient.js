@@ -87,7 +87,7 @@ export default function UploadClient() {
         try {
           rawFilename = decodeURIComponent(rawFilename);
         } catch(e) {}
-        const generatedKey = rawFilename;
+        const generatedKey = rawFilename.replace(/\s+/g, '-');
         
         await new Promise((resolve, reject) => {
           const sse = new EventSource(`/api/upload-direct?url=${encodeURIComponent(videoUrl)}&key=${encodeURIComponent(generatedKey)}`);
