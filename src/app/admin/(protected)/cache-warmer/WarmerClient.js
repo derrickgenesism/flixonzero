@@ -3,8 +3,150 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Script from 'next/script';
 
+// ─── Individual warming player ──────────────────────────────────────────────
+// This component renders a REAL <video> element in the DOM, and only starts
+// warming after the element is mounted. This guarantees the browser can play it.
+function WarmingPlayer({ url, duration, onDone, onError }) {
+  const videoRef = useRef(null);
+  const hlsRef = useRef(null);
+  const settledRef = useRef(false);
+  const fallbackTimerRef = useRef(null);
+  const [playTime, setPlayTime] = useState(0);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || settledRef.current) return;
+
+    const MAX_WAIT = Math.max(120000, (duration + 60) * 1000);
+
+    const finish = (err) => {
+      if (settledRef.current) return;
+      settledRef.current = true;
+      clearTimeout(fallbackTimerRef.current);
+      video.pause();
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+      if (err) onError(err.message || 'Error');
+      else onDone();
+    };
+
+    const onTimeUpdate = () => {
+      if (settledRef.current) return;
+      setPlayTime(Math.floor(video.currentTime));
+      if (video.currentTime >= duration) {
+        finish(null);
+      }
+    };
+
+    const onEnded = () => {
+      if (!settledRef.current) finish(null);
+    };
+
+    const onNativeError = () => {
+      // Browser can't decode this format (e.g. MKV), but the network request
+      // to the CDN still happened, which is the whole point of warming.
+      // Wait the duration then mark as done.
+      if (!settledRef.current) {
+        setTimeout(() => {
+          if (!settledRef.current) finish(null);
+        }, duration * 1000);
+      }
+    };
+
+    // Fallback timeout — don't hang forever
+    fallbackTimerRef.current = setTimeout(() => {
+      if (!settledRef.current) finish(new Error('Timed out waiting for video'));
+    }, MAX_WAIT);
+
+    video.addEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener('ended', onEnded);
+    video.addEventListener('error', onNativeError);
+
+    // Start loading
+    if (window.Hls && window.Hls.isSupported() && url.includes('.m3u8')) {
+      const hls = new window.Hls({
+        autoStartLoad: true,
+        startPosition: -1,
+        capLevelToPlayerSize: true,
+        maxBufferLength: Math.max(10, duration + 5),
+      });
+      hlsRef.current = hls;
+      hls.loadSource(url);
+      hls.attachMedia(video);
+
+      hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(() => {});
+      });
+
+      hls.on(window.Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          finish(new Error(`HLS ${data.type}: ${data.details}`));
+        }
+      });
+    } else {
+      // MP4/MKV/direct URL
+      video.src = url;
+      video.load();
+      video.addEventListener('loadeddata', () => {
+        video.play().catch(() => {});
+      }, { once: true });
+    }
+
+    return () => {
+      // Cleanup on unmount
+      clearTimeout(fallbackTimerRef.current);
+      video.removeEventListener('timeupdate', onTimeUpdate);
+      video.removeEventListener('ended', onEnded);
+      video.removeEventListener('error', onNativeError);
+      video.pause();
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount
+
+  return (
+    <div style={{ position: 'relative', width: '220px', minWidth: '220px', height: '130px', flexShrink: 0 }}>
+      <video
+        ref={videoRef}
+        muted
+        playsInline
+        autoPlay
+        controls
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          borderRadius: '6px',
+          background: '#000',
+          border: '1px solid rgba(255,255,255,0.15)',
+        }}
+      />
+      <div style={{
+        position: 'absolute',
+        bottom: '28px',
+        left: '4px',
+        background: 'rgba(0,0,0,0.7)',
+        color: '#fff',
+        fontSize: '10px',
+        padding: '2px 6px',
+        borderRadius: '4px',
+        fontFamily: 'monospace',
+      }}>
+        {playTime}s / {duration}s
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ──────────────────────────────────────────────────────────
+
 export default function WarmerClient({ dbMovies }) {
-  const [warmDuration, setWarmDuration] = useState(10);
+  const [warmDuration, setWarmDuration] = useState(5);
   const [concurrency, setConcurrency] = useState(3);
 
   const [queue, setQueue] = useState([]);
@@ -18,21 +160,16 @@ export default function WarmerClient({ dbMovies }) {
   const [reminderSending, setReminderSending] = useState(false);
   const [reminderMsg, setReminderMsg] = useState(null);
 
-  // Refs — avoids stale closure bugs
+  // Refs
   const queueRef = useRef([]);
-  const activeWorkers = useRef(0);
   const isWarmingRef = useRef(false);
   const warmDurationRef = useRef(warmDuration);
 
-  // Keep warmDurationRef in sync
-  useEffect(() => {
-    warmDurationRef.current = warmDuration;
-  }, [warmDuration]);
+  useEffect(() => { warmDurationRef.current = warmDuration; }, [warmDuration]);
 
   // Sync queue to ref and recompute stats
   useEffect(() => {
     queueRef.current = queue;
-
     let p = 0, w = 0, d = 0, e = 0;
     queue.forEach(item => {
       if (item.status === 'pending') p++;
@@ -43,212 +180,60 @@ export default function WarmerClient({ dbMovies }) {
     setStats({ total: queue.length, pending: p, warming: w, done: d, error: e });
   }, [queue]);
 
-  // ─── Queue helpers ────────────────────────────────────────────────────────
+  // ─── Auto-advance: when a warming item finishes, pick up the next pending ──
 
-  const markStatus = useCallback((id, status, extra = {}) => {
-    setQueue(prev => prev.map(q => q.id === id ? { ...q, status, ...extra } : q));
-  }, []);
+  const promoteNext = useCallback(() => {
+    setQueue(prev => {
+      const warmingCount = prev.filter(q => q.status === 'warming').length;
+      if (warmingCount >= concurrency) return prev; // already at capacity
 
-  // ─── Core warming logic ───────────────────────────────────────────────────
+      const nextIdx = prev.findIndex(q => q.status === 'pending');
+      if (nextIdx === -1) return prev; // nothing left
 
-  const warmVideo = useCallback((url, videoElRef) => {
-    return new Promise((resolve, reject) => {
-      const video = videoElRef.current;
-      if (!video) return reject(new Error('No video element'));
-
-      video.muted = true;
-      video.playsInline = true;
-      video.autoplay = true;
-
-      let hls = null;
-      let fallbackTimeoutId = null;
-      let settled = false;
-
-      const duration = warmDurationRef.current;
-      const MAX_WAIT_TIME = Math.max(120000, (duration + 60) * 1000); // Max wait for buffering
-
-      const checkProgress = () => {
-        if (!settled && video.currentTime >= duration) {
-          finish(null);
-        }
-      };
-
-      const onEnded = () => {
-        if (!settled) finish(null);
-      };
-
-      const cleanup = () => {
-        clearTimeout(fallbackTimeoutId);
-        video.removeEventListener('timeupdate', checkProgress);
-        video.removeEventListener('ended', onEnded);
-        video.pause();
-        video.removeAttribute('src');
-        video.load();
-        if (hls) hls.destroy();
-      };
-
-      const finish = (err) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        if (err) reject(err); else resolve();
-      };
-
-      // Fallback timeout to prevent hanging forever if it never plays or buffers endlessly
-      fallbackTimeoutId = setTimeout(() => {
-        if (!settled) finish(new Error('Timed out waiting for video to play or buffer'));
-      }, MAX_WAIT_TIME);
-
-      video.addEventListener('timeupdate', checkProgress);
-      video.addEventListener('ended', onEnded);
-
-      const handlePlayError = (e) => {
-        if (e.name === 'NotAllowedError') {
-          finish(new Error('Autoplay blocked. User interaction required.'));
-        }
-      };
-
-      if (window.Hls && window.Hls.isSupported() && url.includes('.m3u8')) {
-        hls = new window.Hls({
-          autoStartLoad: true,
-          startPosition: -1,
-          capLevelToPlayerSize: true,
-          maxBufferLength: Math.max(10, duration + 5),
-        });
-        hls.loadSource(url);
-        hls.attachMedia(video);
-
-        hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch(handlePlayError);
-        });
-
-        hls.on(window.Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            finish(new Error(`HLS ${data.type}: ${data.details}`));
-          }
-        });
-      } else {
-        // Native or MP4/MKV fallback
-        video.src = url;
-        video.addEventListener('loadedmetadata', () => {
-          video.play().catch(handlePlayError);
-        }, { once: true });
-        video.addEventListener('error', () => {
-          // If the browser can't decode the video (e.g., MKV format), it throws an error immediately.
-          // However, assigning src still makes a network request to the CDN, warming the cache.
-          // Since it can't play, we can't use timeupdate. We simulate the wait using a timeout.
-          setTimeout(() => {
-            if (!settled) finish(null);
-          }, duration * 1000);
-        }, { once: true });
-      }
+      const copy = [...prev];
+      copy[nextIdx] = { ...copy[nextIdx], status: 'warming' };
+      return copy;
     });
-  }, []);
+  }, [concurrency]);
 
-  // processNext uses a stable ref to avoid exhausting workers
-  const processNextRef = useRef(null);
-  processNextRef.current = async () => {
-    if (!isWarmingRef.current) return;
+  const handleItemDone = useCallback((id) => {
+    setQueue(prev => prev.map(q => q.id === id ? { ...q, status: 'done' } : q));
+    // Use setTimeout to allow React state to settle before promoting next
+    setTimeout(() => promoteNext(), 50);
+  }, [promoteNext]);
 
-    // Find next pending item
-    const currentQueue = queueRef.current;
-    const nextIdx = currentQueue.findIndex(q => q.status === 'pending');
-    if (nextIdx === -1) {
-      activeWorkers.current--;
-      return; // All done or nothing left for this worker
-    }
+  const handleItemError = useCallback((id, errorMsg) => {
+    setQueue(prev => prev.map(q => q.id === id ? { ...q, status: 'error', errorMsg } : q));
+    setTimeout(() => promoteNext(), 50);
+  }, [promoteNext]);
 
-    const item = currentQueue[nextIdx];
-    const videoElRef = { current: item.videoEl };
-
-    // Mark warming
-    setQueue(prev => prev.map((q, i) => i === nextIdx ? { ...q, status: 'warming' } : q));
-    // Also update ref immediately
-    queueRef.current = queueRef.current.map((q, i) =>
-      i === nextIdx ? { ...q, status: 'warming' } : q
-    );
-
-    try {
-      await warmVideo(item.url, videoElRef);
-      markStatus(item.id, 'done');
-      // Update ref
-      queueRef.current = queueRef.current.map(q => q.id === item.id ? { ...q, status: 'done' } : q);
-    } catch (err) {
-      const msg = err?.message || 'Error';
-      markStatus(item.id, 'error', { errorMsg: msg });
-      queueRef.current = queueRef.current.map(q =>
-        q.id === item.id ? { ...q, status: 'error', errorMsg: msg } : q
-      );
-    }
-
-    // This worker picks up the next job
-    if (isWarmingRef.current) {
-      processNextRef.current();
-    } else {
-      activeWorkers.current--;
-    }
-  };
-
-  // ─── Controls ────────────────────────────────────────────────────────────
+  // ─── Controls ──────────────────────────────────────────────────────────────
 
   const handleStartAll = () => {
     if (!hlsLoaded) {
       alert('Video player library is still loading. Please wait a moment.');
       return;
     }
-    const newQueue = dbMovies.map(m => {
-      const videoEl = document.createElement('video');
-      videoEl.muted = true;
-      videoEl.defaultMuted = true;
-      videoEl.setAttribute('muted', '');
-      videoEl.playsInline = true;
-      videoEl.setAttribute('playsinline', '');
-      videoEl.controls = true; // Show controls so you can see the scrubber move
-      videoEl.style.width = '100%';
-      videoEl.style.height = '100%';
-      videoEl.style.objectFit = 'cover';
-      videoEl.style.borderRadius = '4px';
-      videoEl.style.background = '#000';
-      return {
-        id: Math.random().toString(36).substring(7),
-        title: m.title,
-        url: m.video_url,
-        status: 'pending',
-        videoEl,
-        errorMsg: null,
-      };
-    });
+    const newQueue = dbMovies.map((m, i) => ({
+      id: `v-${i}-${Date.now()}`,
+      title: m.title,
+      url: m.video_url,
+      status: i < concurrency ? 'warming' : 'pending', // Start first N immediately
+      errorMsg: null,
+    }));
 
     setQueue(newQueue);
     queueRef.current = newQueue;
     setIsWarming(true);
     isWarmingRef.current = true;
-    activeWorkers.current = 0;
-
-    // Spawn workers up to concurrency limit
-    const slots = Math.min(concurrency, newQueue.length);
-    for (let i = 0; i < slots; i++) {
-      activeWorkers.current++;
-      processNextRef.current();
-    }
   };
 
   const handleStop = () => {
     setIsWarming(false);
     isWarmingRef.current = false;
-    activeWorkers.current = 0;
-    // Reset warming items back to pending
-    setQueue(prev => prev.map(q => {
-      if (q.status === 'warming') {
-        if (q.videoEl) {
-          q.videoEl.pause();
-          q.videoEl.removeAttribute('src');
-          q.videoEl.load();
-        }
-        return { ...q, status: 'pending' };
-      }
-      return q;
-    }));
+    setQueue(prev => prev.map(q =>
+      q.status === 'warming' ? { ...q, status: 'pending' } : q
+    ));
   };
 
   // ─── Telegram reminder ────────────────────────────────────────────────────
@@ -273,39 +258,6 @@ export default function WarmerClient({ dbMovies }) {
     }
     setReminderSending(false);
     setTimeout(() => setReminderMsg(null), 5000);
-  };
-
-  // ─── Video player refs for React rendering ────────────────────────────────
-
-  // We use a callback ref to mount the video element into the DOM node
-  const VideoPreview = ({ videoEl }) => {
-    const containerRef = useRef(null);
-    useEffect(() => {
-      const container = containerRef.current;
-      if (container && videoEl && !container.contains(videoEl)) {
-        container.appendChild(videoEl);
-      }
-      return () => {
-        if (container && container.contains(videoEl)) {
-          container.removeChild(videoEl);
-        }
-      };
-    }, [videoEl]);
-    return (
-      <div
-        ref={containerRef}
-        style={{
-          width: '160px',
-          minWidth: '160px',
-          height: '90px',
-          background: '#000',
-          borderRadius: '6px',
-          overflow: 'hidden',
-          border: '1px solid rgba(255,255,255,0.1)',
-          flexShrink: 0,
-        }}
-      />
-    );
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -465,11 +417,11 @@ export default function WarmerClient({ dbMovies }) {
             {queue.length === 0 ? (
               <div style={{ padding: '50px', textAlign: 'center', color: 'var(--text3)' }}>
                 <div style={{ fontSize: '32px', marginBottom: '10px' }}>🎬</div>
-                <div>Click "Warm All Videos" to begin.</div>
+                <div>Click &quot;Warm All Videos&quot; to begin.</div>
                 <div style={{ fontSize: '12px', marginTop: '6px', opacity: 0.6 }}>{dbMovies.length} videos in database</div>
               </div>
             ) : (
-              <div style={{ maxHeight: '520px', overflowY: 'auto' }}>
+              <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
                 {queue.map((q, idx) => (
                   <div
                     key={q.id}
@@ -488,14 +440,20 @@ export default function WarmerClient({ dbMovies }) {
                       {idx + 1}.
                     </span>
 
-                    {/* Mini Video Player — only render when warming */}
-                    {q.status === 'warming' && q.videoEl ? (
-                      <VideoPreview videoEl={q.videoEl} />
+                    {/* Video player — rendered as a REAL <video> in the DOM */}
+                    {q.status === 'warming' ? (
+                      <WarmingPlayer
+                        key={q.id + '-player'}
+                        url={q.url}
+                        duration={warmDuration}
+                        onDone={() => handleItemDone(q.id)}
+                        onError={(msg) => handleItemError(q.id, msg)}
+                      />
                     ) : (
                       <div style={{
-                        width: '160px',
-                        minWidth: '160px',
-                        height: '90px',
+                        width: '220px',
+                        minWidth: '220px',
+                        height: '130px',
                         background: q.status === 'done'
                           ? 'rgba(0,200,83,0.08)'
                           : q.status === 'error'
@@ -506,7 +464,7 @@ export default function WarmerClient({ dbMovies }) {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '20px',
+                        fontSize: '24px',
                         flexShrink: 0,
                       }}>
                         {q.status === 'done' && '✅'}
@@ -520,7 +478,7 @@ export default function WarmerClient({ dbMovies }) {
                       <div style={{
                         fontSize: '13px',
                         fontWeight: q.status === 'warming' ? '600' : 'normal',
-                        color: q.status === 'warming' ? '#fff' : q.status === 'done' ? 'var(--text2)' : 'var(--text2)',
+                        color: q.status === 'warming' ? '#fff' : 'var(--text2)',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
