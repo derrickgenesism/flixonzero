@@ -44,6 +44,7 @@ export async function insertMovie(movieData) {
   }
 
   const { data, error } = await supabase.from('movies').insert({
+    id: crypto.randomUUID(),
     title: movieData.title,
     description: movieData.description,
     type: movieData.type || 'video',
