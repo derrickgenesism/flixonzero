@@ -134,7 +134,12 @@ export default function WarmerClient({ dbMovies }) {
           video.play().catch(handlePlayError);
         }, { once: true });
         video.addEventListener('error', () => {
-          finish(new Error('Native video playback error'));
+          // If the browser can't decode the video (e.g., MKV format), it throws an error immediately.
+          // However, assigning src still makes a network request to the CDN, warming the cache.
+          // Since it can't play, we can't use timeupdate. We simulate the wait using a timeout.
+          setTimeout(() => {
+            if (!settled) finish(null);
+          }, duration * 1000);
         }, { once: true });
       }
     });
