@@ -61,27 +61,26 @@ export default function WarmerClient({ dbMovies }) {
       video.autoplay = true;
 
       let hls = null;
-      let timeoutId = null;
       let fallbackTimeoutId = null;
       let settled = false;
-      let hasStartedTimer = false;
 
-      const duration = warmDurationRef.current * 1000;
-      const MAX_WAIT_TIME = 120000; // max wait for buffering (2 mins)
+      const duration = warmDurationRef.current;
+      const MAX_WAIT_TIME = Math.max(120000, (duration + 60) * 1000); // Max wait for buffering
 
-      const startTimer = () => {
-        if (!hasStartedTimer && !settled) {
-          hasStartedTimer = true;
-          timeoutId = setTimeout(() => finish(null), duration);
+      const checkProgress = () => {
+        if (!settled && video.currentTime >= duration) {
+          finish(null);
         }
       };
 
-      const onPlaying = () => startTimer();
+      const onEnded = () => {
+        if (!settled) finish(null);
+      };
 
       const cleanup = () => {
-        clearTimeout(timeoutId);
         clearTimeout(fallbackTimeoutId);
-        video.removeEventListener('playing', onPlaying);
+        video.removeEventListener('timeupdate', checkProgress);
+        video.removeEventListener('ended', onEnded);
         video.pause();
         video.removeAttribute('src');
         video.load();
@@ -95,28 +94,32 @@ export default function WarmerClient({ dbMovies }) {
         if (err) reject(err); else resolve();
       };
 
-      // Fallback timeout to prevent hanging forever if it never plays
+      // Fallback timeout to prevent hanging forever if it never plays or buffers endlessly
       fallbackTimeoutId = setTimeout(() => {
-        if (!settled) finish(new Error('Timed out waiting for video to play'));
+        if (!settled) finish(new Error('Timed out waiting for video to play or buffer'));
       }, MAX_WAIT_TIME);
 
-      video.addEventListener('playing', onPlaying);
+      video.addEventListener('timeupdate', checkProgress);
+      video.addEventListener('ended', onEnded);
+
+      const handlePlayError = (e) => {
+        if (e.name === 'NotAllowedError') {
+          finish(new Error('Autoplay blocked. User interaction required.'));
+        }
+      };
 
       if (window.Hls && window.Hls.isSupported() && url.includes('.m3u8')) {
         hls = new window.Hls({
           autoStartLoad: true,
           startPosition: -1,
           capLevelToPlayerSize: true,
-          maxBufferLength: 10,
+          maxBufferLength: Math.max(10, duration + 5),
         });
         hls.loadSource(url);
         hls.attachMedia(video);
 
         hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch((e) => {
-            // Autoplay blocked is OK — segments still load
-            if (e.name === 'NotAllowedError') startTimer();
-          });
+          video.play().catch(handlePlayError);
         });
 
         hls.on(window.Hls.Events.ERROR, (event, data) => {
@@ -128,13 +131,10 @@ export default function WarmerClient({ dbMovies }) {
         // Native or MP4/MKV fallback
         video.src = url;
         video.addEventListener('loadedmetadata', () => {
-          video.play().catch((e) => {
-            if (e.name === 'NotAllowedError') startTimer();
-          });
+          video.play().catch(handlePlayError);
         }, { once: true });
         video.addEventListener('error', () => {
-          // Network hit happened even if browser can't decode (e.g. MKV)
-          startTimer();
+          finish(new Error('Native video playback error'));
         }, { once: true });
       }
     });
@@ -194,7 +194,10 @@ export default function WarmerClient({ dbMovies }) {
     const newQueue = dbMovies.map(m => {
       const videoEl = document.createElement('video');
       videoEl.muted = true;
+      videoEl.defaultMuted = true;
+      videoEl.setAttribute('muted', '');
       videoEl.playsInline = true;
+      videoEl.setAttribute('playsinline', '');
       videoEl.style.width = '100%';
       videoEl.style.height = '100%';
       videoEl.style.objectFit = 'cover';
