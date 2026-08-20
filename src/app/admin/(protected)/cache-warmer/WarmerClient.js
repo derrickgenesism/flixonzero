@@ -203,6 +203,7 @@ export default function WarmerClient({ dbMovies }) {
       videoEl.setAttribute('muted', '');
       videoEl.playsInline = true;
       videoEl.setAttribute('playsinline', '');
+      videoEl.controls = true; // Show controls so you can see the scrubber move
       videoEl.style.width = '100%';
       videoEl.style.height = '100%';
       videoEl.style.objectFit = 'cover';
