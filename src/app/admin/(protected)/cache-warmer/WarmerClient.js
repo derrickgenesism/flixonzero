@@ -214,16 +214,32 @@ export default function WarmerClient({ dbMovies }) {
       alert('Video player library is still loading. Please wait a moment.');
       return;
     }
-    const newQueue = dbMovies.map((m, i) => ({
-      id: `v-${i}-${Date.now()}`,
-      title: m.title,
-      url: m.video_url,
-      status: i < concurrency ? 'warming' : 'pending', // Start first N immediately
-      errorMsg: null,
+    const newQueue = dbMovies.map((m, i) => {
+      let actualUrl = m.video_url;
+      if (actualUrl && actualUrl.includes('<iframe')) {
+        return null; // Skip iframes (e.g. YouTube embeds)
+      } else if (actualUrl && (actualUrl.includes('<video') || actualUrl.includes('<source'))) {
+        const match = actualUrl.match(/src=["']([^"']+)['"]/);
+        if (match?.[1]) actualUrl = match[1];
+      }
+
+      return {
+        id: `v-${i}-${Date.now()}`,
+        title: m.title,
+        url: actualUrl,
+        status: 'pending',
+        errorMsg: null,
+      };
+    }).filter(Boolean); // Remove nulls (iframes)
+
+    // Mark the first N as warming
+    const initializedQueue = newQueue.map((q, i) => ({
+      ...q,
+      status: i < concurrency ? 'warming' : 'pending'
     }));
 
-    setQueue(newQueue);
-    queueRef.current = newQueue;
+    setQueue(initializedQueue);
+    queueRef.current = initializedQueue;
     setIsWarming(true);
     isWarmingRef.current = true;
   };
