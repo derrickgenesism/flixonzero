@@ -72,12 +72,8 @@ export default function UploadClient() {
           xhr.send(file);
         });
 
-        setStatusMsg('Adding to compression queue...');
-        setProgress(98);
-
-        // 3. Add to compression queue
-        const queueRes = await queueCompressionJob(key);
-        if (queueRes.error) throw new Error(queueRes.error);
+        setStatusMsg('Upload complete!');
+        setProgress(100);
 
         setFile(null);
         // Reset input
@@ -86,7 +82,7 @@ export default function UploadClient() {
 
       } else {
         // Direct Link Mode
-        setStatusMsg('Adding URL to compression queue...');
+        setStatusMsg('Adding URL to upload queue...');
         setProgress(50);
         
         const timestamp = Date.now();
@@ -106,7 +102,7 @@ export default function UploadClient() {
         setVideoUrl('');
       }
 
-      setStatusMsg(uploadMode === 'file' ? 'Upload complete! Added to Compression Queue.' : 'Link queued successfully!');
+      setStatusMsg(uploadMode === 'file' ? 'Upload complete! Video is now in your Cloudflare R2 bucket.' : 'Link queued for direct upload successfully!');
       setProgress(100);
     } catch (err) {
       console.error(err);
@@ -146,7 +142,7 @@ export default function UploadClient() {
       <p style={{ color: 'var(--text2)', marginBottom: '20px' }}>
         {uploadMode === 'file' 
           ? 'Select a raw video file from your computer (.mp4, .mkv). It will be securely uploaded directly to your Cloudflare R2 bucket.'
-          : 'Paste a direct link to a video file (.mp4, .mkv). Our background worker will download it straight to R2.'}
+          : 'Paste a direct link to a video file (.mp4, .mkv). Our background worker will download it straight to R2 without compressing it.'}
       </p>
 
       <div style={{ marginBottom: '20px' }}>
@@ -177,7 +173,7 @@ export default function UploadClient() {
         disabled={(uploadMode === 'file' && !file) || (uploadMode === 'url' && !videoUrl) || uploading}
         style={{ width: '100%', padding: '12px', fontSize: '15px' }}
       >
-        {uploading ? (uploadMode === 'file' ? 'Uploading...' : 'Processing...') : (uploadMode === 'file' ? 'Upload & Compress' : 'Import Link & Compress')}
+        {uploading ? (uploadMode === 'file' ? 'Uploading...' : 'Processing...') : (uploadMode === 'file' ? 'Upload Direct to R2' : 'Import Link (Direct Upload)')}
       </button>
 
       {errorMsg && (
@@ -200,7 +196,7 @@ export default function UploadClient() {
 
       {progress === 100 && !errorMsg && !uploading && (
         <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(70, 180, 80, 0.1)', border: '1px solid #46b450', borderRadius: '4px', color: '#fff' }}>
-          <strong>Success!</strong> {uploadMode === 'file' ? 'The video was uploaded to R2 and added to the compression queue.' : 'The URL was added to the compression queue.'} Leave your background worker running to process it.
+          <strong>Success!</strong> {uploadMode === 'file' ? 'The video was securely uploaded to your Cloudflare R2 bucket.' : 'The URL was added to the direct upload queue.'} {uploadMode === 'url' && 'Leave your background worker running to process it.'}
         </div>
       )}
     </div>
