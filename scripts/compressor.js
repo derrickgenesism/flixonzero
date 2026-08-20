@@ -155,14 +155,24 @@ async function processNextJob() {
     // Assuming 24fps and 1MB per second roughly (very rough fallback)
     const totalFramesGuess = Math.max(24, Math.floor((totalBytes / (1024 * 1024)) * 24));
 
-    // 4. Compress the video
-    console.log(`[Job ${job.id}] Starting compression...`);
-    await compressVideo(inputPath, outputPath, job, totalFramesGuess);
+    let uploadPath = outputPath;
+    let outputStats;
 
-    // 5. Upload the compressed video (overwrite original)
-    console.log(`[Job ${job.id}] Uploading compressed video back to R2...`);
-    const outputStats = fs.statSync(outputPath);
-    const uploadStream = fs.createReadStream(outputPath);
+    if (downloadUrl) {
+      console.log(`[Job ${job.id}] Skipping compression for URL upload...`);
+      uploadPath = inputPath;
+      outputStats = fs.statSync(uploadPath);
+    } else {
+      // 4. Compress the video
+      console.log(`[Job ${job.id}] Starting compression...`);
+      await compressVideo(inputPath, outputPath, job, totalFramesGuess);
+      outputStats = fs.statSync(outputPath);
+    }
+
+    // 5. Upload the video to R2
+    console.log(`[Job ${job.id}] Uploading video back to R2...`);
+    
+    const uploadStream = fs.createReadStream(uploadPath);
     
     const upload = new Upload({
       client: s3,

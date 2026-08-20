@@ -90,8 +90,11 @@ export default function UploadClient() {
         setProgress(50);
         
         const timestamp = Date.now();
-        const filename = videoUrl.split('/').pop().split('?')[0] || `video_${timestamp}.mp4`;
-        const generatedKey = `imported_${timestamp}_${filename}`;
+        let rawFilename = videoUrl.split('/').pop().split('?')[0] || `video_${timestamp}.mp4`;
+        try {
+          rawFilename = decodeURIComponent(rawFilename);
+        } catch(e) {}
+        const generatedKey = rawFilename;
         
         // Format: URL|downloadUrl|uploadKey
         const magicKey = `URL|${videoUrl}|${generatedKey}`;
