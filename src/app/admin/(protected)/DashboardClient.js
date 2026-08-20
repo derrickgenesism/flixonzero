@@ -6,7 +6,25 @@ import { useState, useMemo } from 'react';
 function fmt(n) { return Number(n || 0).toLocaleString(); }
 function fmtDate(d) { return new Date(d).toLocaleDateString('en-UG', { day: '2-digit', month: 'short', year: 'numeric' }); }
 
-function KpiCard({ label, value, unit, sub, subColor, accent, icon }) {
+function GrowthBadge({ value }) {
+  if (value === null || value === undefined || isNaN(value)) return null;
+  const num = Number(value);
+  const isPos = num >= 0;
+  const color = isPos ? '#4ade80' : '#ff6b6b';
+  const icon = isPos ? '↑' : '↓';
+  
+  return (
+    <span style={{ 
+      color, fontSize: '11px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', 
+      gap: '2px', background: `${color}20`, padding: '2px 6px', borderRadius: '4px',
+      marginLeft: '8px'
+    }}>
+      {icon} {Math.abs(num)}%
+    </span>
+  );
+}
+
+function KpiCard({ label, value, unit, sub, subColor, accent, icon, growth }) {
   return (
     <div style={{
       background: 'var(--bg2)', padding: '22px 24px', borderRadius: '16px',
@@ -17,11 +35,21 @@ function KpiCard({ label, value, unit, sub, subColor, accent, icon }) {
         <div style={{ color: 'var(--text2)', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</div>
         <div style={{ fontSize: '20px', opacity: 0.4 }}>{icon}</div>
       </div>
-      <div style={{ fontSize: '30px', fontWeight: '900', color: accent || '#fff', lineHeight: 1 }}>
-        {value} {unit && <span style={{ fontSize: '13px', color: 'var(--text2)', fontWeight: '600' }}>{unit}</span>}
+      <div style={{ fontSize: '30px', fontWeight: '900', color: accent || '#fff', lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+        {value} 
+        {unit && <span style={{ fontSize: '13px', color: 'var(--text2)', fontWeight: '600', marginLeft: '4px' }}>{unit}</span>}
+        {growth !== undefined && <GrowthBadge value={growth} />}
       </div>
       {sub && <div style={{ fontSize: '12px', color: subColor || 'var(--text3)', fontWeight: '500' }}>{sub}</div>}
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px', background: accent || 'transparent', opacity: 0.4 }} />
+    </div>
+  );
+}
+
+function SectionHeading({ title }) {
+  return (
+    <div style={{ marginBottom: '16px', marginTop: '32px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px' }}>
+      <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#fff', margin: 0 }}>{title}</h2>
     </div>
   );
 }
@@ -136,32 +164,48 @@ function Panel({ title, badge, children }) {
 export default function DashboardClient({ stats, transactions, recentSignups, topMovies, topUsers }) {
   const {
     totalUsers, activeSubscribers, conversionRate,
-    totalRevenue, monthlyRevenue, lastMonthRevenue, revenueGrowth,
-    totalViews, librarySize, freeCount, premiumCount,
-    totalTxs, successfulTxs, pendingTxs,
-    expiringIn7, expiringIn30,
-    ppvRevenue, ppvCount, ppvMonthly,
-    activePromos, comingSoonCount,
-    totalPageViews, totalUniqueVisitors, returningVisitors,
-    uniqueToday, uniqueYesterday, uniqueMonth
-  } = stats;
+    totalRevenue, monthlyRevenue, revenueGrowth,
+    totalViews, librarySize, premiumCount,
+    
+    // Transactions
+    totalTxs, successfulTxs, pendingTxs, failedTxs, txConversionOverall,
+    txsToday, txConversionToday,
+    txsThisWeek, txConversionThisWeek,
+    txsThisMonth,
+    
+    // Signups
+    signupsToday, signupsYesterday, signupGrowthDaily,
+    signupsThisWeek, signupGrowthWeekly,
+    signupsThisMonth, signupGrowthMonthly,
 
-  const growthLabel = revenueGrowth !== null
-    ? `${revenueGrowth >= 0 ? '+' : ''}${revenueGrowth}% vs last month`
-    : `${fmt(lastMonthRevenue)} UGX last month`;
+    expiringIn7, expiringIn30,
+    ppvRevenue, ppvMonthly,
+    activePromos, comingSoonCount,
+    
+    // Web Analytics
+    totalPageViews, totalUniqueVisitors, returningVisitors,
+    uniqueToday, uniqueYesterday, visitorsGrowthDaily,
+    uniqueThisWeek, visitorsGrowthWeekly,
+    uniqueThisMonth, visitorsGrowthMonthly,
+    nonUniqueToday, nonUniqueYesterday, nonUniqueThisWeek, nonUniqueThisMonth
+  } = stats;
 
   const txColumns = [
     { key: 'created_at', label: 'Date', render: v => fmtDate(v) },
     { key: 'user_email', label: 'User' },
-    { key: 'amount', label: 'Amount (UGX)', render: v => fmt(v) },
+    { key: 'amount', label: 'Amount', render: v => fmt(v) },
     {
-      key: 'status', label: 'Status', render: v => (
-        <span style={{
-          padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase',
-          background: v === 'successful' ? 'rgba(74,222,128,0.12)' : 'rgba(255,165,0,0.12)',
-          color: v === 'successful' ? '#4ade80' : '#ffa500',
-        }}>{v}</span>
-      )
+      key: 'status', label: 'Status', render: v => {
+        const isSuccess = v === 'successful' || v === 'success';
+        const isPending = v === 'pending';
+        return (
+          <span style={{
+            padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase',
+            background: isSuccess ? 'rgba(74,222,128,0.12)' : (isPending ? 'rgba(255,165,0,0.12)' : 'rgba(239,68,68,0.12)'),
+            color: isSuccess ? '#4ade80' : (isPending ? '#ffa500' : '#ef4444'),
+          }}>{v}</span>
+        );
+      }
     },
     { key: 'tx_ref', label: 'Reference', render: v => <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--text3)' }}>{v}</span> },
   ];
@@ -182,7 +226,7 @@ export default function DashboardClient({ stats, transactions, recentSignups, to
 
   const userColumns = [
     { key: 'email', label: 'Email' },
-    { key: 'watchCount', label: 'Total Watches', render: v => <strong style={{ color: '#60a5fa' }}>{fmt(v)}</strong> },
+    { key: 'watchCount', label: 'Watches', render: v => <strong style={{ color: '#60a5fa' }}>{fmt(v)}</strong> },
     {
       key: 'isSubscribed', label: 'Plan', render: v => (
         <span style={{
@@ -206,7 +250,7 @@ export default function DashboardClient({ stats, transactions, recentSignups, to
       {/* Header */}
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontSize: '28px', fontWeight: '900', margin: '0 0 4px' }}>Analytics Dashboard</h1>
-        <p style={{ margin: 0, color: 'var(--text2)', fontSize: '14px' }}>Live business insights — refreshes on every page load.</p>
+        <p style={{ margin: 0, color: 'var(--text2)', fontSize: '14px' }}>Detailed live insights for user growth and engagement.</p>
       </div>
 
       {/* Alerts Row */}
@@ -217,55 +261,50 @@ export default function DashboardClient({ stats, transactions, recentSignups, to
               ⚠️ <strong style={{ color: '#ffa500' }}>{expiringIn7}</strong> subscriptions expiring within 7 days
             </div>
           )}
-          {expiringIn30 > 0 && (
-            <div style={{ background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)', borderRadius: '10px', padding: '10px 16px', display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px' }}>
-              🔔 <strong style={{ color: '#60a5fa' }}>{expiringIn30}</strong> expiring within 30 days
-            </div>
-          )}
           {pendingTxs > 0 && (
             <div style={{ background: 'rgba(229,9,20,0.1)', border: '1px solid rgba(229,9,20,0.2)', borderRadius: '10px', padding: '10px 16px', display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px' }}>
-              💳 <strong style={{ color: 'var(--acc)' }}>{pendingTxs}</strong> pending transactions need attention
+              💳 <strong style={{ color: 'var(--acc)' }}>{pendingTxs}</strong> pending transactions all-time
             </div>
           )}
         </div>
       )}
 
-      {/* KPIs Row 1 */}
+      <SectionHeading title="Revenue & Content KPIs" />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px' }}>
-        <KpiCard label="Total Revenue" value={fmt(totalRevenue)} unit="UGX" sub={growthLabel} subColor={revenueGrowth >= 0 ? '#4ade80' : '#ff6b6b'} accent="#4ade80" icon="💰" />
-        <KpiCard label="This Month" value={fmt(monthlyRevenue)} unit="UGX" sub={`${successfulTxs} successful payments`} accent="#a78bfa" icon="📅" />
+        <KpiCard label="Total Revenue" value={fmt(totalRevenue)} unit="UGX" sub={`PPV: ${fmt(ppvRevenue)} UGX`} accent="#4ade80" icon="💰" />
+        <KpiCard label="This Month" value={fmt(monthlyRevenue)} unit="UGX" growth={revenueGrowth} sub={`PPV: ${fmt(ppvMonthly)} UGX`} accent="#a78bfa" icon="📅" />
         <KpiCard label="Active Subscribers" value={fmt(activeSubscribers)} sub={`${conversionRate}% conversion rate`} accent="#60a5fa" icon="👥" />
-        <KpiCard label="Total Users" value={fmt(totalUsers)} sub={`${totalUsers - activeSubscribers} on free tier`} accent="#fff" icon="👤" />
+        <KpiCard label="Content Library" value={fmt(librarySize)} sub={`${premiumCount} premium movies`} accent="#fb923c" icon="🎬" />
       </div>
 
-      {/* KPIs Row 2 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <KpiCard label="Total Views" value={fmt(totalViews)} sub="Across all content" accent="#f472b6" icon="👁️" />
-        <KpiCard label="Content Library" value={fmt(librarySize)} sub={`${premiumCount} premium · ${freeCount} free`} accent="#fb923c" icon="🎬" />
-        <KpiCard label="Expiring (7d)" value={expiringIn7} sub="Subscriptions need renewal" subColor={expiringIn7 > 0 ? '#ffa500' : 'var(--text3)'} accent="#ffa500" icon="⏳" />
-        <KpiCard label="Transactions" value={fmt(totalTxs)} sub={`${successfulTxs} successful · ${pendingTxs} pending`} accent="#34d399" icon="💳" />
+      <SectionHeading title="User Growth & Signups" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+        <KpiCard label="Total Users" value={fmt(totalUsers)} sub="All-time registered users" accent="#fff" icon="👤" />
+        <KpiCard label="Signups Today" value={fmt(signupsToday)} growth={signupGrowthDaily} sub={`vs ${signupsYesterday} yesterday`} accent="#0ea5e9" icon="✨" />
+        <KpiCard label="Signups This Week" value={fmt(signupsThisWeek)} growth={signupGrowthWeekly} sub="Sunday to present" accent="#6366f1" icon="📈" />
+        <KpiCard label="Signups This Month" value={fmt(signupsThisMonth)} growth={signupGrowthMonthly} sub="Current calendar month" accent="#c084fc" icon="🚀" />
       </div>
 
-      {/* KPIs Row 3 — Monetization */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <KpiCard label="PPV Revenue" value={fmt(ppvRevenue)} unit="UGX" sub={`${ppvCount} total rentals`} accent="#f59e0b" icon="🎟️" />
-        <KpiCard label="PPV This Month" value={fmt(ppvMonthly)} unit="UGX" sub="Pay-per-view income" accent="#fbbf24" icon="📽️" />
-        <KpiCard label="Active Promo Codes" value={fmt(activePromos)} sub="In circulation" accent="#c084fc" icon="🎁" />
-        <KpiCard label="Coming Soon" value={fmt(comingSoonCount)} sub="Upcoming titles" accent="#38bdf8" icon="🚀" />
+      <SectionHeading title="Transaction Analytics (Success / Pending / Failed)" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+        <KpiCard label="Total Txs (All Time)" value={fmt(totalTxs)} sub={`${fmt(successfulTxs)} S / ${fmt(pendingTxs)} P / ${fmt(failedTxs)} F`} accent="#34d399" icon="💳" />
+        <KpiCard label="Transactions Today" value={fmt(txsToday.tried)} sub={`${txConversionToday}% success rate (${txsToday.successful} S / ${txsToday.pending} P)`} accent="#34d399" icon="📅" />
+        <KpiCard label="Transactions This Week" value={fmt(txsThisWeek.tried)} sub={`${txConversionThisWeek}% success rate (${txsThisWeek.successful} S / ${txsThisWeek.pending} P)`} accent="#34d399" icon="📊" />
+        <KpiCard label="Transactions This Month" value={fmt(txsThisMonth.tried)} sub={`${txsThisMonth.successful} S / ${txsThisMonth.pending} P / ${txsThisMonth.tried - txsThisMonth.successful - txsThisMonth.pending} F`} accent="#34d399" icon="📈" />
       </div>
 
-      {/* KPIs Row 4 — Web Analytics */}
+      <SectionHeading title="Visitor Engagement & Web Analytics" />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <KpiCard label="Unique Visitors" value={fmt(totalUniqueVisitors)} sub={`${returningVisitors} returning`} accent="#10b981" icon="🌐" />
-        <KpiCard label="Page Views" value={fmt(totalPageViews)} sub="Total requests" accent="#14b8a6" icon="📊" />
-        <KpiCard label="Active Today" value={fmt(uniqueToday)} sub="Unique visitors today" accent="#0ea5e9" icon="📈" />
-        <KpiCard label="Active Yesterday" value={fmt(uniqueYesterday)} sub="Unique visitors yesterday" accent="#6366f1" icon="📉" />
+        <KpiCard label="Unique Visitors Today" value={fmt(uniqueToday)} growth={visitorsGrowthDaily} sub={`${fmt(nonUniqueToday)} returning sessions today`} accent="#10b981" icon="🌐" />
+        <KpiCard label="Unique Visitors This Week" value={fmt(uniqueThisWeek)} growth={visitorsGrowthWeekly} sub={`${fmt(nonUniqueThisWeek)} returning sessions this week`} accent="#14b8a6" icon="📱" />
+        <KpiCard label="Unique Visitors This Month" value={fmt(uniqueThisMonth)} growth={visitorsGrowthMonthly} sub={`${fmt(nonUniqueThisMonth)} returning sessions this month`} accent="#0ea5e9" icon="🗓️" />
+        <KpiCard label="All Time Page Views" value={fmt(totalPageViews)} sub={`${fmt(totalUniqueVisitors)} all-time unique visitors`} accent="#f472b6" icon="👁️" />
       </div>
 
       {/* Tables Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '20px', marginBottom: '20px' }}>
-        <Panel title="All Transactions" badge={`${transactions.length} records`}>
-          <SortableTable columns={txColumns} data={transactions} defaultSort="created_at" />
+        <Panel title="User Sign-ups" badge={`${recentSignups.length} recent`}>
+          <SortableTable columns={signupColumns} data={recentSignups} defaultSort="created_at" />
         </Panel>
         <Panel title="Most Active Viewers" badge={`${topUsers.length} users`}>
           <SortableTable columns={userColumns} data={topUsers} defaultSort="watchCount" />
@@ -273,11 +312,11 @@ export default function DashboardClient({ stats, transactions, recentSignups, to
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '20px' }}>
+        <Panel title="All Transactions" badge={`${transactions.length} records`}>
+          <SortableTable columns={txColumns} data={transactions} defaultSort="created_at" />
+        </Panel>
         <Panel title="Trending Content" badge={`${topMovies.length} titles`}>
           <SortableTable columns={movieColumns} data={topMovies} defaultSort="views" />
-        </Panel>
-        <Panel title="User Sign-ups" badge={`${recentSignups.length} recent`}>
-          <SortableTable columns={signupColumns} data={recentSignups} defaultSort="created_at" />
         </Panel>
       </div>
     </div>
