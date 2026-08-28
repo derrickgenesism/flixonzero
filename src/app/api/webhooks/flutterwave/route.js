@@ -87,21 +87,25 @@ export async function POST(req) {
 
       // 5. Grant Access
       if (transaction.plan_type === 'extra_profile') {
-        // Increment extra_profile_slots
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('extra_profile_slots')
-          .eq('id', transaction.user_id)
-          .single();
-        
-        await supabase
-          .from('user_profiles')
-          .update({
-            extra_profile_slots: (profile?.extra_profile_slots || 0) + 1
-          })
-          .eq('id', transaction.user_id);
+        const { data: authData } = await supabase.auth.admin.getUserById(transaction.user_id);
+        const userEmail = authData?.user?.email;
+        if (userEmail) {
+          // Increment extra_profile_slots
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('extra_profile_slots')
+            .eq('email', userEmail)
+            .single();
           
-        console.log(`Successfully added extra profile slot for user ${transaction.user_id}`);
+          await supabase
+            .from('user_profiles')
+            .update({
+              extra_profile_slots: (profile?.extra_profile_slots || 0) + 1
+            })
+            .eq('email', userEmail);
+            
+          console.log(`Successfully added extra profile slot for user ${userEmail}`);
+        }
         return NextResponse.json({ status: 'extra_profile_success' }, { status: 200 });
       }
 

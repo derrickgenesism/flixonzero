@@ -74,11 +74,16 @@ export async function POST(req) {
       });
 
       if (botToken && chatId) {
-        const tgMessage = `🚨 *New Support Message*\n\n*From:* ${userProfile?.username || 'Unknown'} (${userProfile?.email || user.email})\n*Message:* ${content}\n\n_Reply via Admin Dashboard → Support Tickets_`;
+        const safeContent = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const safeName = (userProfile?.username || 'Unknown').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const safeEmail = (userProfile?.email || user.email).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        const tgMessage = `🚨 <b>New Support Message</b>\n\n<b>From:</b> ${safeName} (${safeEmail})\n<b>Message:</b> ${safeContent}\n\n<i>Reply via Admin Dashboard → Support Tickets</i>`;
+        
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text: tgMessage, parse_mode: 'Markdown' }),
+          body: JSON.stringify({ chat_id: chatId, text: tgMessage, parse_mode: 'HTML' }),
         });
       }
     } catch (tgError) {

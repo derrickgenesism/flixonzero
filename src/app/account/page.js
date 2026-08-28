@@ -6,6 +6,8 @@ import ConvertToWatchDaysButton from './ConvertToWatchDaysButton';
 
 export const metadata = { title: 'My Account — Flixon' };
 
+import { checkTransactionStatus } from '@/app/checkout/actions';
+
 export default async function AccountPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -35,6 +37,23 @@ export default async function AccountPage() {
         </main>
       </div>
     );
+  }
+
+  // Background Verification of Recent Pending Transactions
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const { data: pendingTxs } = await supabase
+    .from('transactions')
+    .select('tx_ref')
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+    .gte('created_at', twoHoursAgo);
+    
+  if (pendingTxs && pendingTxs.length > 0) {
+    for (const tx of pendingTxs) {
+      if (!tx.tx_ref.includes('extra_profile') && !tx.tx_ref.includes('PPV')) {
+        await checkTransactionStatus(tx.tx_ref);
+      }
+    }
   }
 
   const { data: profile } = await supabase.from('user_profiles').select('*').eq('email', user.email).single();
