@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { getActiveProfile } from '@/app/profiles/actions';
+import { getCachedMovies, getCachedMovieById, getCachedSettings } from '@/lib/cache';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
 import MovieRow from '@/components/MovieRow';
@@ -19,8 +20,7 @@ function detectVJ(categories) {
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data: movie } = await supabase.from('movies').select('title, description, thumbnail_url, categories, release_date, imdb_rating').eq('id', id).single();
+  const movie = await getCachedMovieById(id);
 
   const vjName = detectVJ(movie?.categories);
   const plainDesc = movie?.description?.replace(/<[^>]+>/g, '').slice(0, 140) || '';
@@ -74,11 +74,9 @@ export async function generateMetadata({ params }) {
 
 export default async function MoviePage({ params }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const movie = await getCachedMovieById(id);
 
-  const { data: movie, error } = await supabase.from('movies').select('*').eq('id', id).single();
-
-  if (error || !movie) {
+  if (!movie) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', background: 'var(--bg)', gap: '20px' }}>
         <Navbar />
@@ -87,6 +85,8 @@ export default async function MoviePage({ params }) {
       </div>
     );
   }
+
+  const supabase = await createClient();
 
   // Extract primary video URL or detect Iframe
   let actualVideoUrl = null;
@@ -106,18 +106,20 @@ export default async function MoviePage({ params }) {
   let relatedParts = [];
   const partMatch = movie.title.match(/(.*?)(?:\b(?:part|ep|episode|season)\b\s*\d+)/i);
   if (partMatch?.[1]) {
-    const baseTitle = partMatch[1].trim();
-    const { data: partsData } = await supabase.from('movies').select('*').ilike('title', `${baseTitle}%`).neq('id', movie.id).order('title', { ascending: true });
-    if (partsData?.length > 0) relatedParts = partsData;
+    const baseTitle = partMatch[1].trim().toLowerCase();
+    const allMovies = await getCachedMovies();
+    relatedParts = allMovies.filter(m => m.id !== movie.id && m.title.toLowerCase().startsWith(baseTitle)).sort((a, b) => a.title.localeCompare(b.title));
   }
 
   // More Like This (same category)
   let moreLikeThis = [];
   const cats = Array.isArray(movie.categories) ? movie.categories : [];
   if (cats.length > 0) {
-    const { data: similar } = await supabase.from('movies').select('*').contains('categories', [cats[0]]).neq('id', movie.id).limit(12);
-    moreLikeThis = similar || [];
+    const allMovies = await getCachedMovies();
+    moreLikeThis = allMovies.filter(m => m.id !== movie.id && Array.isArray(m.categories) && m.categories.includes(cats[0])).slice(0, 12);
   }
+
+  let initialProgress = 0;
 
   // Auth + Access check
   const { data: { user } } = await supabase.auth.getUser();
@@ -169,15 +171,14 @@ export default async function MoviePage({ params }) {
     if (ratingData) userRating = ratingData.rating;
   }
 
-  let initialProgress = 0;
-
   // Avg rating
   const { data: allRatings } = await supabase.from('ratings').select('rating').eq('movie_id', movie.id);
   const avgRating = allRatings?.length ? (allRatings.reduce((s, r) => s + r.rating, 0) / allRatings.length).toFixed(1) : null;
   const ratingCount = allRatings?.length || 0;
 
   // PPV price from settings
-  const { data: ppvSetting } = await supabase.from('admin_settings').select('setting_value').eq('setting_key', 'ppv_price').maybeSingle();
+  const settings = await getCachedSettings();
+  const ppvSetting = settings.find(s => s.setting_key === 'ppv_price');
   const ppvPrice = Number(ppvSetting?.setting_value || 0);
   const ppvEnabled = ppvPrice > 0 && movie.type !== 'genesis_free_movie';
 
@@ -505,3 +506,5 @@ export default async function MoviePage({ params }) {
     </div>
   );
 }
+
+
