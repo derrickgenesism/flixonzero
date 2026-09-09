@@ -106,18 +106,20 @@ export default async function MoviePage({ params }) {
   let relatedParts = [];
   const partMatch = movie.title.match(/(.*?)(?:\b(?:part|ep|episode|season)\b\s*\d+)/i);
   if (partMatch?.[1]) {
-    const baseTitle = partMatch[1].trim();
-    const { data: partsData } = await supabase.from('movies').select('*').ilike('title', `${baseTitle}%`).neq('id', movie.id).order('title', { ascending: true });
-    if (partsData?.length > 0) relatedParts = partsData;
+    const baseTitle = partMatch[1].trim().toLowerCase();
+    const allMovies = await getCachedMovies();
+    relatedParts = allMovies.filter(m => m.id !== movie.id && m.title.toLowerCase().startsWith(baseTitle)).sort((a, b) => a.title.localeCompare(b.title));
   }
 
   // More Like This (same category)
   let moreLikeThis = [];
   const cats = Array.isArray(movie.categories) ? movie.categories : [];
   if (cats.length > 0) {
-    const { data: similar } = await supabase.from('movies').select('*').contains('categories', [cats[0]]).neq('id', movie.id).limit(12);
-    moreLikeThis = similar || [];
+    const allMovies = await getCachedMovies();
+    moreLikeThis = allMovies.filter(m => m.id !== movie.id && Array.isArray(m.categories) && m.categories.includes(cats[0])).slice(0, 12);
   }
+
+  let initialProgress = 0;
 
   // Auth + Access check
   const { data: { user } } = await supabase.auth.getUser();
@@ -168,8 +170,6 @@ export default async function MoviePage({ params }) {
     const { data: ratingData } = await supabase.from('ratings').select('rating').eq('user_id', user.id).eq('movie_id', movie.id).maybeSingle();
     if (ratingData) userRating = ratingData.rating;
   }
-
-  let initialProgress = 0;
 
   // Avg rating
   const { data: allRatings } = await supabase.from('ratings').select('rating').eq('movie_id', movie.id);

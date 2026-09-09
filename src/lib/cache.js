@@ -34,11 +34,14 @@ export const getCachedSeries = unstable_cache(
   { revalidate: 3600 }
 );
 
-export const getCachedMovieById = unstable_cache(
-  async (id) => {
-    const { data } = await getAnonClient().from('movies').select('*').eq('id', id).single();
-    return data || null;
-  },
-  ['movie-by-id'],
-  { revalidate: 3600 }
-);
+export const getCachedMovieById = async (id) => {
+  const cachedFn = unstable_cache(
+    async () => {
+      const { data } = await getAnonClient().from('movies').select('*').eq('id', id).single();
+      return data || null;
+    },
+    ['movie-by-id', String(id)],
+    { revalidate: 3600 }
+  );
+  return cachedFn();
+};
