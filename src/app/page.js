@@ -9,14 +9,15 @@ import PaginatedMovieGrid from '@/components/PaginatedMovieGrid';
 import CategoryBar from '@/components/CategoryBar';
 
 export const metadata = {
-  title: 'FlixOn Uganda — Watch VJ Translated Movies Online | Luganda Dubbed Films',
+  title: 'FlixOn Uganda ï¿½ Watch VJ Translated Movies Online | Luganda Dubbed Films',
   description: 'FlixOn is Uganda\'s #1 streaming platform for VJ translated movies. Watch the latest Hollywood and Bollywood films dubbed in Luganda by VJ Junior, VJ Emmy, VJ Ice P, VJ Jingo, VJ Mark and more. Stream or download movies online in Uganda.',
   alternates: {
     canonical: '/',
   },
 };
 
-export const revalidate = 3600;
+// Note: This page reads auth cookies so page-level ISR is not applied.
+// Data-level caching is handled in src/lib/cache.js via unstable_cache
 
 const POPULAR_CATEGORIES = [
   'Action', 'Adventure', 'Drama', 'Comedy', 'Science Fiction', 'Horror',

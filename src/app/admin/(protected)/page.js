@@ -71,6 +71,8 @@ export default async function AdminDashboardPage() {
 
   // ── 2. AGGREGATE LOGIC ──────────────────────────────────────────────────
   
+  const premiumCount = (librarySize || 0) - (freeCount || 0);
+
   // Users & Signups
   const conversionRate = totalUsers > 0 ? ((activeSubscribers / totalUsers) * 100).toFixed(1) : '0';
   const recentSignups = recentSignupsRaw?.slice(0, 10) || [];
@@ -147,8 +149,12 @@ export default async function AdminDashboardPage() {
   const topUsersRaw = Object.values(userViewCounts).sort((a, b) => b.watchCount - a.watchCount).slice(0, 10);
 
   // Fetch emails only for the unique UUIDs we actually need to display
+  // Only resolve emails for the top 10 users + last 50 transaction user IDs (not all from history)
+  const displayUuids = new Set();
+  topUsersRaw.forEach(u => displayUuids.add(u.id));
+  last50Txs?.forEach(tx => { if (tx.user_id) displayUuids.add(tx.user_id); });
   const uuidMap = {};
-  const uniqueUuids = Array.from(uuidSet);
+  const uniqueUuids = Array.from(displayUuids);
   if (uniqueUuids.length > 0) {
     const emailPromises = uniqueUuids.map(id => supabase.auth.admin.getUserById(id));
     const authResponses = await Promise.allSettled(emailPromises);
