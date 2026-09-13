@@ -59,35 +59,55 @@ export async function POST(req) {
       })
       .eq('id', threadId);
 
-    // 5. Send Telegram notification (best-effort, won't fail the request)
+    // 5. Send Telegram notification (best-effort — logs failures but won't fail the request)
     try {
-      const { data: settings } = await adminSupabase
+      const { data: settings, error: settingsError } = await adminSupabase
         .from('admin_settings')
         .select('setting_key, setting_value')
         .in('setting_key', ['telegram_bot_token', 'telegram_chat_id']);
 
+      if (settingsError) {
+        console.error('[Telegram] Failed to fetch settings from DB:', settingsError.message);
+      }
+
       let botToken = '';
       let chatId = '';
       settings?.forEach(s => {
-        if (s.setting_key === 'telegram_bot_token') botToken = s.setting_value;
-        if (s.setting_key === 'telegram_chat_id') chatId = s.setting_value;
+        if (s.setting_key === 'telegram_bot_token') botToken = s.setting_value?.trim();
+        if (s.setting_key === 'telegram_chat_id') chatId = s.setting_value?.trim();
       });
 
-      if (botToken && chatId) {
+      if (!botToken) {
+        console.warn('[Telegram] Skipping notification: telegram_bot_token is not set in admin_settings');
+      } else if (!chatId) {
+        console.warn('[Telegram] Skipping notification: telegram_chat_id is not set in admin_settings');
+      } else {
         const safeContent = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const safeName = (userProfile?.username || 'Unknown').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const safeEmail = (userProfile?.email || user.email).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
         const tgMessage = `🚨 <b>New Support Message</b>\n\n<b>From:</b> ${safeName} (${safeEmail})\n<b>Message:</b> ${safeContent}\n\n<i>Reply via Admin Dashboard → Support Tickets</i>`;
-        
-        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+
+        const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chat_id: chatId, text: tgMessage, parse_mode: 'HTML' }),
         });
+
+        const tgData = await tgRes.json();
+
+        if (!tgData.ok) {
+          console.error(
+            `[Telegram] sendMessage failed — error_code: ${tgData.error_code}, description: "${tgData.description}". ` +
+            `chat_id used: "${chatId}". ` +
+            `Hint: If error is "chat not found", the chat_id is wrong or the bot is not a member of the group.`
+          );
+        } else {
+          console.log(`[Telegram] Notification sent successfully. message_id: ${tgData.result?.message_id}`);
+        }
       }
     } catch (tgError) {
-      console.error('Telegram notification failed (non-fatal):', tgError);
+      console.error('[Telegram] Unexpected error during notification (non-fatal):', tgError?.message || tgError);
     }
 
     return NextResponse.json({ success: true, message });
