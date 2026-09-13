@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 
-export async function processDirectCharge(planId, phoneNumber, network) {
+export async function processDirectCharge(planId, phoneNumber, network, promoResult = null) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

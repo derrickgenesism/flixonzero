@@ -33,6 +33,23 @@ export async function POST(req) {
       
       // --- PPV BRANCH ---
       if (tx_ref.startsWith('PPV-')) {
+        // Check if already processed (idempotency guard)
+        const { data: existingPpv } = await supabase
+          .from('ppv_purchases')
+          .select('status, user_id, movie_id')
+          .eq('tx_ref', tx_ref)
+          .single();
+
+        if (!existingPpv) {
+          console.error('Webhook PPV: tx_ref not found in ppv_purchases:', tx_ref);
+          return NextResponse.json({ status: 'ppv_not_found' }, { status: 200 });
+        }
+
+        if (existingPpv.status === 'success') {
+          console.log('Webhook PPV: already processed, skipping:', tx_ref);
+          return NextResponse.json({ status: 'already_processed' }, { status: 200 });
+        }
+
         const ppvRes = await supabase
           .from('ppv_purchases')
           .update({
@@ -172,19 +189,11 @@ export async function POST(req) {
             .single();
 
           if (profileWithRef && profileWithRef.referred_by) {
-            // Check if we have a reward configured for this plan
-            // E.g., setting_key could be 'affiliate_plan_1_reward' (using plan.id, but transaction has plan_name or duration?
-            // transaction.plan_type is usually 'Monthly Pass' or 'Daily Pass' or 'extra_profile'
-            // We should just use a generic 'affiliate_cpa_reward' or map it if we know the plan IDs.
-            // Wait, we need to map the plan name or ID. Let's look up the plan by name.
-            const { data: planData } = await supabase
-              .from('subscription_plans')
-              .select('id')
-              .eq('name', transaction.plan_type)
-              .maybeSingle();
+            // plan_type is stored as the plan's numeric ID string (e.g. "1", "2", "3")
+            const planNumericId = Number(transaction.plan_type);
 
-            if (planData) {
-              const rewardSettingKey = `affiliate_plan_${planData.id}_reward`;
+            if (!isNaN(planNumericId) && planNumericId > 0) {
+              const rewardSettingKey = `affiliate_plan_${planNumericId}_reward`;
               const rewardAmountStr = allSettings?.find(s => s.setting_key === rewardSettingKey)?.setting_value;
               const reward = Number(rewardAmountStr || 0);
 

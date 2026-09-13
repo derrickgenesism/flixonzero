@@ -29,14 +29,14 @@ export async function POST(request) {
 
     const tx_ref = `PPV-${movieId}-${user.id}-${Date.now()}`;
 
-    // Record pending purchase
-    await supabaseAdmin.from('ppv_purchases').upsert({
+    // Record pending purchase � always INSERT a new row so each attempt has its own tx_ref.
+    await supabaseAdmin.from('ppv_purchases').insert({
       user_id: user.id,
       movie_id: movieId,
       amount: ppvPrice,
       tx_ref,
       status: 'pending'
-    }, { onConflict: 'user_id,movie_id' });
+    });
 
     const payload = {
       tx_ref,

@@ -35,13 +35,13 @@ export async function POST() {
       return NextResponse.json({ tx_ref: null });
     }
 
-    // 3. Safety check: only allow re-verification of transactions from the last 24 hours
-    // This prevents users from accidentally reactivating very old failed payments
+    // 3. Safety check: only allow re-verification of transactions from the last 72 hours
+    // This covers weekend delays and slow mobile money networks while blocking stale reactivation
     const txAge = Date.now() - new Date(transaction.created_at).getTime();
-    const twentyFourHours = 24 * 60 * 60 * 1000;
+    const seventyTwoHours = 72 * 60 * 60 * 1000;
 
-    if (txAge > twentyFourHours) {
-      console.warn(`[check-pending] User ${user.id} tried to verify old tx (${transaction.tx_ref}), age: ${Math.round(txAge / 3600000)}h`);
+    if (txAge > seventyTwoHours) {
+      console.warn(`[check-pending] User ${user.id} tried to verify old tx (${transaction.tx_ref}), age: ${Math.round(txAge / 3600000)}h - too old`);
       return NextResponse.json({ tx_ref: null, reason: 'too_old' });
     }
 
