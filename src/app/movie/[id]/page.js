@@ -308,7 +308,8 @@ export default async function MoviePage({ params }) {
                         Subscribe to Watch
                       </Link>
                     </div>
-                    {!user && (
+                      {user && <AlreadyPaidButton />}
+                      {!user && (
                       <p style={{ marginTop: '16px', fontSize: '13px', color: 'var(--text3)' }}>
                         <Link href="/login" style={{ color: 'var(--text2)' }}>Sign in</Link> to access this title
                       </p>
@@ -412,8 +413,11 @@ export default async function MoviePage({ params }) {
                 </>
               )}
               {!hasAccess && (
-                <Link href="/checkout" className="gms-btn gms-btn--primary">Subscribe to Watch</Link>
-              )}
+                  <>
+                    <Link href="/checkout" className="gms-btn gms-btn--primary">Subscribe to Watch</Link>
+                    {user && <AlreadyPaidButton />}
+                  </>
+                )}
               {user && (
                 <FavoriteButton movieId={movie.id} initialIsFavorite={isFavorite} />
               )}
