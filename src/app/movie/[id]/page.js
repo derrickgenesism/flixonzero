@@ -10,6 +10,7 @@ import DownloadButton from '@/components/DownloadButton';
 import StarRating from '@/components/StarRating';
 import ShareButton from '@/components/ShareButton';
 import PayPerViewButton from '@/components/PayPerViewButton';
+import AlreadyPaidButton from '@/components/AlreadyPaidButton';
 
 const VJ_NAMES = ['VJ Junior', 'VJ Emmy', 'VJ Ice P', 'VJ ICE P', 'VJ Jingo', 'VJ Mark', 'VJ Kamil'];
 
