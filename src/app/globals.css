@@ -722,9 +722,9 @@ button {
 .flx-search-dropdown {
   position: absolute;
   top: calc(100% + 8px);
+  left: 0;
   right: 0;
-  width: 420px;
-  max-width: calc(100vw - 32px);
+  width: 100%;
   background: rgba(15,15,15,0.97);
   border: 1px solid var(--border2);
   border-radius: 12px;
