@@ -12,7 +12,7 @@ export async function fetchMoviesPage(category, page = 0, pageSize = PAGE_SIZE) 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const startOf2026 = '2026-01-01T00:00:00.000Z';
 
-  let query = supabase.from('movies').select('id, title, description, thumbnail_url, type, categories, release_year, imdb_rating, created_at, actors, is_coming_soon, series_id, season_number, episode_number', { count: 'exact' });
+  let query = supabase.from('movies').select('id, title, description, thumbnail_url, type, categories, release_year, created_at, actors, series_id, season_number, episode_number', { count: 'exact' });
 
   if (!category || category === 'All') {
     query = query.order('created_at', { ascending: false });
@@ -52,7 +52,7 @@ export async function searchMoviesPage(q, page = 0, pageSize = PAGE_SIZE) {
 
   const { data, count, error } = await supabase
     .from('movies')
-    .select('id, title, description, thumbnail_url, type, categories, release_year, imdb_rating, created_at, actors, is_coming_soon, series_id, season_number, episode_number', { count: 'exact' })
+    .select('id, title, description, thumbnail_url, type, categories, release_year, created_at, actors, series_id, season_number, episode_number', { count: 'exact' })
     .or(`title.ilike.%${q}%,actors.ilike.%${q}%`)
     .order('created_at', { ascending: false })
     .range(from, to);
@@ -71,7 +71,7 @@ export async function fetchFavoritesPage(profileId, page = 0, pageSize = PAGE_SI
 
   const { data, count, error } = await supabase
     .from('favorites')
-    .select('movie_id, created_at, movies(id, title, description, thumbnail_url, type, categories, release_year, imdb_rating, created_at, actors, is_coming_soon, series_id, season_number, episode_number)', { count: 'exact' })
+    .select('movie_id, created_at, movies(id, title, description, thumbnail_url, type, categories, release_year, created_at, actors, series_id, season_number, episode_number)', { count: 'exact' })
     .eq('profile_id', profileId)
     .order('created_at', { ascending: false })
     .range(from, to);
