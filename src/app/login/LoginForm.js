@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { login, signup, signInWithGoogle } from './actions';
 import Link from 'next/link';
 
-export default function LoginForm({ refCode }) {
+export default function LoginForm({ refCode, googleAuthEnabled = false }) {
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -153,7 +153,9 @@ export default function LoginForm({ refCode }) {
         )}
       </form>
 
-      {/* Divider */}
+      {googleAuthEnabled && (
+        <>
+          {/* Divider */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '24px 0', color: 'var(--text3)' }}>
         <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
         <span style={{ fontSize: '12px', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase' }}>or</span>
@@ -188,6 +190,8 @@ export default function LoginForm({ refCode }) {
           Continue with Google
         </button>
       </form>
+        </>
+      )}
 
       {/* Toggle */}
       <p style={{ textAlign: 'center', marginTop: '24px', color: 'var(--text3)', fontSize: '14px', margin: '24px 0 0' }}>
