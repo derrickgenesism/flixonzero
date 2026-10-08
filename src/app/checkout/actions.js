@@ -14,9 +14,7 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
   }
 
   const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('email, username')
-    .eq('id', user.id)
+    .from('user_profiles').select('email, username').eq('email', user.email)
     .single();
 
   // Get Flutterwave Secret Key
@@ -42,7 +40,10 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
     return { error: 'Invalid or inactive plan selected.' };
   }
 
-  const amount = plan.price;
+  let amount = plan.price;
+  if (promoResult && promoResult.valid && promoResult.finalAmount !== undefined) {
+    amount = promoResult.finalAmount;
+  }
   const tx_ref = `flixon_${user.id}_${Date.now()}`;
 
   // Log pending transaction in DB
@@ -160,6 +161,10 @@ export async function checkTransactionStatus(tx_ref) {
 
     // 4. If successful, process the subscription manually (fallback for localhost without webhooks)
     if (fwData.status === 'success' && fwData.data?.status === 'successful') {
+      if (fwData.data.amount < transaction.amount) {
+        return { status: "failed", message: "Amount mismatch" };
+      }
+
       
       // Update Transaction Status
       await supabase

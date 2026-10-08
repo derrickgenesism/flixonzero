@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
-export async function processExtraProfileCharge(phoneNumber, network, amount) {
+export async function processExtraProfileCharge(phoneNumber, network) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -13,9 +13,13 @@ export async function processExtraProfileCharge(phoneNumber, network, amount) {
   const { data: settings } = await supabase
     .from('admin_settings')
     .select('*')
-    .in('setting_key', ['flutterwave_secret_key']);
+    .in('setting_key', ['flutterwave_secret_key', 'extra_profile_price']);
+
 
   const secretKey = settings?.find(s => s.setting_key === 'flutterwave_secret_key')?.setting_value;
+  const priceStr = settings?.find(s => s.setting_key === 'extra_profile_price')?.setting_value;
+  const amount = parseInt(priceStr) || 5000;
+
 
   if (!secretKey) {
     return { error: 'Payments are currently disabled.' };

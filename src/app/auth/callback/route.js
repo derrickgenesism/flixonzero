@@ -4,7 +4,10 @@ import { createClient } from '@/utils/supabase/server'
 export async function GET(request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') ?? '/'
+  let next = requestUrl.searchParams.get('next') ?? '/';
+  if (next.startsWith('http://') || next.startsWith('https://') || next.startsWith('//')) {
+    next = '/';
+  }
 
   if (code) {
     const supabase = await createClient()
@@ -18,3 +21,4 @@ export async function GET(request) {
   // return the user to an error page with instructions
   return NextResponse.redirect(new URL('/login?error=auth', request.url))
 }
+

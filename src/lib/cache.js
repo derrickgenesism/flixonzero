@@ -9,7 +9,7 @@ const getAnonClient = () => createSupabaseClient(
 
 export const getCachedMovies = unstable_cache(
   async () => {
-    const { data } = await getAnonClient().from('movies').select('*').order('created_at', { ascending: false });
+    const { data } = await getAnonClient().from('movies').select('id, title, description, thumbnail_url, type, categories, release_year, imdb_rating, created_at, actors, is_coming_soon, series_id, season_number, episode_number').order('created_at', { ascending: false });
     return data || [];
   },
   ['all-movies'],
@@ -37,7 +37,7 @@ export const getCachedSeries = unstable_cache(
 export const getCachedMovieById = async (id) => {
   const cachedFn = unstable_cache(
     async () => {
-      const { data } = await getAnonClient().from('movies').select('*').eq('id', id).single();
+      const { data } = await getAnonClient().from('movies').select('id, title, description, thumbnail_url, type, categories, release_year, imdb_rating, created_at, actors, is_coming_soon, series_id, season_number, episode_number, video_url').eq('id', id).single();
       return data || null;
     },
     ['movie-by-id', String(id)],
