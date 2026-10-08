@@ -202,7 +202,7 @@ export default async function Home({ searchParams }) {
             )}
 
             {isSectionEnabled('Free') && freeMovies.length > 0 && (
-              <MovieRow title="?? Free to Watch" movies={freeMovies} href="/?category=Free" accentColor="#4ade80" />
+              <MovieRow title="Free to Watch" movies={freeMovies} href="/?category=Free" accentColor="#4ade80" />
             )}
 
             {dynamicCategories.map(cat => {
