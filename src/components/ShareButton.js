@@ -1,22 +1,17 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function ShareButton({ title }) {
   const [copied, setCopied] = useState(false);
-  const router = useRouter();
+  const [url, setUrl] = useState('');
+  
+  useEffect(() => {
+    setUrl(window.location.href);
+  }, []);
 
-  const [url, setUrl] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.location.href;
-    }
-    return '';
-  });
-
-  // useEffect for URL removed as it's set in initial state
-
-  const whatsappText = encodeURIComponent(`🎬 Watch "${title}" on Flixon!\n${url}`);
+  const whatsappText = encodeURIComponent(`\uD83C\uDFAC Watch "${title}" on Flixon!\n${url}`);
 
   async function copyLink() {
     try {
@@ -35,7 +30,7 @@ export default function ShareButton({ title }) {
         className="gms-btn gms-btn--ghost"
         style={{ padding: '10px 16px', fontSize: '13px' }}
       >
-        {copied ? '✓ Copied!' : '🔗 Share'}
+        {copied ? '\u2713 Copied!' : '\uD83D\uDD17 Share'}
       </button>
       <a
         href={`https://wa.me/?text=${whatsappText}`}
