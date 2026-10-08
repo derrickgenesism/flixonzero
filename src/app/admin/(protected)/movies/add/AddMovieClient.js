@@ -281,11 +281,8 @@ export default function AddMovieClient({ tmdbApiKey }) {
                     type="button"
                     onClick={() => {
                       let cats = [...formData.categories];
-                      if (isSelected) {
-                        cats = cats.filter(c => c !== vj);
-                      } else {
-                        cats.push(vj);
-                      }
+                      if (isSelected) cats = cats.filter(c => c !== vj);
+                      else cats.push(vj);
                       handleManualEdit('categories', cats);
                     }}
                     style={{
@@ -372,8 +369,6 @@ export default function AddMovieClient({ tmdbApiKey }) {
             </div>
           </div>
         </div>
-      </div>
-    </div>
       </div>
     </div>
   );
