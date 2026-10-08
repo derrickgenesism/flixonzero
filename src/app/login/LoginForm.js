@@ -14,8 +14,10 @@ export default function LoginForm({ refCode, googleAuthEnabled = false }) {
   useEffect(() => {
     if (!localRef) {
       const storedRef = localStorage.getItem('affiliate_ref');
+      // eslint-disable-next-line
       if (storedRef) setLocalRef(storedRef);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refCode]);
 
   async function handleSubmit(formData) {
