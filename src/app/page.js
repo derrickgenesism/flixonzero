@@ -118,8 +118,30 @@ export default async function Home({ searchParams }) {
     const d = new Date(m.release_date);
     return d.getFullYear() === 2026;
   }).slice(0, 15) : [];
-  const freeMovies = isSectionEnabled('Free') ? safeMovies.filter(m => m.type === 'genesis_free_movie' && !m.is_coming_soon).slice(0, 15) : [];
-  const newArrivals = isSectionEnabled('New Arrivals') ? safeMovies.filter(m => !m.is_coming_soon).slice(0, 15) : [];
+  const freeMovies = isSectionEnabled('Free') ? safeMovies.filter(m => (m.type === 'genesis_free_movie' || m.categories?.includes('Free to Watch')) && !m.is_coming_soon).slice(0, 15) : [];
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  const newArrivals = isSectionEnabled('New Arrivals') ? [...safeMovies].filter(m => !m.is_coming_soon).sort((a, b) => {
+    const isANew = a.categories?.some(c => {
+      if (c === 'New Arrival') return true;
+      if (c.startsWith('NewArrival:')) {
+        const ts = parseInt(c.split(':')[1], 10);
+        return ts > now;
+      }
+      return false;
+    }) ? 1 : 0;
+    
+    const isBNew = b.categories?.some(c => {
+      if (c === 'New Arrival') return true;
+      if (c.startsWith('NewArrival:')) {
+        const ts = parseInt(c.split(':')[1], 10);
+        return ts > now;
+      }
+      return false;
+    }) ? 1 : 0;
+    
+    return isBNew - isANew;
+  }).slice(0, 15) : [];
   const topRated = isSectionEnabled('Top Rated') ? [...safeMovies].filter(m => !m.is_coming_soon).sort((a, b) => (b.imdb_rating || 0) - (a.imdb_rating || 0)).slice(0, 15) : [];
   const premium = isSectionEnabled('Premium Exclusives') ? safeMovies.filter(m => m.type === 'genesis_premium' && !m.is_coming_soon).slice(0, 15) : [];
   const comingSoon = isSectionEnabled('Coming Soon') ? safeMovies.filter(m => m.is_coming_soon).slice(0, 15) : [];
@@ -180,7 +202,7 @@ export default async function Home({ searchParams }) {
             )}
 
             {isSectionEnabled('Free') && freeMovies.length > 0 && (
-              <MovieRow title="Free" movies={freeMovies} href="/?category=Free" />
+              <MovieRow title="?? Free to Watch" movies={freeMovies} href="/?category=Free" accentColor="#4ade80" />
             )}
 
             {dynamicCategories.map(cat => {

@@ -5,7 +5,7 @@ import MovieCard from './MovieCard';
 
 import Link from 'next/link';
 
-export default function MovieRow({ title, movies, href }) {
+export default function MovieRow({ title, movies, href, accentColor }) {
   const scrollRef = useRef(null);
 
   const scroll = (dir) => {
@@ -22,9 +22,9 @@ export default function MovieRow({ title, movies, href }) {
   return (
     <div className="gms-section">
       <div className="gms-section-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <h2 className="gms-section-title">{title}</h2>
+        <h2 className="gms-section-title" style={accentColor ? { color: accentColor, textShadow: `0 0 10px ${accentColor}40` } : {}}>{title}</h2>
         {href && (
-          <Link href={href} style={{ color: 'var(--acc)', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+          <Link href={href} style={{ color: accentColor || 'var(--acc)', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
             View All &gt;
           </Link>
         )}

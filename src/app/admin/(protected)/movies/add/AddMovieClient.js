@@ -180,7 +180,7 @@ export default function AddMovieClient({ tmdbApiKey }) {
               onChange={e => handleManualEdit('is_coming_soon', e.target.checked)}
               style={{ width: '18px', height: '18px', accentColor: 'var(--acc)' }}
             />
-            Mark as "Coming Soon" (will not be watchable yet)
+            Mark as &quot;Coming Soon&quot; (will not be watchable yet)
           </label>
         </div>
 

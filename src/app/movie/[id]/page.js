@@ -130,7 +130,7 @@ export default async function MoviePage({ params }) {
   let userRating = 0;
 
   if (user) {
-    if (movie.type === 'genesis_free_movie') {
+    if (movie.type === 'genesis_free_movie' || (movie.categories && movie.categories.includes('Free to Watch'))) {
       hasAccess = true;
     } else {
       const { data: profile } = await supabase.from('user_profiles').select('subscription_end_date').eq('email', user.email).single();
@@ -286,7 +286,7 @@ export default async function MoviePage({ params }) {
                 <svg style={{ margin: '0 auto 20px', color: 'var(--acc)', display: 'block' }} width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
-                {movie.type === 'genesis_free_movie' ? (
+                {(movie.type === 'genesis_free_movie' || (movie.categories && movie.categories.includes('Free to Watch'))) ? (
                   <>
                     <h2 style={{ fontSize: '26px', fontWeight: '900', margin: '0 0 12px', color: '#fff' }}>Free to Watch!</h2>
                     <p style={{ fontSize: '15px', color: 'var(--text2)', marginBottom: '28px', lineHeight: '1.7' }}>
