@@ -4,11 +4,12 @@ import { firstCleanCategory } from '@/utils/categories';
 export default function MovieCard({ id, title, type, thumbnail_url, categories, is_series }) {
   const thumb = thumbnail_url || 'https://via.placeholder.com/360x540/1a1a1a/444?text=No+Image';
 
-  const typeLabel = type === 'genesis_free_movie' ? 'Free'
+  const isFree = type === 'genesis_free_movie' || (categories && (Array.isArray(categories) ? categories.includes('Free to Watch') : typeof categories === 'string' && categories.includes('Free to Watch')));
+  const typeLabel = isFree ? 'Free'
     : (type === 'gsm_series' || is_series) ? 'Series'
     : 'Premium';
 
-  const badgeClass = type === 'genesis_free_movie' ? 'gms-card-badge--free'
+  const badgeClass = isFree ? 'gms-card-badge--free'
     : (type === 'gsm_series' || is_series) ? 'gms-card-badge--series'
     : 'gms-card-badge--premium';
 

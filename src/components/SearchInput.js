@@ -104,7 +104,8 @@ export default function SearchInput() {
                   {(() => {
                     const clean = cleanCategories(movie.categories);
                     if (clean.length > 0) return clean.slice(0, 2).join(' · ');
-                    return movie.type === 'genesis_free_movie' ? 'Free Movie' : movie.type === 'gsm_series' ? 'Series' : 'Premium Movie';
+                    const isFree = movie.type === 'genesis_free_movie' || (movie.categories && (Array.isArray(movie.categories) ? movie.categories.includes('Free to Watch') : typeof movie.categories === 'string' && movie.categories.includes('Free to Watch')));
+                    return isFree ? 'Free Movie' : movie.type === 'gsm_series' ? 'Series' : 'Premium Movie';
                   })()}
                 </div>
               </div>

@@ -40,16 +40,9 @@ export default function HeroSlider({ movies, appDownloadUrl }) {
     >
       {slides.map((movie, i) => {
         const bg = movie.thumbnail_url || 'https://via.placeholder.com/1920x1080/111/333?text=Flixon';
-        const typeLabel = movie.type === 'genesis_free_movie'
-          ? 'Free'
-          : movie.type === 'gsm_series'
-          ? 'Series'
-          : 'Premium';
-        const badgeClass = movie.type === 'genesis_free_movie'
-          ? 'flx-hero__badge--free'
-          : movie.type === 'gsm_series'
-          ? 'flx-hero__badge--series'
-          : 'flx-hero__badge--premium';
+        const isFree = movie.type === 'genesis_free_movie' || (movie.categories && (Array.isArray(movie.categories) ? movie.categories.includes('Free to Watch') : typeof movie.categories === 'string' && movie.categories.includes('Free to Watch')));
+        const typeLabel = isFree ? 'Free' : movie.type === 'gsm_series' ? 'Series' : 'Premium';
+        const badgeClass = isFree ? 'flx-hero__badge--free' : movie.type === 'gsm_series' ? 'flx-hero__badge--series' : 'flx-hero__badge--premium';
         const cats = cleanCategories(movie.categories).slice(0, 3);
 
         return (
