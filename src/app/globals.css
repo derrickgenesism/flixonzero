@@ -722,7 +722,9 @@ button {
 .flx-search-dropdown {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0; right: 0;
+  right: 0;
+  width: 420px;
+  max-width: calc(100vw - 32px);
   background: rgba(15,15,15,0.97);
   border: 1px solid var(--border2);
   border-radius: 12px;
@@ -751,8 +753,8 @@ button {
 .flx-search-result:hover { background: var(--glass); }
 
 .flx-search-result img {
-  width: 36px;
-  height: 54px;
+  width: 44px;
+  height: 66px;
   object-fit: cover;
   border-radius: 5px;
   flex-shrink: 0;
@@ -765,7 +767,7 @@ button {
 }
 .flx-search-result-title {
   color: #fff;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -781,16 +783,20 @@ button {
 }
 
 .flx-search-footer {
-  padding: 10px 14px;
+  padding: 16px;
   text-align: center;
-  background: rgba(255,255,255,0.02);
-  color: var(--acc2);
-  font-size: 12px;
-  font-weight: 600;
+  background: var(--acc);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background var(--tr);
+  transition: opacity var(--tr);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
 }
-.flx-search-footer:hover { background: rgba(229,9,20,0.08); }
+.flx-search-footer:hover { opacity: 0.9; }
 
 /* ============================================================
    MOVIE GRID (Search Page)

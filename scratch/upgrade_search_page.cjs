@@ -1,13 +1,16 @@
-﻿import { searchMoviesPage } from '@/app/actions/fetchMovies';
+const fs = require('fs');
+let file = 'src/app/search/page.js';
+
+const content = `import { searchMoviesPage } from '@/app/actions/fetchMovies';
 import Navbar from '@/components/Navbar';
 import PaginatedMovieGrid from '@/components/PaginatedMovieGrid';
 import SearchInput from '@/components/SearchInput';
 import Link from 'next/link';
 
-export const metadata = { title: 'Search - Flixon' };
+export const metadata = { title: 'Search ?" Flixon' };
 
 const CATEGORIES = ['Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Romance', 'Thriller', 'Adventure', 'Animation', 'Crime', 'Documentary', 'Family', 'Fantasy'];
-const VJS = ['VJ Junior', 'VJ Emmy', 'VJ Ice P', 'VJ Jingo', 'VJ Mark', 'VJ Kamil'];
+const VJS = ['VJ Junior', 'VJ Emmy', 'VJ ICE P', 'VJ Jingo', 'VJ Mark', 'VJ Kamil'];
 
 export default async function SearchPage({ searchParams }) {
   const params = await searchParams;
@@ -71,12 +74,12 @@ export default async function SearchPage({ searchParams }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
             
             {/* Free Movies Callout */}
-            <div className="search-free-banner">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(90deg, #166534 0%, #064e3b 100%)', padding: '24px 32px', borderRadius: '16px', border: '1px solid #4ade8040' }}>
               <div>
                 <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#4ade80', margin: '0 0 8px 0' }}>Watch Free Movies</h2>
                 <p style={{ color: '#a7f3d0', fontSize: '15px', margin: 0 }}>Enjoy a selection of premium movies completely for free. No subscription required.</p>
               </div>
-              <Link href="/category/Free%20to%20Watch" className="gms-btn" style={{ background: '#4ade80', color: '#064e3b', fontWeight: '800', padding: '12px 24px', fontSize: '15px', flexShrink: 0, textDecoration: 'none' }}>
+              <Link href="/category/Free%20to%20Watch" className="gms-btn" style={{ background: '#4ade80', color: '#064e3b', fontWeight: '800', padding: '12px 24px', fontSize: '15px', flexShrink: 0 }}>
                 Explore Free Movies
               </Link>
             </div>
@@ -89,9 +92,9 @@ export default async function SearchPage({ searchParams }) {
               </h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
                 {VJS.map(vj => (
-                  <Link key={vj} href={/category/ + encodeURIComponent(vj)} style={{ background: 'var(--bg2)', padding: '16px', borderRadius: '12px', textAlign: 'center', border: '1px solid var(--border)', transition: 'var(--tr)', textDecoration: 'none' }} className="hover-lift">
+                  <Link key={vj} href={`/category/${encodeURIComponent(vj)}`} style={{ background: 'var(--bg2)', padding: '16px', borderRadius: '12px', textAlign: 'center', border: '1px solid var(--border)', transition: 'var(--tr)', textDecoration: 'none' }} className="hover-lift">
                     <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--bg3)', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>
-                      🎙️
+                      Z
                     </div>
                     <span style={{ color: '#fff', fontWeight: '700', fontSize: '15px' }}>{vj}</span>
                   </Link>
@@ -107,7 +110,7 @@ export default async function SearchPage({ searchParams }) {
               </h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                 {CATEGORIES.map(cat => (
-                  <Link key={cat} href={/category/ + encodeURIComponent(cat)} style={{ padding: '12px 24px', background: 'var(--bg2)', borderRadius: '30px', color: '#fff', fontSize: '14px', fontWeight: '600', border: '1px solid var(--border)', transition: 'var(--tr)', textDecoration: 'none' }} className="hover-lift">
+                  <Link key={cat} href={`/category/${encodeURIComponent(cat)}`} style={{ padding: '12px 24px', background: 'var(--bg2)', borderRadius: '30px', color: '#fff', fontSize: '14px', fontWeight: '600', border: '1px solid var(--border)', transition: 'var(--tr)', textDecoration: 'none' }} className="hover-lift">
                     {cat}
                   </Link>
                 ))}
@@ -119,25 +122,19 @@ export default async function SearchPage({ searchParams }) {
       </div>
       
       <style>{`
-        .search-free-banner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          background: linear-gradient(90deg, #166534 0%, #064e3b 100%);
-          padding: 24px 32px;
-          border-radius: 16px;
-          border: 1px solid #4ade8040;
-          gap: 20px;
-        }
-        @media (max-width: 768px) {
-          .search-free-banner { flex-direction: column; text-align: center; }
-        }
         .hover-lift:hover {
           transform: translateY(-4px);
           border-color: var(--acc);
           background: rgba(229,9,20,0.05) !important;
         }
+        @media (max-width: 768px) {
+          .flx-search-dropdown { width: 100% !important; right: 0; left: 0; }
+        }
       `}</style>
     </div>
   );
 }
+`;
+
+fs.writeFileSync(file, content);
+console.log('Massive upgrade for SearchPage completed');

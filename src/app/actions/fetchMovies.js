@@ -22,7 +22,12 @@ export async function fetchMoviesPage(category, page = 0, pageSize = PAGE_SIZE) 
   } else if (category === 'Top Rated') {
     query = query.not('imdb_rating', 'is', null).order('imdb_rating', { ascending: false });
   } else if (category === 'Free') {
-    query = query.eq('type', 'genesis_free_movie').order('created_at', { ascending: false });
+    const all = await getCachedMovies();
+    const free = all.filter(m => m.type === 'genesis_free_movie' || m.categories?.includes('Free to Watch'));
+    return {
+      movies: free.slice(from, to + 1),
+      total: free.length
+    };
   } else if (category === 'Premium Exclusives') {
     query = query.eq('type', 'video').order('created_at', { ascending: false });
   } else if (category === 'Popular Series') {
