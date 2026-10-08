@@ -36,7 +36,7 @@ export async function POST(req) {
         // Check if already processed (idempotency guard)
         const { data: existingPpv } = await supabase
           .from('ppv_purchases')
-          .select('status, user_id, movie_id')
+          .select('status, user_id, movie_id, amount')
           .eq('tx_ref', tx_ref)
           .single();
 
@@ -48,6 +48,11 @@ export async function POST(req) {
         if (existingPpv.status === 'success') {
           console.log('Webhook PPV: already processed, skipping:', tx_ref);
           return NextResponse.json({ status: 'already_processed' }, { status: 200 });
+        }
+
+        if (existingPpv.amount && payload.data.amount < existingPpv.amount) {
+          console.error('Webhook PPV Error: Amount mismatch. Expected ' + existingPpv.amount + ', got ' + payload.data.amount);
+          return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 });
         }
 
         const ppvRes = await supabase
@@ -91,6 +96,11 @@ export async function POST(req) {
       // If already processed, ignore
       if (transaction.status === 'successful') {
         return NextResponse.json({ status: 'already_processed' }, { status: 200 });
+      }
+
+      if (transaction.amount && payload.data.amount < transaction.amount) {
+        console.error('Webhook Error: Amount mismatch. Expected ' + transaction.amount + ', got ' + payload.data.amount);
+        return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 });
       }
 
       // 4. Update Transaction Status
@@ -245,3 +255,4 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+

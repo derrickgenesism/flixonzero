@@ -1,17 +1,25 @@
 import { createAdminClient } from '@/utils/supabase/admin';
+import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
 
-// Protect this endpoint — Vercel cron sends the CRON_SECRET as a Bearer token.
-// Manual calls from the admin UI POST with { manual: true } — we allow those too
-// since the admin UI is already behind auth.
-function isAuthorized(request) {
+// Protect this endpoint - Vercel cron sends the CRON_SECRET as a Bearer token.
+// Manual calls from the admin UI POST with { manual: true } must have a valid admin session
+async function isAuthorized(request) {
   // Vercel cron authorization header
   const authHeader = request.headers.get('authorization');
   const secret = process.env.CRON_SECRET;
   if (secret && authHeader === `Bearer ${secret}`) return true;
 
-  // Manual trigger from admin UI (POST with JSON body)
-  if (request.method === 'POST') return true;
+  // Manual trigger from admin UI requires an actual session
+  if (request.method === 'POST') {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    
+    // Check if user is admin
+    const { data: adminCheck } = await supabase.from('admin_users').select('id').eq('email', user.email).single();
+    if (adminCheck) return true;
+  }
 
   return false;
 }
@@ -43,7 +51,7 @@ export async function POST(request) {
 }
 
 async function handler(request) {
-  if (!isAuthorized(request)) {
+  if (!(await isAuthorized(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

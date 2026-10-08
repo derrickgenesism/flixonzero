@@ -127,7 +127,7 @@ export default function SupportClient({ initialMessages, threadId, userProfile }
                       marginTop: '4px',
                       textAlign: isUser ? 'right' : 'left'
                     }}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(msg.created_at).toISOString().substring(11, 16) /* hydration safe */}
                     </div>
                   </div>
                 </div>

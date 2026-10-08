@@ -16,7 +16,7 @@ export default function LoginForm({ refCode }) {
       const storedRef = localStorage.getItem('affiliate_ref');
       if (storedRef) setLocalRef(storedRef);
     }
-  }, [localRef]);
+  }, [refCode]);
 
   async function handleSubmit(formData) {
     setLoading(true);

@@ -1,4 +1,8 @@
-import { NextResponse } from 'next/server';
+const fs = require('fs');
+let file = 'src/app/api/compression-jobs/[id]/cancel/route.js';
+let content = fs.readFileSync(file, 'utf8');
+
+const replacement = `import { NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 
@@ -23,21 +27,9 @@ export async function POST(req, { params }) {
       .eq('id', id)
       .in('status', ['pending', 'processing', 'failed']) // Can't cancel completed
       .select()
-      .single();
+      .single();`;
 
-    const { data, error } = await supabase
-      .from('compression_jobs')
-      .update({ status: 'cancelled' })
-      .eq('id', id)
-      .in('status', ['pending', 'processing', 'failed']) // Can't cancel completed
-      .select()
-      .single();
+content = content.replace(/import \{ NextResponse \} from 'next\/server';[\s\S]*?const \{ id \} = await params;/, replacement);
 
-    if (error) throw error;
-
-    return NextResponse.json({ success: true, job: data });
-  } catch (error) {
-    console.error('Cancel error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
+fs.writeFileSync(file, content);
+console.log('Fixed zero auth in compression job cancel');

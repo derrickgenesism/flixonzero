@@ -1,7 +1,7 @@
 import { sendResetEmail } from './actions'
 
-export default function ResetPasswordPage({ searchParams }) {
-  const message = searchParams.message || '';
+export default async function ResetPasswordPage({ searchParams }) {
+  const params = await searchParams; const message = params.message || '';
 
   return (
     <div className="gms-login-wrap" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -39,3 +39,4 @@ export default function ResetPasswordPage({ searchParams }) {
     </div>
   )
 }
+

@@ -1,6 +1,8 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
@@ -186,8 +188,9 @@ export async function deleteProfile(profileId) {
 // Logout overrides the default logout to also clear the profile cookie
 export async function logoutAndClearProfile() {
   const cookieStore = await cookies();
-  cookieStore.delete(PROFILE_COOKIE);
-  
+  cookieStore.delete('flixon_profile_id');
   const supabase = await createClient();
   await supabase.auth.signOut();
+  revalidatePath('/', 'layout');
+  redirect('/');
 }

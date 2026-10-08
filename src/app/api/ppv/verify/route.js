@@ -49,6 +49,11 @@ export async function GET(request) {
     if (fwRes.ok) {
       const fwData = await fwRes.json();
       if (fwData.status === 'success' && fwData.data?.status === 'successful') {
+        if (fwData.data.amount < purchase.amount) {
+          console.error('[PPV Verify] Amount mismatch. Expected ' + purchase.amount + ', got ' + fwData.data.amount);
+          return NextResponse.json({ status: 'failed', reason: 'amount_mismatch' });
+        }
+
         
         // Grant 48 hour access
         const expiresAt = new Date();

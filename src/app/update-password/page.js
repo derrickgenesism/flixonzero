@@ -1,7 +1,7 @@
 import { updatePassword } from './actions'
 
-export default function UpdatePasswordPage({ searchParams }) {
-  const message = searchParams.message || '';
+export default async function UpdatePasswordPage({ searchParams }) {
+  const params = await searchParams; const message = params.message || '';
 
   return (
     <div className="gms-login-wrap" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
