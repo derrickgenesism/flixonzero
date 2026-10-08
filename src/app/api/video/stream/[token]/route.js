@@ -24,7 +24,9 @@ export async function GET(request, { params }) {
   }
 
   // Hard redirect to CDN — browser streams directly, zero Vercel latency
-  return NextResponse.redirect(resolved.videoUrl, { status: 302 });
+  const response = NextResponse.redirect(resolved.videoUrl, { status: 302 });
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  return response;
 }
 
 export async function HEAD(request, { params }) {

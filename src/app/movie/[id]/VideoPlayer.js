@@ -109,7 +109,7 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
       style={{ width: '100%', height: '100%', objectFit: 'contain' }}
       preload="auto"
     >
-      <source src={streamUrl} type="video/mp4" />
+      <source src={streamUrl} />
       Your browser does not support the video tag.
     </video>
   );
