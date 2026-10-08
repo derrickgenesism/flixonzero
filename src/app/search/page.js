@@ -92,13 +92,10 @@ export default async function SearchPage({ searchParams }) {
                 <span style={{ width: '3px', height: '18px', background: 'var(--acc)', borderRadius: '2px' }}></span>
                 Top VJ Translators
               </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {VJS.map(vj => (
-                  <Link key={vj} href={/category/ + encodeURIComponent(vj)} style={{ background: 'var(--bg2)', padding: '12px', borderRadius: '10px', textAlign: 'center', border: '1px solid var(--border)', transition: 'var(--tr)', textDecoration: 'none' }} className="hover-lift">
-                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg3)', margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-                      🎙️
-                    </div>
-                    <span style={{ color: '#fff', fontWeight: '700', fontSize: '13px' }}>{vj}</span>
+                  <Link key={vj} href={`/category/` + encodeURIComponent(vj)} style={{ padding: '8px 16px', background: 'var(--bg2)', borderRadius: '20px', color: '#fff', fontSize: '13px', fontWeight: '600', border: '1px solid var(--border)', transition: 'var(--tr)', textDecoration: 'none' }} className="hover-lift">
+                    {vj}
                   </Link>
                 ))}
               </div>

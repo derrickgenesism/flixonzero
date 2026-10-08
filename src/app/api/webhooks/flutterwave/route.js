@@ -19,7 +19,7 @@ export async function POST(req) {
 
     // 2. Verify Webhook Signature
     const signature = req.headers.get('verif-hash');
-    if (!signature || (webhookSecret && signature !== webhookSecret)) {
+    if (!webhookSecret || signature !== webhookSecret) {
       console.error('Webhook Error: Invalid Signature');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
