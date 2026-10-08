@@ -17,3 +17,4 @@ export async function updatePassword(formData) {
 
   redirect('/?message=Password updated successfully')
 }
+

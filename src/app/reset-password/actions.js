@@ -23,5 +23,6 @@ export async function sendResetEmail(formData) {
     redirect(`/reset-password?message=${encodeURIComponent(error.message)}`)
   }
 
-  redirect('/login?message=Check your email for the password reset link.')
+  redirect('/login?message=Check+your+email+for+the+password+reset+link.')
 }
+

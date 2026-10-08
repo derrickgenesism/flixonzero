@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 const GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Horror', 'Thriller',
@@ -156,9 +157,9 @@ export default function OnboardingClient() {
               >
                 {loading ? 'Saving...' : '🎬 Start Watching!'}
               </button>
-              <a href="/checkout" className="gms-btn gms-btn--ghost" style={{ padding: '16px 24px', fontSize: '15px' }}>
+              <Link href="/checkout" className="gms-btn gms-btn--ghost" style={{ padding: '16px 24px', fontSize: '15px' }}>
                 View Plans
-              </a>
+              </Link>
             </div>
           </div>
         )}
@@ -166,3 +167,5 @@ export default function OnboardingClient() {
     </div>
   );
 }
+
+
