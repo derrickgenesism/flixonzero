@@ -6,8 +6,9 @@ import { revalidatePath } from 'next/cache'
 export async function saveSettings(formData) {
   const supabase = await createClient()
 
-  const checkboxKeys = ['referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled', 'series_enabled']
+  const checkboxKeys = ['free_mode_enabled', 'referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled', 'series_enabled']
   const keys = [
+    'free_mode_enabled',
     'tmdb_api_key',
     'app_download_url',
     'flutterwave_public_key',

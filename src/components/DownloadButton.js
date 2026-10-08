@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function DownloadButton({ movieId, title }) {
+export default function DownloadButton({ movieId, title, requiresSubscription }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState(null); // null = idle, 0-0.99 = downloading, 1 = done

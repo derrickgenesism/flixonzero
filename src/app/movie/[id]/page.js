@@ -408,7 +408,7 @@ export default async function MoviePage({ params }) {
                     </Link>
                   )}
                   {actualVideoUrl && !actualVideoUrl.includes('pelpic') && !actualVideoUrl.includes('upstream') && (
-                    <DownloadButton movieId={movie.id} title={movie.title} />
+                    <DownloadButton movieId={movie.id} title={movie.title} requiresSubscription={!canDownload} />
                   )}
                 </>
               )}
