@@ -24,16 +24,10 @@ export async function updateMovie(id, movieData) {
     description: movieData.description,
     type: movieData.type,
     thumbnail_url: movieData.thumbnail_url,
-    backdrop_url: movieData.backdrop_url,
     video_url: movieData.video_url,
     categories: movieData.categories,
     release_year: movieData.release_year ? Number(movieData.release_year) : null,
-    actors: movieData.actors,
-    director: movieData.director || null,
-    runtime: movieData.runtime ? Number(movieData.runtime) : null,
-    imdb_rating: movieData.imdb_rating ? Number(movieData.imdb_rating) : null,
-    trailer_url: movieData.trailer_url || null,
-    is_coming_soon: movieData.is_coming_soon || false,
+    actors: movieData.actors
   }).eq('id', id);
 
   if (error) return { error: error.message };
