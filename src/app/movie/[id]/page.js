@@ -125,22 +125,22 @@ export default async function MoviePage({ params }) {
   // Auth + Access check
   const { data: { user } } = await supabase.auth.getUser();
   let hasAccess = false;
+  let canDownload = false;
+  let isPremiumUser = false;
   let isFavorite = false;
   let hasPpvAccess = false;
   let userRating = 0;
 
+  const settings = await getCachedSettings();
+  const globalFreeMode = settings.find(s => s.setting_key === 'free_mode_enabled')?.setting_value === 'true';
+
   if (user) {
-    if (movie.type === 'genesis_free_movie' || (movie.categories && movie.categories.includes('Free to Watch'))) {
-      hasAccess = true;
-    } else {
-      const { data: profile } = await supabase.from('user_profiles').select('subscription_end_date').eq('email', user.email).single();
-      if (profile?.subscription_end_date && new Date(profile.subscription_end_date) > new Date()) {
-        hasAccess = true;
-      }
+    const { data: userProfile } = await supabase.from('user_profiles').select('subscription_end_date').eq('email', user.email).single();
+    if (userProfile?.subscription_end_date && new Date(userProfile.subscription_end_date) > new Date()) {
+      isPremiumUser = true;
     }
 
-    // Check Pay-Per-View access
-    if (!hasAccess) {
+    if (!isPremiumUser) {
       const { data: ppvData } = await supabase
         .from('ppv_purchases')
         .select('expires_at')
@@ -150,9 +150,12 @@ export default async function MoviePage({ params }) {
         .maybeSingle();
       if (ppvData?.expires_at && new Date(ppvData.expires_at) > new Date()) {
         hasPpvAccess = true;
-        hasAccess = true;
+        isPremiumUser = true;
       }
     }
+
+    canDownload = isPremiumUser;
+    hasAccess = isPremiumUser || movie.type === 'genesis_free_movie' || (movie.categories && movie.categories.includes('Free to Watch')) || globalFreeMode;
 
     // Watch progress
     const profile = await getActiveProfile();
@@ -178,7 +181,6 @@ export default async function MoviePage({ params }) {
   const ratingCount = allRatings?.length || 0;
 
   // PPV price from settings
-  const settings = await getCachedSettings();
   const ppvSetting = settings.find(s => s.setting_key === 'ppv_price');
   const ppvPrice = Number(ppvSetting?.setting_value || 0);
   const ppvEnabled = ppvPrice > 0 && movie.type !== 'genesis_free_movie';
