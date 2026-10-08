@@ -25,13 +25,7 @@ export async function POST(req, { params }) {
       .select()
       .single();
 
-    const { data, error } = await supabase
-      .from('compression_jobs')
-      .update({ status: 'cancelled' })
-      .eq('id', id)
-      .in('status', ['pending', 'processing', 'failed']) // Can't cancel completed
-      .select()
-      .single();
+    
 
     if (error) throw error;
 

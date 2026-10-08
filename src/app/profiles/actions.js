@@ -4,7 +4,6 @@ import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { revalidatePath } from 'next/cache';
 
 const PROFILE_COOKIE = 'flixon_profile_id';
 
