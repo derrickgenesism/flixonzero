@@ -183,9 +183,8 @@ export default async function MoviePage({ params }) {
   // PPV price from settings
   const ppvSetting = settings.find(s => s.setting_key === 'ppv_price');
   const ppvPrice = Number(ppvSetting?.setting_value || 0);
-  const ppvEnabled = ppvPrice > 0 && !isFreeMovie;
-
   const isFreeMovie = movie.type === 'genesis_free_movie' || (movie.categories && (Array.isArray(movie.categories) ? movie.categories.includes('Free to Watch') : typeof movie.categories === 'string' && movie.categories.includes('Free to Watch')));
+  const ppvEnabled = ppvPrice > 0 && !isFreeMovie;
   const typeLabel = isFreeMovie ? 'Free' : movie.type === 'gsm_series' ? 'Series' : 'Premium';
   const typeBadgeStyle = isFreeMovie
     ? { background: '#166534', color: '#4ade80' }
