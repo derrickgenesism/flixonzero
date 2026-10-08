@@ -245,7 +245,8 @@ export default function EditMovieClient({ movie }) {
 
               <Field label="VJ (Translator)">
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {['VJ ICE P', 'VJ Emmy', 'VJ Junior', 'VJ Jingo', 'VJ Mark'].map(vj => {
+                  
+                {Array.from(new Set(['VJ ICE P', 'VJ Emmy', 'VJ Junior', 'VJ Jingo', 'VJ Mark', ...formData.categories.filter(c => c && c.toLowerCase().startsWith('vj '))])).map(vj => {
                     const isSelected = form.categories.includes(vj);
                     return (
                       <button

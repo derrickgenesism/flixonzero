@@ -25,7 +25,7 @@ export async function generateMetadata({ params }) {
 
   const vjName = detectVJ(movie?.categories);
   const plainDesc = movie?.description?.replace(/<[^>]+>/g, '').slice(0, 140) || '';
-  const genre = Array.isArray(movie?.categories) ? movie.categories.filter(c => !VJ_NAMES.some(vj => c.toLowerCase().includes(vj.toLowerCase().replace('vj ', 'vj')))).join(', ') : '';
+  const genre = Array.isArray(movie?.categories) ? movie.categories.filter(c => !c.toLowerCase().startsWith('vj ')).join(', ') : '';
 
   const movieTitle = vjName
     ? `${movie.title} — Translated by ${vjName} | Luganda Movies Uganda`
@@ -209,7 +209,7 @@ export default async function MoviePage({ params }) {
     'image': movie.thumbnail_url || undefined,
     'datePublished': movie.release_date || undefined,
     'inLanguage': vjName ? 'Luganda' : (movie.language || 'en'),
-    'genre': cats.filter(c => !VJ_NAMES.some(vj => c.toLowerCase().includes(vj.toLowerCase().replace('vj ', 'vj')))),
+    'genre': cats.filter(c => !c.toLowerCase().startsWith('vj ')),
     'contentRating': movie.content_rating || undefined,
     'director': movie.director ? { '@type': 'Person', 'name': movie.director } : undefined,
     'actor': castList.slice(0, 5).map(p => ({ '@type': 'Person', 'name': p.name })),

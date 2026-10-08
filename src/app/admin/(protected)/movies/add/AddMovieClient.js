@@ -273,7 +273,8 @@ export default function AddMovieClient({ tmdbApiKey }) {
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '5px' }}>VJ (Translator)</label>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {['VJ ICE P', 'VJ Emmy', 'VJ Junior', 'VJ Jingo', 'VJ Mark'].map(vj => {
+              
+                {Array.from(new Set(['VJ ICE P', 'VJ Emmy', 'VJ Junior', 'VJ Jingo', 'VJ Mark', ...formData.categories.filter(c => c && c.toLowerCase().startsWith('vj '))])).map(vj => {
                 const isSelected = formData.categories.includes(vj);
                 return (
                   <button
