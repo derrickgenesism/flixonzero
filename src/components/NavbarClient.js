@@ -52,8 +52,9 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft, 
       setUnreadCount(count || 0);
 
       // Subscribe to new messages
-      const channel = supabase
-        .channel('desktop_support_unread_badge')
+      const channelName = `desktop_support_unread_badge_${thread.id}_${Math.random()}`;
+        const channel = supabase
+        .channel(channelName)
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',

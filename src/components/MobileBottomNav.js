@@ -41,8 +41,9 @@ export default function MobileBottomNav() {
       setUnreadCount(count || 0);
 
       // Subscribe to new messages
+      const channelName = `support_unread_badge_${thread.id}_${Math.random()}`;
       const channel = supabase
-        .channel('support_unread_badge')
+        .channel(channelName)
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',
