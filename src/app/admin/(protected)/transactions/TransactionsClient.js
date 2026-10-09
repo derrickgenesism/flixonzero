@@ -60,7 +60,7 @@ export default function TransactionsClient({ initialTransactions }) {
   };
 
   return (
-    <div style={{ background: 'var(--bg2)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', maxWidth: '100%', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg2)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', maxWidth: '100%', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
       {error && (
         <div style={{ background: 'rgba(229, 9, 20, 0.1)', color: '#e50914', padding: '15px', borderRadius: '6px', marginBottom: '20px' }}>
           {error}

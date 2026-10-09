@@ -135,7 +135,7 @@ export default function SecurityLogsClient({ initialLogs, dbError }) {
       )}
 
       {logs.length > 0 && (
-        <div style={{ background: 'var(--bg2)', borderRadius: '12px', overflow: 'hidden', overflowX: 'auto', maxWidth: '100%' }}>
+        <div style={{ background: 'var(--bg2)', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', overflowX: 'auto', maxWidth: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}>

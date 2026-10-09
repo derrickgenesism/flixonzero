@@ -29,7 +29,7 @@ function KpiCard({ label, value, unit, sub, subColor, accent, icon, growth }) {
     <div style={{
       background: 'var(--bg2)', padding: '22px 24px', borderRadius: '16px',
       border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px',
-      position: 'relative', overflow: 'hidden',
+      position: 'relative', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ color: 'var(--text2)', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</div>
@@ -100,7 +100,7 @@ function SortableTable({ columns, data, defaultSort, defaultDir = 'desc' }) {
           }}
         />
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -150,7 +150,7 @@ function SortableTable({ columns, data, defaultSort, defaultDir = 'desc' }) {
 
 function Panel({ title, badge, children }) {
   return (
-    <div style={{ background: 'var(--bg2)', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg2)', borderRadius: '16px', border: '1px solid var(--border)', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0,0,0,0.25)' }}>
         <h2 style={{ fontSize: '15px', fontWeight: '700', margin: 0 }}>{title}</h2>
         {badge && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,255,255,0.08)', color: 'var(--text2)' }}>{badge}</span>}

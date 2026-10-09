@@ -99,7 +99,7 @@ export default function MoviesManagerClient({ initialMovies }) {
       </div>
 
       {/* Table */}
-      <div style={{ background: 'var(--bg2)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+      <div style={{ background: 'var(--bg2)', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', border: '1px solid var(--border)' }}>
         {filtered.length === 0 ? (
           <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text2)' }}>
             <div style={{ fontSize: '40px', marginBottom: '12px' }}>🎬</div>
@@ -136,7 +136,7 @@ export default function MoviesManagerClient({ initialMovies }) {
                     <td style={{ padding: '14px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                         <div style={{
-                          width: '48px', height: '68px', borderRadius: '6px', overflow: 'hidden',
+                          width: '48px', height: '68px', borderRadius: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch',
                           background: '#111', flexShrink: 0, border: '1px solid var(--border)'
                         }}>
                           {movie.thumbnail_url ? (

@@ -133,7 +133,7 @@ export default function AffiliatesClient({ data }) {
       </div>
 
       {/* Affiliates List */}
-      <div style={{ background: 'var(--bg2)', borderRadius: '12px', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--bg2)', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Active Affiliates</h2>
         </div>
@@ -228,7 +228,7 @@ export default function AffiliatesClient({ data }) {
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
-          <div style={{ background: 'var(--bg2)', width: '400px', borderRadius: '12px', padding: '24px' }}>
+          <div style={{ background: 'var(--bg2)', width: '100%', maxWidth: '400px', borderRadius: '12px', padding: '24px' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>
               Adjust Balance for {selectedUser?.user_profiles?.username}
             </h3>

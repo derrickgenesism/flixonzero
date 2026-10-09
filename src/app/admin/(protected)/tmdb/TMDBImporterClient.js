@@ -137,7 +137,7 @@ export default function TMDBImporterClient({ movies, apiKey }) {
                   color: '#fff',
                   padding: '8px 12px',
                   borderRadius: '6px',
-                  width: '300px',
+                  width: '100%', maxWidth: '300px',
                   fontSize: '14px'
                 }}
               />

@@ -39,7 +39,7 @@ function ProgressBar({ progress, status }) {
   const pct = progress || 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '160px' }}>
-      <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+      <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', height: '6px', borderRadius: '3px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
         <div style={{
           width: `${pct}%`, height: '100%',
           background: 'linear-gradient(90deg, #6366f1, #818cf8)',
@@ -135,7 +135,7 @@ export default function ExistingClient({ initialVideos }) {
               Currently compressing: <span style={{ color: '#818cf8' }}>{job.video_key}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', height: '8px', borderRadius: '4px', overflow: 'hidden', maxWidth: '400px' }}>
+              <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', height: '8px', borderRadius: '4px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', maxWidth: '400px' }}>
                 <div style={{
                   width: `${job.progress || 0}%`, height: '100%',
                   background: 'linear-gradient(90deg, #6366f1, #a78bfa)',
@@ -197,7 +197,7 @@ export default function ExistingClient({ initialVideos }) {
         </span>
       </div>
 
-      <div style={{ background: 'var(--bg2)', borderRadius: '8px', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--bg2)', borderRadius: '8px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
         {videos.length === 0 ? (
           <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text2)' }}>
             No videos found in your Cloudflare R2 bucket.

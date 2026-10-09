@@ -140,7 +140,7 @@ export default async function CloudflareImportPage() {
           <p style={{ fontSize: '14px', marginTop: '10px' }}>Upload more videos to see them here.</p>
         </div>
       ) : (
-        <div style={{ background: 'var(--bg2)', borderRadius: '8px', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--bg2)', borderRadius: '8px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: 'rgba(0,0,0,0.2)', color: 'var(--text2)', fontSize: '13px', textTransform: 'uppercase' }}>

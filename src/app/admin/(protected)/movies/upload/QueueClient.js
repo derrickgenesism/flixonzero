@@ -49,7 +49,7 @@ export default function QueueClient({ initialJobs }) {
           🔄 Live — updates every 3s
         </span>
       </div>
-      <div style={{ background: 'var(--bg2)', borderRadius: '8px', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--bg2)', borderRadius: '8px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
         {jobs.length === 0 ? (
           <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text2)' }}>
             No compression jobs yet. Upload a video above to get started.
@@ -84,7 +84,7 @@ export default function QueueClient({ initialJobs }) {
                   <td style={{ padding: '14px 20px' }}>
                     {job.status === 'processing' ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '120px', background: 'rgba(255,255,255,0.08)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: '120px', background: 'rgba(255,255,255,0.08)', height: '6px', borderRadius: '3px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
                           <div style={{
                             width: `${job.progress || 0}%`, height: '100%',
                             background: 'linear-gradient(90deg, #6366f1, #a78bfa)',

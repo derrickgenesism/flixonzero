@@ -159,7 +159,7 @@ export default async function UserAnalyticsPage({ params }) {
             This user hasn't watched any movies yet.
           </div>
         ) : (
-          <div style={{ background: 'var(--bg2)', borderRadius: '10px', overflowX: 'auto' }}>
+          <div style={{ background: 'var(--bg2)', borderRadius: '10px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
               <thead>
                 <tr style={{ background: '#333', borderBottom: '1px solid #444' }}>
