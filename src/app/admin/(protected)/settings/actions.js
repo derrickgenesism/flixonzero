@@ -11,12 +11,12 @@ export async function saveSettings(formData) {
   if (!user) throw new Error("Unauthorized");
   
   const { data: adminCheck } = await supabase
-    .from('admin_users')
-    .select('id')
+    .from('user_profiles')
+    .select('role')
     .eq('email', user.email)
     .single();
     
-  if (!adminCheck) throw new Error("Forbidden");
+  if (adminCheck?.role !== 'administrator') throw new Error("Forbidden");
 
   const checkboxKeys = ['free_mode_enabled', 'referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled', 'series_enabled', 'google_auth_enabled']
   const keys = [

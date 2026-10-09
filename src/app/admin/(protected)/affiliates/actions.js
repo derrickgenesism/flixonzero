@@ -5,6 +5,18 @@ import { revalidatePath } from 'next/cache'
 
 export async function getAffiliateSettings() {
   const supabase = await createClient()
+
+  // SECURITY PATCH: Verify admin status
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("Unauthorized");
+  
+  const { data: adminCheck } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('email', user.email)
+    .single();
+    
+  if (adminCheck?.role !== 'administrator') throw new Error("Forbidden");
   const { data: settings } = await supabase
     .from('admin_settings')
     .select('*')

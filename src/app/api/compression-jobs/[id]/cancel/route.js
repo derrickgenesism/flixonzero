@@ -12,8 +12,8 @@ export async function POST(req, { params }) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const { data: adminCheck } = await supabase.from('admin_users').select('id').eq('email', user.email).single();
-    if (!adminCheck) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const { data: adminCheck } = await supabase.from('user_profiles').select('role').eq('email', user.email).single();
+    if (adminCheck?.role !== 'administrator') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { id } = await params;
 

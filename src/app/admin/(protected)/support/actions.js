@@ -5,6 +5,11 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
 export async function getSupportData() {
+  const userSupa = await createClient();
+  const { data: { user } } = await userSupa.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const { data: adminCheck } = await userSupa.from('user_profiles').select('role').eq('email', user.email).single();
+  if (adminCheck?.role !== 'administrator') throw new Error("Forbidden");
   const supabase = createAdminClient();
 
   // 1. Get Telegram Settings
