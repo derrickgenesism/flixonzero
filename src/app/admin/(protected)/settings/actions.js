@@ -3,13 +3,17 @@ const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/ad
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { logSecurityEvent } from '@/utils/securityLogger';
 
 export async function saveSettings(formData) {
   const supabase = await createClient()
 
   // SECURITY PATCH: Verify admin status
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error("Unauthorized");
+  if (!user) {
+    await logSecurityEvent('UNAUTHORIZED_ACCESS', 'HIGH', 'Attempt to access saveSettings action without authentication', {});
+    throw new Error("Unauthorized");
+  }
   
   const { data: adminCheck } = await supabase
     .from('user_profiles')
@@ -17,7 +21,10 @@ export async function saveSettings(formData) {
     .eq('email', user.email)
     .single();
     
-  if (adminCheck?.role !== 'administrator') throw new Error("Forbidden");
+  if (adminCheck?.role !== 'administrator') {
+    await logSecurityEvent('ROLE_ESCALATION_ATTEMPT', 'CRITICAL', `User ${user.email} attempted to save admin settings but is not an administrator`, { email: user.email, actualRole: adminCheck?.role });
+    throw new Error("Forbidden");
+  }
 
   const checkboxKeys = ['free_mode_enabled', 'referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled', 'series_enabled', 'google_auth_enabled']
   const keys = [
@@ -66,5 +73,6 @@ export async function saveSettings(formData) {
   await _injectedAdminClient().from('admin_settings')
     .upsert({ setting_key: 'homepage_sections', setting_value: JSON.stringify(hpSections) }, { onConflict: 'setting_key' })
 
+  await logSecurityEvent('SETTINGS_CHANGED', 'LOW', `Admin ${user.email} updated platform settings`, { email: user.email });
   revalidatePath('/admin/settings')
 }
