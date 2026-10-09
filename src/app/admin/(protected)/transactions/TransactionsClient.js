@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { manualApproveTransaction, diagnoseTransaction } from './actions';
@@ -82,8 +82,8 @@ export default function TransactionsClient({ initialTransactions }) {
         }}>
           <div style={{ background: 'var(--bg)', padding: '30px', borderRadius: '12px', maxWidth: '600px', width: '100%', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ margin: '0 0 20px', fontSize: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>ðŸ” Payment Diagnostics</span>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }}>Ã—</button>
+              <span>Payment Diagnostics</span>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }}>×</button>
             </h2>
             
             <div style={{ marginBottom: '20px' }}>
@@ -117,19 +117,19 @@ export default function TransactionsClient({ initialTransactions }) {
                   </div>
                   <div>
                     <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Status</span>
-                    <span style={{ fontSize: '13px', color: '#fff', wordBreak: 'break-word' }}>{diagnosticData.flwData.status || 'N/A'}</span>
+                    <span style={{ fontSize: '13px', color: '#fff' }}>{diagnosticData.flwData.status || 'N/A'}</span>
                   </div>
                   <div>
                     <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Payment Type</span>
-                    <span style={{ fontSize: '13px', color: '#fff', wordBreak: 'break-word' }}>{diagnosticData.flwData.payment_type || 'N/A'}</span>
+                    <span style={{ fontSize: '13px', color: '#fff' }}>{diagnosticData.flwData.payment_type || 'N/A'}</span>
                   </div>
                   <div>
                     <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Amount</span>
-                    <span style={{ fontSize: '13px', color: '#fff', wordBreak: 'break-word' }}>{diagnosticData.flwData.amount} {diagnosticData.flwData.currency}</span>
+                    <span style={{ fontSize: '13px', color: '#fff' }}>{diagnosticData.flwData.amount} {diagnosticData.flwData.currency}</span>
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Device IP</span>
-                    <span style={{ fontSize: '13px', color: '#fff', wordBreak: 'break-word' }}>{diagnosticData.flwData.ip || 'N/A'}</span>
+                    <span style={{ fontSize: '13px', color: '#fff' }}>{diagnosticData.flwData.ip || 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -150,41 +150,42 @@ export default function TransactionsClient({ initialTransactions }) {
         </div>
       ) : (
         <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', tableLayout: 'auto' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'left', color: 'var(--text3)' }}>
                 <th style={{ padding: '12px' }}>Date</th>
                 <th style={{ padding: '12px' }}>User</th>
                 <th style={{ padding: '12px' }}>Amount</th>
                 <th style={{ padding: '12px' }}>Plan / PPV</th>
-                <th style={{ padding: '12px' }}>TX Ref</th>
+                <th style={{ padding: '12px', maxWidth: '150px' }}>TX Ref</th>
                 <th style={{ padding: '12px' }}>Status</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Actions</th>
+                <th style={{ padding: '12px', textAlign: 'right', minWidth: '180px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {transactions.map(tx => (
                 <tr key={tx.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                   <td style={{ padding: '12px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>
-                    {mounted ? new Date(tx.created_at).toLocaleString() : ''}
+                    {mounted ? new Date(tx.created_at).toLocaleString('en-US') : ''}
                   </td>
-                  <td style={{ padding: '12px' }}>
+                  <td style={{ padding: '12px', wordBreak: 'break-all', maxWidth: '180px' }}>
                     {tx.user_profiles?.email || tx.user_id}
                   </td>
-                  <td style={{ padding: '12px', fontWeight: 'bold' }}>
+                  <td style={{ padding: '12px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                     {tx.amount?.toLocaleString('en-US')} {tx.currency}
                   </td>
-                  <td style={{ padding: '12px' }}>
+                  <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
                     {tx.plan_id ? `Plan #${tx.plan_id}` : (tx.movie_id ? `Movie #${tx.movie_id}` : (tx.series_id ? `Series #${tx.series_id}` : 'Profile Slot'))}
                   </td>
-                  <td style={{ padding: '12px', fontSize: '12px', color: 'var(--text3)' }}>
+                  <td style={{ padding: '12px', fontSize: '12px', color: 'var(--text3)', wordBreak: 'break-all', maxWidth: '150px' }}>
                     {tx.tx_ref}
                   </td>
                   <td style={{ padding: '12px' }}>
                     <span style={{ 
                       background: tx.status === 'successful' ? 'rgba(70, 180, 80, 0.1)' : (tx.status === 'pending' ? 'rgba(230, 170, 30, 0.1)' : 'rgba(229, 9, 20, 0.1)'), 
                       color: tx.status === 'successful' ? '#46b450' : (tx.status === 'pending' ? '#e6aa1e' : '#e50914'),
-                      padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', textTransform: 'capitalize' 
+                      padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', textTransform: 'capitalize',
+                      whiteSpace: 'nowrap'
                     }}>
                       {tx.status}
                     </span>
@@ -205,7 +206,7 @@ export default function TransactionsClient({ initialTransactions }) {
                         marginRight: '8px'
                       }}
                     >
-                      {diagnosingId === tx.id ? 'Scanning...' : 'ðŸ” Diagnose'}
+                      {diagnosingId === tx.id ? 'Scanning...' : 'Diagnose'}
                     </button>
                     {tx.status !== 'successful' && (
                       <button 
