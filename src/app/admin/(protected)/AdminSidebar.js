@@ -80,9 +80,11 @@ export default function AdminSidebar({ unreadSupportCount }) {
           <Link href="/admin/backups" style={{ color: '#fff', fontSize: '14px' }}>💾 Database Backups</Link>
           <Link href="/admin/cache-warmer" style={{ color: '#fff', fontSize: '14px' }}>🔥 Cache Warmer</Link>
           <Link href="/admin/security-logs" style={{ color: '#fff', fontSize: '14px' }}>🛡 Security Center</Link>
+          <Link href="/admin/test-payment" style={{ color: '#ffeb3b', fontSize: '14px' }}>🧪 Test Payments</Link>
           <Link href="/" style={{ color: 'var(--text2)', fontSize: '13px', marginTop: '20px' }}>⬅ Back to Site</Link>
         </nav>
       </aside>
     </>
   );
 }
+
