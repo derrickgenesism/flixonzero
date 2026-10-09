@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server';
+﻿import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import TransactionsClient from './TransactionsClient';
 
@@ -57,7 +57,7 @@ export default async function AdminTransactionsPage() {
   }
 
   return (
-    <div>
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       <h1 style={{ fontSize: '32px', marginBottom: '10px' }}>Transactions</h1>
       <p style={{ color: 'var(--text2)', marginBottom: '30px' }}>
         Monitor payment statuses and manually approve pending transactions if needed.

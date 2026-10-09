@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { manualApproveTransaction, diagnoseTransaction } from './actions';
@@ -60,7 +60,7 @@ export default function TransactionsClient({ initialTransactions }) {
   };
 
   return (
-    <div style={{ background: 'var(--bg2)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+    <div style={{ background: 'var(--bg2)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', maxWidth: '100%', overflow: 'hidden' }}>
       {error && (
         <div style={{ background: 'rgba(229, 9, 20, 0.1)', color: '#e50914', padding: '15px', borderRadius: '6px', marginBottom: '20px' }}>
           {error}
@@ -82,8 +82,8 @@ export default function TransactionsClient({ initialTransactions }) {
         }}>
           <div style={{ background: 'var(--bg)', padding: '30px', borderRadius: '12px', maxWidth: '600px', width: '100%', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ margin: '0 0 20px', fontSize: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>🔍 Payment Diagnostics</span>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }}>×</button>
+              <span>ðŸ” Payment Diagnostics</span>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }}>Ã—</button>
             </h2>
             
             <div style={{ marginBottom: '20px' }}>
@@ -103,7 +103,7 @@ export default function TransactionsClient({ initialTransactions }) {
             {diagnosticData.rawError && (
                <div style={{ marginBottom: '20px', background: 'rgba(229, 9, 20, 0.1)', padding: '10px', borderRadius: '6px' }}>
                  <strong style={{ display: 'block', marginBottom: '5px', color: '#e50914', fontSize: '12px', textTransform: 'uppercase' }}>API Error Message</strong>
-                 <code style={{ fontSize: '12px', color: '#ffb4b8' }}>{diagnosticData.rawError}</code>
+                 <code style={{ fontSize: '12px', color: '#ffb4b8', wordBreak: 'break-word' }}>{diagnosticData.rawError}</code>
                </div>
             )}
 
@@ -113,23 +113,23 @@ export default function TransactionsClient({ initialTransactions }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
                     <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Processor Response</span>
-                    <span style={{ fontSize: '13px', color: '#fff' }}>{diagnosticData.flwData.processor_response || 'N/A'}</span>
+                    <span style={{ fontSize: '13px', color: '#fff', wordBreak: 'break-word' }}>{diagnosticData.flwData.processor_response || 'N/A'}</span>
                   </div>
                   <div>
                     <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Status</span>
-                    <span style={{ fontSize: '13px', color: '#fff' }}>{diagnosticData.flwData.status || 'N/A'}</span>
+                    <span style={{ fontSize: '13px', color: '#fff', wordBreak: 'break-word' }}>{diagnosticData.flwData.status || 'N/A'}</span>
                   </div>
                   <div>
                     <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Payment Type</span>
-                    <span style={{ fontSize: '13px', color: '#fff' }}>{diagnosticData.flwData.payment_type || 'N/A'}</span>
+                    <span style={{ fontSize: '13px', color: '#fff', wordBreak: 'break-word' }}>{diagnosticData.flwData.payment_type || 'N/A'}</span>
                   </div>
                   <div>
                     <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Amount</span>
-                    <span style={{ fontSize: '13px', color: '#fff' }}>{diagnosticData.flwData.amount} {diagnosticData.flwData.currency}</span>
+                    <span style={{ fontSize: '13px', color: '#fff', wordBreak: 'break-word' }}>{diagnosticData.flwData.amount} {diagnosticData.flwData.currency}</span>
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Device IP</span>
-                    <span style={{ fontSize: '13px', color: '#fff' }}>{diagnosticData.flwData.ip || 'N/A'}</span>
+                    <span style={{ fontSize: '13px', color: '#fff', wordBreak: 'break-word' }}>{diagnosticData.flwData.ip || 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -149,7 +149,7 @@ export default function TransactionsClient({ initialTransactions }) {
           No transactions found.
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'left', color: 'var(--text3)' }}>
@@ -205,7 +205,7 @@ export default function TransactionsClient({ initialTransactions }) {
                         marginRight: '8px'
                       }}
                     >
-                      {diagnosingId === tx.id ? 'Scanning...' : '🔍 Diagnose'}
+                      {diagnosingId === tx.id ? 'Scanning...' : 'ðŸ” Diagnose'}
                     </button>
                     {tx.status !== 'successful' && (
                       <button 
