@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -6,6 +6,8 @@ const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+
+export const dynamic = 'force-dynamic'; // Prevent Next.js from caching this API route entirely
 
 export async function GET(request) {
   try {
@@ -27,16 +29,19 @@ export async function GET(request) {
     if (!flwSecret) return NextResponse.json({ error: 'No secret key' }, { status: 500 });
 
     // Ping Flutterwave directly to ask for the live status of this tx_ref
+    // CRITICAL: Next.js caches fetch() by default! We MUST use cache: 'no-store'
     const verifyRes = await fetch(`https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${tx_ref}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${flwSecret}`,
         'Content-Type': 'application/json'
-      }
+      },
+      cache: 'no-store',
+      next: { revalidate: 0 }
     });
 
     const verifyData = await verifyRes.json();
-    console.log("[Test Polling FLW Status]", verifyData.data?.status);
+    console.log("[Test Polling FLW Data]", JSON.stringify(verifyData));
 
     let status = 'pending';
     if (verifyData.status === 'success' && verifyData.data?.status === 'successful') {
@@ -49,7 +54,7 @@ export async function GET(request) {
       await supabaseAdmin.from('transactions').update({ status: 'failed' }).eq('tx_ref', tx_ref);
     }
 
-    return NextResponse.json({ status });
+    return NextResponse.json({ status, rawData: verifyData });
 
   } catch (err) {
     console.error('[Test Verify Error]', err);
