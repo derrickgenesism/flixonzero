@@ -6,6 +6,18 @@ import { revalidatePath } from 'next/cache'
 export async function saveSettings(formData) {
   const supabase = await createClient()
 
+  // SECURITY PATCH: Verify admin status
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("Unauthorized");
+  
+  const { data: adminCheck } = await supabase
+    .from('admin_users')
+    .select('id')
+    .eq('email', user.email)
+    .single();
+    
+  if (!adminCheck) throw new Error("Forbidden");
+
   const checkboxKeys = ['free_mode_enabled', 'referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled', 'series_enabled', 'google_auth_enabled']
   const keys = [
     'free_mode_enabled',
