@@ -11,6 +11,7 @@ export default function MobileBottomNav() {
   const supabase = createClient();
 
   useEffect(() => {
+    let channel;
     const fetchUnread = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -42,7 +43,7 @@ export default function MobileBottomNav() {
 
       // Subscribe to new messages
       const channelName = `support_unread_badge_${thread.id}_${Math.random()}`;
-      const channel = supabase
+      channel = supabase
         .channel(channelName)
         .on('postgres_changes', {
           event: 'INSERT',
@@ -66,12 +67,13 @@ export default function MobileBottomNav() {
         })
         .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
     };
 
     fetchUnread();
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [supabase]);
 
   return (

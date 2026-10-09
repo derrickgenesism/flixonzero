@@ -25,6 +25,7 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft, 
   useEffect(() => {
     if (!user) return;
 
+    let channel;
     const fetchUnread = async () => {
       const { data: profile } = await supabase
         .from('user_profiles')
@@ -53,7 +54,7 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft, 
 
       // Subscribe to new messages
       const channelName = `desktop_support_unread_badge_${thread.id}_${Math.random()}`;
-        const channel = supabase
+        channel = supabase
         .channel(channelName)
         .on('postgres_changes', {
           event: 'INSERT',
@@ -77,12 +78,13 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft, 
         })
         .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
     };
 
     fetchUnread();
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [user, supabase]);
 
   return (
