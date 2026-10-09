@@ -18,7 +18,9 @@ export const getCachedMovies = unstable_cache(
 
 export const getCachedSettings = unstable_cache(
   async () => {
-    const { data } = await getAnonClient().from('admin_settings').select('*');
+    const { createAdminClient } = require('@/utils/supabase/admin');
+      const adminClient = createAdminClient();
+      const { data } = await adminClient.from('admin_settings').select('*');
     return data || [];
   },
   ['admin-settings'],

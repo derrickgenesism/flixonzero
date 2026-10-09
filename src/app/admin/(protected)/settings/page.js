@@ -4,7 +4,8 @@ import { saveSettings } from './actions'
 export const dynamic = 'force-dynamic';
 
 export default async function AdminSettingsPage() {
-  const supabase = await createClient()
+  const { createAdminClient } = require('@/utils/supabase/admin');
+  const supabase = createAdminClient()
   const { data: settings } = await supabase.from('admin_settings').select('*')
 
   const tmdbKey = settings?.find(s => s.setting_key === 'tmdb_api_key')?.setting_value || ''
