@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -48,8 +48,12 @@ export async function POST(request) {
       amount: Number(amount),
       currency: 'UGX',
       email: user.email,
+      fullname: user.email.split('@')[0],
       phone_number: phoneNumber,
       network: network || 'MTN',
+      client_ip: request.headers.get('x-forwarded-for') || '127.0.0.1',
+      device_fingerprint: 'device-' + user.id,
+      meta: { consumer_id: user.id, ip: request.headers.get('x-forwarded-for') || '127.0.0.1' },
       // We don't actually care about the redirect URL because we are intentionally bypassing it on the frontend!
       redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/admin/test-payment?status=success`
     };
@@ -85,3 +89,5 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
   }
 }
+
+
