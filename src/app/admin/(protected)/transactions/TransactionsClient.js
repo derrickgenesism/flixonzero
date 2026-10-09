@@ -82,8 +82,8 @@ export default function TransactionsClient({ initialTransactions }) {
         }}>
           <div style={{ background: 'var(--bg)', padding: '30px', borderRadius: '12px', maxWidth: '600px', width: '100%', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ margin: '0 0 20px', fontSize: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>?? Payment Diagnostics</span>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }}>�</button>
+              <span>🔍 Payment Diagnostics</span>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }}>×</button>
             </h2>
             
             <div style={{ marginBottom: '20px' }}>
@@ -205,7 +205,7 @@ export default function TransactionsClient({ initialTransactions }) {
                         marginRight: '8px'
                       }}
                     >
-                      {diagnosingId === tx.id ? 'Scanning...' : '?? Diagnose'}
+                      {diagnosingId === tx.id ? 'Scanning...' : '🔍 Diagnose'}
                     </button>
                     {tx.status !== 'successful' && (
                       <button 
