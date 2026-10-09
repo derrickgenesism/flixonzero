@@ -149,7 +149,7 @@ export default function SecurityLogsClient({ initialLogs, dbError }) {
             <tbody>
               {logs.map(log => (
                 <tr key={log.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '16px', fontSize: '13px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>
+                  <td suppressHydrationWarning style={{ padding: '16px', fontSize: '13px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>
                     {new Date(log.created_at).toLocaleString()}
                   </td>
                   <td style={{ padding: '16px' }}>

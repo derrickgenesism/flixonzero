@@ -172,7 +172,7 @@ export default function TransactionsClient({ initialTransactions }) {
                     {tx.user_profiles?.email || tx.user_id}
                   </td>
                   <td style={{ padding: '12px', fontWeight: 'bold' }}>
-                    {tx.amount?.toLocaleString()} {tx.currency}
+                    {tx.amount?.toLocaleString('en-US')} {tx.currency}
                   </td>
                   <td style={{ padding: '12px' }}>
                     {tx.plan_id ? `Plan #${tx.plan_id}` : (tx.movie_id ? `Movie #${tx.movie_id}` : (tx.series_id ? `Series #${tx.series_id}` : 'Profile Slot'))}
