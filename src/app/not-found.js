@@ -1,4 +1,4 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@/utils/supabase/server';
 import Navbar from '@/components/Navbar';
 import MovieRow from '@/components/MovieRow';
@@ -27,7 +27,7 @@ export default async function NotFound() {
     .limit(15);
 
   // Fetch app download URL
-  const { data: settingAppUrl } = await createAdminClient().from('admin_settings')
+  const { data: settingAppUrl } = await _injectedAdminClient().from('admin_settings')
     .select('setting_value')
     .eq('setting_key', 'app_download_url')
     .single();

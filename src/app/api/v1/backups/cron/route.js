@@ -1,4 +1,4 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
@@ -16,7 +16,7 @@ export async function GET(request) {
     }
 
     // 1. Get credentials
-    const { data: settings } = await createAdminClient().from('admin_settings').select('*');
+    const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*');
     const accountId = settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value;
     const accessKey = settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value;
     const secretKey = settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value;

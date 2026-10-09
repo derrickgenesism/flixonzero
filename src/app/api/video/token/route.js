@@ -1,4 +1,4 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 /**
  * POST /api/video/token
  * 
@@ -54,7 +54,7 @@ export async function POST(request) {
     }
 
     // 4. Check if it's free
-    const { data: settingsData } = await createAdminClient().from('admin_settings')
+    const { data: settingsData } = await _injectedAdminClient().from('admin_settings')
       .select('setting_value')
       .eq('setting_key', 'free_mode_enabled')
       .maybeSingle();

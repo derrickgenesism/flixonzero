@@ -1,5 +1,5 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
-'use server';
+'use server'
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');;
 
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
@@ -11,7 +11,7 @@ export async function processExtraProfileCharge(phoneNumber, network) {
   if (!user) return { error: 'Not authenticated' };
 
   // Get Flutterwave Secret Key
-  const { data: settings } = await createAdminClient().from('admin_settings')
+  const { data: settings } = await _injectedAdminClient().from('admin_settings')
     .select('*')
     .in('setting_key', ['flutterwave_secret_key', 'extra_profile_price']);
 

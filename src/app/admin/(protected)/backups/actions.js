@@ -1,12 +1,12 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
-'use server';
+'use server'
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');;
 
 import { createClient } from '@/utils/supabase/server';
 import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import { revalidatePath } from 'next/cache';
 
 async function getR2Client(supabase) {
-  const { data: settings } = await createAdminClient().from('admin_settings').select('*');
+  const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*');
   const accountId = settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value;
   const accessKey = settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value;
   const secretKey = settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value;

@@ -1,4 +1,4 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@/utils/supabase/server';
 import { S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -30,7 +30,7 @@ export async function GET(req) {
       const { data: profile } = await supabase.from('user_profiles').select('role').eq('email', user.email).single();
       if (profile?.role !== 'administrator' && profile?.role !== 'editor') throw new Error('Not authorized');
 
-      const { data: settings } = await createAdminClient().from('admin_settings').select('*');
+      const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*');
       const accountId = settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value;
       const accessKey = settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value;
       const secretKey = settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value;

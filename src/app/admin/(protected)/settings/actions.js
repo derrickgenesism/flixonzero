@@ -1,5 +1,5 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
 'use server'
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
@@ -53,7 +53,7 @@ export async function saveSettings(formData) {
       value = value === 'on' ? 'true' : 'false'
     }
 
-    await createAdminClient().from('admin_settings')
+    await _injectedAdminClient().from('admin_settings')
       .upsert({ setting_key: key, setting_value: value ?? '' }, { onConflict: 'setting_key' })
   }
 
@@ -63,7 +63,7 @@ export async function saveSettings(formData) {
     hpSections[section] = formData.get(`hp_section_${section}`) === 'on';
   });
 
-  await createAdminClient().from('admin_settings')
+  await _injectedAdminClient().from('admin_settings')
     .upsert({ setting_key: 'homepage_sections', setting_value: JSON.stringify(hpSections) }, { onConflict: 'setting_key' })
 
   revalidatePath('/admin/settings')

@@ -1,5 +1,5 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
-'use server';
+'use server'
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');;
 
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';

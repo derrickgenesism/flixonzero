@@ -1,12 +1,12 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
-'use server';
+'use server'
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');;
 
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 export async function fetchTMDbApiKey() {
   const supabase = await createClient();
-  const { data } = await createAdminClient().from('admin_settings').select('setting_value').eq('setting_key', 'tmdb_api_key').single();
+  const { data } = await _injectedAdminClient().from('admin_settings').select('setting_value').eq('setting_key', 'tmdb_api_key').single();
   return data?.setting_value || null;
 }
 

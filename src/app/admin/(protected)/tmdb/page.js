@@ -1,4 +1,4 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@/utils/supabase/server'
 import TMDBImporterClient from './TMDBImporterClient'
 
@@ -9,7 +9,7 @@ export default async function AdminTMDBPage({ searchParams }) {
   const supabase = await createClient()
 
   // Fetch API key
-  const { data: settings } = await createAdminClient().from('admin_settings').select('*')
+  const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*')
   const tmdbKey = settings?.find(s => s.setting_key === 'tmdb_api_key')?.setting_value || ''
 
   let query = supabase.from('movies').select('id, title, thumbnail_url, description');

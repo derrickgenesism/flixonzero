@@ -1,5 +1,5 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
-'use server';
+'use server'
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');;
 
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
@@ -123,7 +123,7 @@ export async function createProfile(formData) {
     .eq('email', user.email)
     .single();
 
-  const { data: limitSetting } = await createAdminClient().from('admin_settings')
+  const { data: limitSetting } = await _injectedAdminClient().from('admin_settings')
     .select('setting_value')
     .eq('setting_key', 'free_profiles_limit')
     .maybeSingle();

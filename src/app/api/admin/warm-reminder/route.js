@@ -1,4 +1,4 @@
-const { createAdminClient } = require('@/utils/supabase/admin');
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 import { createAdminClient } from '@/utils/supabase/admin';
 import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
@@ -60,7 +60,7 @@ async function handler(request) {
     const supabase = createAdminClient();
 
     // 1. Read Telegram credentials from admin_settings
-    const { data: settings, error: settingsError } = await createAdminClient().from('admin_settings')
+    const { data: settings, error: settingsError } = await _injectedAdminClient().from('admin_settings')
       .select('setting_key, setting_value')
       .in('setting_key', ['telegram_bot_token', 'telegram_chat_id']);
 
