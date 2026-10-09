@@ -12,6 +12,7 @@ import React from 'react';
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata = {
@@ -20,13 +21,13 @@ export const metadata = {
     default: 'FlixOn Uganda — Watch VJ Translated Movies Online | Luganda Dubbed Films',
     template: '%s | FlixOn Uganda',
   },
-  description: 'FlixOn is Uganda\'s #1 streaming platform for VJ translated movies. Watch the latest Hollywood and Bollywood films dubbed in Luganda by VJ Junior, VJ Emmy, VJ Ice P, VJ Jingo, VJ Mark and more. Stream or download movies online in Uganda.',
+  description: 'FlixOn is Uganda\'s #1 streaming platform for VJ translated movies. Watch or download the latest Hollywood and Bollywood films dubbed in Luganda by VJ Junior, VJ Emmy, VJ Ice P, and VJ Jingo.',
   keywords: [
     // VJ Specific
     'VJ Junior movies', 'VJ Emmy movies', 'VJ Ice P movies', 'VJ Jingo movies',
     'VJ Mark movies', 'VJ Kamil movies', 'VJ Junior translated movies',
     'VJ Emmy translated movies', 'VJ Ice P translated movies',
-    'VJ Junior Uganda', 'VJ Emmy Uganda', 'VJ Ice P Uganda',
+    'VJ Junior Uganda', 'VJ Emmy Uganda', 'VJ Ice P Uganda', 'filimu enjogerere', 'luganda translated movies', 'download filimu enjogerere',
     // Translated Movies
     'translated movies Uganda', 'Luganda movies', 'Luganda dubbed movies',
     'VJ translated movies Uganda', 'VJ voice over movies Uganda',
@@ -48,14 +49,14 @@ export const metadata = {
     siteName: 'FlixOn Uganda',
     title: 'FlixOn Uganda — Watch VJ Translated Movies Online',
     description: 'Uganda\'s #1 platform for VJ translated movies. Stream the latest films dubbed in Luganda by VJ Junior, VJ Emmy, VJ Ice P and more.',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'FlixOn Uganda - VJ Translated Movies' }],
+    images: [{ url: '/logo.png', width: 1200, height: 630, alt: 'FlixOn Uganda - VJ Translated Movies' }],
   },
   twitter: {
     card: 'summary_large_image',
     site: '@FlixOnUganda',
     title: 'FlixOn Uganda — Watch VJ Translated Movies Online',
     description: 'Uganda\'s #1 platform for VJ translated movies. Stream the latest films dubbed in Luganda.',
-    images: ['/og-image.png'],
+    images: ['/logo.png'],
   },
   manifest: "/manifest.webmanifest",
   robots: {

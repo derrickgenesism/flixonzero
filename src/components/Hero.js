@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { cleanCategories } from '@/utils/categories';
 
 export default function HeroSlider({ movies, appDownloadUrl }) {
@@ -50,7 +51,9 @@ export default function HeroSlider({ movies, appDownloadUrl }) {
             key={movie.id}
             className={`flx-hero__slide${i === current ? ' flx-hero__slide--active' : ''}`}
           >
-            <div className="flx-hero__bg" style={{ backgroundImage: `url(${bg})` }} />
+            <div className="flx-hero__bg">
+              <Image src={bg} alt={movie.title} fill priority={i === 0} style={{ objectFit: 'cover' }} unoptimized />
+            </div>
             <div className="flx-hero__gradient" />
 
             <div className="flx-hero__content">

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { firstCleanCategory } from '@/utils/categories';
 
 export default function MovieCard({ id, title, type, thumbnail_url, categories, is_series }) {
@@ -20,8 +21,14 @@ export default function MovieCard({ id, title, type, thumbnail_url, categories, 
     <div className="gms-card">
       <Link href={href} className="gms-card-link">
         <div className="gms-card-thumb">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={thumb} alt={title} loading="lazy" />
+          <Image
+            src={thumb}
+            alt={title}
+            fill
+            sizes="(max-width: 600px) 50vw, (max-width: 1024px) 33vw, 20vw"
+            style={{ objectFit: 'cover' }}
+            unoptimized
+          />
 
           <div className="gms-card-overlay">
             <div className="gms-card-play">

@@ -4,7 +4,7 @@ import Navbar from '@/components/Navbar';
 import PaginatedMovieGrid from '@/components/PaginatedMovieGrid';
 import Link from 'next/link';
 
-// VJ translator names — used for VJ-specific SEO copy
+// VJ translator names
 const VJ_NAMES = ['VJ Junior', 'VJ Emmy', 'VJ Ice P', 'VJ ICE P', 'VJ Jingo', 'VJ Mark', 'VJ Kamil'];
 
 function isVJCategory(slug) {
@@ -19,46 +19,28 @@ export async function generateMetadata({ params }) {
   const { slug } = await params;
   const name = decodeURIComponent(slug);
   const isVJ = isVJCategory(name);
-  const vjName = isVJ ? getCanonicalVJName(name) : null;
 
   const title = isVJ
-    ? `${name} Translated Movies Uganda | Watch in Luganda — FlixOn`
-    : `${name} Movies Uganda | Watch Online — FlixOn`;
+    ? `Latest ${name} Luganda Translated Movies (2026) | Translated Movies Uganda`
+    : `${name} Luganda Translated Movies | Translated Movies Uganda`;
 
   const description = isVJ
-    ? `Watch the latest and best movies translated by ${name} in Luganda on FlixOn Uganda. Stream or download ${name} action movies, comedies, dramas and more online. Uganda's #1 platform for ${name} translated movies.`
-    : `Browse all ${name} movies on FlixOn Uganda. Stream the best ${name} films online — action, comedy, drama and more. Watch ${name} movies dubbed in Luganda by top Ugandan VJ translators.`;
+    ? `Download or watch the latest movies translated by ${name} in Luganda. Stream the best ${name} action movies online in Uganda today on FlixOn.`
+    : `Browse the best ${name} translated movies on FlixOn Uganda. Stream ${name} movies dubbed in Luganda by top Ugandan VJ translators. Watch online or download.`;
 
-  const keywords = isVJ
-    ? [
-        `${name} movies`, `${name} translated movies`, `${name} Uganda`,
-        `${name} Luganda movies`, `watch ${name} movies online`, `${name} movies download`,
-        `${name} latest movies`, `${name} action movies`, `${name} comedy movies`,
-        `${name} translated movies Uganda`, `VJ translated movies Uganda`, 'Luganda movies Uganda',
-      ]
-    : [
-        `${name} movies Uganda`, `${name} movies online Uganda`, `watch ${name} movies`,
-        `${name} translated Uganda`, `${name} Luganda movies`, `Uganda ${name} movies`,
-      ];
+  const keywords = [
+    `${name} translated movies`, `${name} filimu enjogerere`, 'filimu enjogerere',
+    `${name} Luganda movies`, `download ${name} movies`, `watch ${name} translated movies`,
+    `latest ${name} movies 2026`, 'VJ translated movies Uganda', 'Luganda movies online'
+  ];
 
   return {
     title,
     description,
     keywords,
-    openGraph: {
-      title,
-      description,
-      type: 'website',
-      siteName: 'FlixOn Uganda',
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-    },
-    alternates: {
-      canonical: `/category/${slug}`,
-    },
+    openGraph: { title, description, type: 'website', siteName: 'FlixOn Uganda' },
+    twitter: { card: 'summary_large_image', title, description },
+    alternates: { canonical: `https://flixon.net/category/${slug}` },
   };
 }
 
@@ -77,10 +59,8 @@ export default async function CategoryPage({ params, searchParams }) {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    'name': isVJ ? `${name} Translated Movies` : `${name} Movies`,
-    'description': isVJ
-      ? `Movies translated by ${name} in Luganda, available on FlixOn Uganda.`
-      : `${name} movies available to stream on FlixOn Uganda.`,
+    'name': `${name} Translated Movies`,
+    'description': `Movies translated by ${name} in Luganda, available on FlixOn Uganda.`,
     'url': `${baseUrl}/category/${slug}`,
     'numberOfItems': total,
     'itemListElement': movies.slice(0, 20).map((movie, index) => ({
@@ -97,10 +77,7 @@ export default async function CategoryPage({ params, searchParams }) {
       <Navbar />
 
       {/* JSON-LD Structured Data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <main style={{ paddingTop: '100px', paddingBottom: '60px' }}>
         {/* SEO-rich heading section */}
@@ -108,25 +85,23 @@ export default async function CategoryPage({ params, searchParams }) {
           <nav aria-label="Breadcrumb" style={{ marginBottom: '12px' }}>
             <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <li><Link href="/" style={{ color: 'var(--text3)', fontSize: '13px', textDecoration: 'none' }}>Home</Link></li>
-              <li style={{ color: 'var(--text3)', fontSize: '13px' }}>›</li>
+              <li style={{ color: 'var(--text3)', fontSize: '13px' }}>/</li>
               <li><span style={{ color: 'var(--text2)', fontSize: '13px' }}>{name}</span></li>
             </ol>
           </nav>
 
           <h1 style={{ fontSize: 'clamp(22px, 4vw, 36px)', fontWeight: '900', margin: '0 0 10px', color: '#fff', letterSpacing: '-0.5px' }}>
-            {isVJ ? `${name} Translated Movies` : `${name} Movies`}
+            {isVJ ? `Latest ${name} Translated Movies` : `${name} Translated Movies`}
           </h1>
 
-          {isVJ && (
-            <p style={{ fontSize: '15px', color: 'var(--text2)', margin: '0 0 8px', maxWidth: '700px', lineHeight: '1.6' }}>
-              Stream the best movies translated by <strong style={{ color: '#fff' }}>{name}</strong> in Luganda on FlixOn Uganda.
-              Download or watch online — action, comedy, drama and more.
-            </p>
-          )}
+          <p style={{ fontSize: '15px', color: 'var(--text2)', margin: '0 0 8px', maxWidth: '700px', lineHeight: '1.6' }}>
+            Stream the best <strong>translated movies</strong> dubbed by <strong style={{ color: '#fff' }}>{name}</strong> in Luganda.
+            Download or watch online &mdash; action, comedy, drama and more.
+          </p>
 
           {total > 0 && (
             <p style={{ fontSize: '13px', color: 'var(--text3)', margin: 0 }}>
-              {total} {isVJ ? `${name} translated` : name} movies available
+              {total} {name} translated movies available
             </p>
           )}
         </div>
@@ -139,22 +114,24 @@ export default async function CategoryPage({ params, searchParams }) {
           actionArg={name}
         />
 
-        {/* Additional SEO text for VJ pages */}
-        {isVJ && (
-          <section aria-label={`About ${name} translated movies`} style={{ maxWidth: '1100px', margin: '40px auto 0', padding: '0 40px' }}>
-            <div style={{ background: 'var(--bg2)', borderRadius: '12px', padding: '24px', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#fff', margin: '0 0 12px' }}>
-                About {name} Translated Movies on FlixOn Uganda
-              </h2>
-              <p style={{ fontSize: '14px', color: 'var(--text2)', lineHeight: '1.8', margin: '0 0 12px' }}>
-                {name} is one of Uganda&apos;s most popular VJ translators, known for delivering energetic and authentic Luganda voice-overs for Hollywood, Bollywood, and African films. On FlixOn Uganda, you can find the most comprehensive collection of {name} translated movies, all available to stream instantly or download for offline viewing.
-              </p>
-              <p style={{ fontSize: '14px', color: 'var(--text2)', lineHeight: '1.8', margin: 0 }}>
-                Whether you&apos;re looking for the latest {name} action movies, comedies, dramas, or thrillers — FlixOn has the biggest library of {name} translated films in Uganda. Subscribe today to unlock full access to all {name} movies and thousands of other VJ translated titles.
-              </p>
+        {/* FAQ Section for SEO */}
+        <section aria-label={`FAQ for ${name} translated movies`} style={{ maxWidth: '1100px', margin: '40px auto 0', padding: '0 40px' }}>
+          <div style={{ background: 'var(--bg2)', borderRadius: '12px', padding: '24px', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#fff', margin: '0 0 16px' }}>
+              Frequently Asked Questions: {name} Translated Movies
+            </h2>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '15px', color: '#fff', margin: '0 0 4px' }}>Where can I download {name} translated movies?</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text2)', margin: 0, lineHeight: '1.6' }}>You can download and watch all the latest movies translated by {name} directly on FlixOn Uganda. We offer fast mobile downloads and HD streaming.</p>
             </div>
-          </section>
-        )}
+
+            <div style={{ marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '15px', color: '#fff', margin: '0 0 4px' }}>Are these movies dubbed in Luganda?</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text2)', margin: 0, lineHeight: '1.6' }}>Yes, all our translated movies feature top Ugandan VJs providing high-quality Luganda voice-overs for the best viewing experience.</p>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );

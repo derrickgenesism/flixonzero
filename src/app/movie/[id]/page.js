@@ -28,7 +28,7 @@ export async function generateMetadata({ params }) {
   const genre = Array.isArray(movie?.categories) ? movie.categories.filter(c => !c.toLowerCase().startsWith('vj ')).join(', ') : '';
 
   const movieTitle = vjName
-    ? `${movie.title} — Translated by ${vjName} | Luganda Movies Uganda`
+    ? `${movie.title} Translated by ${vjName} | Translated Movies Uganda`
     : movie?.title
       ? `${movie.title} | Watch Full Movie Online Uganda — FlixOn`
       : 'Watch on FlixOn Uganda';
@@ -40,11 +40,7 @@ export async function generateMetadata({ params }) {
       : 'Watch on FlixOn Uganda';
 
   const keywords = vjName
-    ? [
-        `${movie.title} ${vjName}`, `${movie.title} Luganda`, `${movie.title} translated Uganda`,
-        `${vjName} movies`, `${vjName} translated`, `watch ${movie.title} online Uganda`,
-        `${movie.title} Uganda`, 'VJ translated movies Uganda', 'Luganda movies online',
-      ]
+    ? [`${movie.title} ${vjName}`, `${movie.title} Luganda`, `${movie.title} translated Uganda`, `${vjName} movies`, `filimu enjogerere`, `download ${movie.title}`, `${movie.title} Uganda`, `VJ translated movies Uganda`, `Luganda movies online`]
     : [
         `${movie?.title} Uganda`, `watch ${movie?.title} online`, `${movie?.title} stream`,
         'Uganda movies online', 'FlixOn Uganda', 'watch movies online Uganda',
