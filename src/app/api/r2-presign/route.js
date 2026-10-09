@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
@@ -25,7 +26,7 @@ export async function POST(request) {
     if (!filename) return NextResponse.json({ error: 'Filename is required' }, { status: 400 });
 
     // Get R2 Settings
-    const { data: settings } = await supabase.from('admin_settings').select('*');
+    const { data: settings } = await createAdminClient().from('admin_settings').select('*');
     const accountId = settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value;
     const accessKey = settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value;
     const secretKey = settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value;

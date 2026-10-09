@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
@@ -9,7 +10,7 @@ export default async function CloudflareImportPage() {
   const supabase = await createClient();
 
   // 1. Get credentials
-  const { data: settings } = await supabase.from('admin_settings').select('*');
+  const { data: settings } = await createAdminClient().from('admin_settings').select('*');
   const accountId = settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value;
   const accessKey = settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value;
   const secretKey = settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value;

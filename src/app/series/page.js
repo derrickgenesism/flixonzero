@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@/utils/supabase/server';
 import Navbar from '@/components/Navbar';
 import PaginatedSeriesGrid from '@/components/PaginatedSeriesGrid';
@@ -13,8 +14,7 @@ export const metadata = {
 export default async function AllSeriesPage() {
   const supabase = await createClient();
 
-  const { data: settings } = await supabase
-    .from('admin_settings')
+  const { data: settings } = await createAdminClient().from('admin_settings')
     .select('setting_value')
     .eq('setting_key', 'series_enabled')
     .maybeSingle();

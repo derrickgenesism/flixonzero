@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 'use server';
 
 import { createClient } from '@/utils/supabase/server';

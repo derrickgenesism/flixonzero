@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 import { getProfiles } from './actions';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
@@ -11,7 +12,7 @@ export default async function ProfilesPage() {
   
   if (!user) redirect('/login');
 
-  const { data: adminSettings } = await supabase.from('admin_settings').select('*');
+  const { data: adminSettings } = await createAdminClient().from('admin_settings').select('*');
   const getSetting = (key, defaultVal) => adminSettings?.find(s => s.setting_key === key)?.setting_value || defaultVal;
 
   if (getSetting('profiles_enabled', 'true') === 'false') {

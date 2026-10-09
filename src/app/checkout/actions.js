@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 'use server';
 
 import { headers } from 'next/headers';
@@ -18,8 +19,7 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
     .single();
 
   // Get Flutterwave Secret Key
-  const { data: settings } = await supabase
-    .from('admin_settings')
+  const { data: settings } = await createAdminClient().from('admin_settings')
     .select('*')
     .in('setting_key', ['flutterwave_secret_key']);
 
@@ -136,8 +136,7 @@ export async function checkTransactionStatus(tx_ref) {
   }
 
   // 2. Fetch Flutterwave Secret Key to query API directly
-  const { data: settings } = await supabase
-    .from('admin_settings')
+  const { data: settings } = await createAdminClient().from('admin_settings')
     .select('setting_value')
     .eq('setting_key', 'flutterwave_secret_key')
     .single();

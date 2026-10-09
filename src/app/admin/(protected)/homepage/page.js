@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import HomepageClient from './HomepageClient';
@@ -24,8 +25,7 @@ export default async function AdminHomepageLayoutPage() {
   }
 
   // Fetch current setting
-  const { data: settings } = await supabase
-    .from('admin_settings')
+  const { data: settings } = await createAdminClient().from('admin_settings')
     .select('setting_key, setting_value')
     .in('setting_key', ['homepage_categories', 'homepage_sections']);
 

@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 import { listBackups } from './actions';
 import BackupsClient from './BackupsClient';
 import { createClient } from '@/utils/supabase/server';
@@ -9,7 +10,7 @@ export const metadata = { title: 'Database Backups ?" Admin' };
 export default async function BackupsPage() {
   const supabase = await createClient();
 
-  const { data: settings } = await supabase.from('admin_settings').select('*');
+  const { data: settings } = await createAdminClient().from('admin_settings').select('*');
   const accountId = settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value;
   let cdnDomain = settings?.find(s => s.setting_key === 'cdn_domain')?.setting_value;
 

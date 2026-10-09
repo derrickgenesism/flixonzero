@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
@@ -122,8 +123,7 @@ export async function createProfile(formData) {
     .eq('email', user.email)
     .single();
 
-  const { data: limitSetting } = await supabase
-    .from('admin_settings')
+  const { data: limitSetting } = await createAdminClient().from('admin_settings')
     .select('setting_value')
     .eq('setting_key', 'free_profiles_limit')
     .maybeSingle();

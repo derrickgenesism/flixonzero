@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@/utils/supabase/server';
 import { getActiveProfile } from '@/app/profiles/actions';
 import NavbarClient from './NavbarClient';
@@ -27,8 +28,7 @@ export default async function Navbar() {
     }
   }
 
-  const { data: settings } = await supabase
-    .from('admin_settings')
+  const { data: settings } = await createAdminClient().from('admin_settings')
     .select('setting_value')
     .eq('setting_key', 'series_enabled')
     .maybeSingle();

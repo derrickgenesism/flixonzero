@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@/utils/supabase/server'
 import { saveSettings } from './actions'
 
@@ -6,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminSettingsPage() {
   const { createAdminClient } = require('@/utils/supabase/admin');
   const supabase = createAdminClient()
-  const { data: settings } = await supabase.from('admin_settings').select('*')
+  const { data: settings } = await createAdminClient().from('admin_settings').select('*')
 
   const tmdbKey = settings?.find(s => s.setting_key === 'tmdb_api_key')?.setting_value || ''
   const flwPublic = settings?.find(s => s.setting_key === 'flutterwave_public_key')?.setting_value || ''

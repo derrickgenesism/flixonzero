@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
@@ -9,8 +10,7 @@ export async function POST(req) {
     );
 
     // 1. Fetch webhook secret from DB settings
-    const { data: settings } = await supabase
-      .from('admin_settings')
+    const { data: settings } = await createAdminClient().from('admin_settings')
       .select('setting_value')
       .eq('setting_key', 'flutterwave_webhook_secret')
       .single();
@@ -187,7 +187,7 @@ export async function POST(req) {
 
       // 6. Referral Processing (CPA)
       try {
-        const { data: allSettings } = await supabase.from('admin_settings').select('*');
+        const { data: allSettings } = await createAdminClient().from('admin_settings').select('*');
         const cpaEnabled = allSettings?.find(s => s.setting_key === 'affiliate_cpa_enabled')?.setting_value === 'true';
         
         if (cpaEnabled && userEmail) {

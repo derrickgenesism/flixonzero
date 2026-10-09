@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
@@ -13,8 +14,7 @@ export async function getSupportData() {
   const supabase = createAdminClient();
 
   // 1. Get Telegram Settings
-  const { data: settings } = await supabase
-    .from('admin_settings')
+  const { data: settings } = await createAdminClient().from('admin_settings')
     .select('*')
     .in('setting_key', ['telegram_bot_token', 'telegram_chat_id']);
 
@@ -94,10 +94,10 @@ export async function updateTelegramSettings(formData) {
   const chatId = formData.get('telegram_chat_id');
 
   if (token !== null) {
-    await supabase.from('admin_settings').update({ setting_value: token }).eq('setting_key', 'telegram_bot_token');
+    await createAdminClient().from('admin_settings').update({ setting_value: token }).eq('setting_key', 'telegram_bot_token');
   }
   if (chatId !== null) {
-    await supabase.from('admin_settings').update({ setting_value: chatId }).eq('setting_key', 'telegram_chat_id');
+    await createAdminClient().from('admin_settings').update({ setting_value: chatId }).eq('setting_key', 'telegram_chat_id');
   }
 
   revalidatePath('/admin/support');

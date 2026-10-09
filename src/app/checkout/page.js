@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@/utils/supabase/server';
 import Navbar from '@/components/Navbar';
 import CheckoutClient from './CheckoutClient';
@@ -16,8 +17,7 @@ export default async function CheckoutPage() {
     .eq('is_active', true)
     .order('price', { ascending: true });
 
-  const { data: promoSetting } = await supabase
-    .from('admin_settings')
+  const { data: promoSetting } = await createAdminClient().from('admin_settings')
     .select('setting_value')
     .eq('setting_key', 'promo_enabled')
     .single();

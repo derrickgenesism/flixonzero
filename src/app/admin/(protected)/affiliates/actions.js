@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
@@ -17,8 +18,7 @@ export async function getAffiliateSettings() {
     .single();
     
   if (adminCheck?.role !== 'administrator') throw new Error("Forbidden");
-  const { data: settings } = await supabase
-    .from('admin_settings')
+  const { data: settings } = await createAdminClient().from('admin_settings')
     .select('*')
     .in('setting_key', [
       'affiliate_ppc_enabled',
@@ -58,8 +58,7 @@ export async function updateSettings(formData) {
   for (const key of keys) {
     const val = formData.get(key)
     if (val !== null) {
-      await supabase
-        .from('admin_settings')
+      await createAdminClient().from('admin_settings')
         .update({ setting_value: val })
         .eq('setting_key', key)
     }

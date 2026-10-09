@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@/utils/supabase/server';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
@@ -92,7 +93,7 @@ export default async function AccountPage() {
     }
   }
   // Conversion rate from settings
-  const { data: convSetting } = await supabase.from('admin_settings').select('setting_value').eq('setting_key', 'referral_ugx_per_day').maybeSingle();
+  const { data: convSetting } = await createAdminClient().from('admin_settings').select('setting_value').eq('setting_key', 'referral_ugx_per_day').maybeSingle();
   const ugxPerDay = Number(convSetting?.setting_value || 500);
   const convertibleDays = Math.floor(availableBalance / ugxPerDay);
 

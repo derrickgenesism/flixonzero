@@ -1,3 +1,4 @@
+const { createAdminClient } = require('@/utils/supabase/admin');
 /**
  * POST /api/video/download
  *
@@ -91,7 +92,7 @@ export async function POST(request) {
     }
 
     // 4. Get R2 credentials
-    const { data: settings } = await supabase.from('admin_settings').select('*');
+    const { data: settings } = await createAdminClient().from('admin_settings').select('*');
     const accountId = settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value;
     const accessKey  = settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value;
     const secretKey  = settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value;
