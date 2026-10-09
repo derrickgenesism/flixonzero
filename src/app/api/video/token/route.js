@@ -1,15 +1,6 @@
-const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
-/**
- * POST /api/video/token
- * 
- * Called from the movie page when user clicks play.
- * Verifies the user's session and subscription, then returns a short-lived token.
- * The real video URL is NEVER sent to the client.
- */
-
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { createVideoToken } from '@/lib/videoTokens';
+const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 
 export async function POST(request) {
   try {
@@ -27,7 +18,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. Fetch the movie (only server-side)
+    // 2. Fetch the movie
     const { data: movie, error } = await supabase
       .from('movies')
       .select('id, type, video_url, categories')
@@ -38,7 +29,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
     }
 
-    // 3. Extract real URL from HTML if needed
+    // 3. Extract real URL
     let realUrl = null;
     if (movie.video_url) {
       if (movie.video_url.includes('<video') || movie.video_url.includes('<source')) {
@@ -53,7 +44,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No video available' }, { status: 404 });
     }
 
-    // 4. Check if it's free
+    // 4. Check access rights
     const { data: settingsData } = await _injectedAdminClient().from('admin_settings')
       .select('setting_value')
       .eq('setting_key', 'free_mode_enabled')
@@ -61,7 +52,6 @@ export async function POST(request) {
     const globalFreeMode = settingsData?.setting_value === 'true';
     const isFreeMovie = movie.type === 'genesis_free_movie' || (movie.categories && (Array.isArray(movie.categories) ? movie.categories.includes('Free to Watch') : typeof movie.categories === 'string' && movie.categories.includes('Free to Watch')));
 
-    // If neither is true, check subscription
     if (!isFreeMovie && !globalFreeMode) {
       const { data: profile } = await supabase
         .from('user_profiles')
@@ -69,10 +59,8 @@ export async function POST(request) {
         .eq('email', user.email)
         .single();
 
-      const hasActiveSub = profile?.subscription_end_date &&
-        new Date(profile.subscription_end_date) > new Date();
+      const hasActiveSub = profile?.subscription_end_date && new Date(profile.subscription_end_date) > new Date();
 
-      // Also check PPV access just in case
       const { data: ppv } = await supabase
         .from('ppv_purchases')
         .select('expires_at')
@@ -87,10 +75,8 @@ export async function POST(request) {
       }
     }
 
-    // 5. Issue a short-lived token
-    const token = createVideoToken(realUrl, user.id);
-
-    return NextResponse.json({ token, expiresIn: 7200 });
+    // Return the URL directly to the player so HTML5 Range Seeking works properly without 302 Redirect bugs
+    return NextResponse.json({ token: realUrl });
   } catch (err) {
     console.error('[/api/video/token] Error:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

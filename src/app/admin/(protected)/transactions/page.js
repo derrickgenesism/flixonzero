@@ -2,6 +2,9 @@
 import { redirect } from 'next/navigation';
 import TransactionsClient from './TransactionsClient';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function AdminTransactionsPage() {
   const supabase = await createClient();
 

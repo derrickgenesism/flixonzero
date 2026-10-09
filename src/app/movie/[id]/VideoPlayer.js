@@ -27,7 +27,7 @@ export default function VideoPlayer({ movie, movieId, initialProgress = 0 }) {
       .then(data => {
         if (!active) return;
         if (data.token) {
-          setStreamUrl(`/api/video/stream/${data.token}`);
+          setStreamUrl(data.token);
         } else {
           setTokenError(data.error || 'Unable to load video');
         }
