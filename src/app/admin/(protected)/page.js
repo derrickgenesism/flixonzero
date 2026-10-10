@@ -29,7 +29,7 @@ export default async function AdminDashboardPage() {
   const in7Days = new Date(now); in7Days.setDate(in7Days.getDate() + 7);
   const in30Days = new Date(now); in30Days.setDate(in30Days.getDate() + 30);
 
-  // ── 1. PARALLEL DATA FETCHING ─────────────────────────────────────────────
+  // ── 1. PARALLEL DATA FETCHING (Ultra-light, zero-waste database queries) ────
   const [
     { count: totalUsers },
     { count: activeSubscribers },
@@ -41,14 +41,18 @@ export default async function AdminDashboardPage() {
     { count: comingSoonCount },
     { count: totalViews },
     { count: totalPageViews },
+    { count: visitsTodayCount },
+    { count: visitsYesterdayCount },
+    { count: visitsThisWeekCount },
+    { count: visitsThisMonthCount },
     { data: recentSignupsRaw },
     { data: txDataLight },
     { data: last50Txs },
     { data: ppvData },
     { data: historyRaw },
-    { data: visitsRaw }
+    { data: recentVisitsRaw }
   ] = await Promise.all([
-    // Counts
+    // Counts (Zero row data transferred — microsecond header counts)
     supabase.from('user_profiles').select('id', { count: 'exact', head: true }),
     supabase.from('user_profiles').select('id', { count: 'exact', head: true }).gt('subscription_end_date', now.toISOString()),
     supabase.from('user_profiles').select('id', { count: 'exact', head: true }).gt('subscription_end_date', now.toISOString()).lte('subscription_end_date', in7Days.toISOString()),
@@ -58,15 +62,23 @@ export default async function AdminDashboardPage() {
     supabase.from('promo_codes').select('id', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('movies').select('id', { count: 'exact', head: true }).eq('is_coming_soon', true),
     supabase.from('watch_history').select('id', { count: 'exact', head: true }),
+    
+    // Exact Total Visits (All Time, Today, Yesterday, Week, Month) — 0 row transfer!
     supabase.from('site_visits').select('id', { count: 'exact', head: true }),
+    supabase.from('site_visits').select('id', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString()),
+    supabase.from('site_visits').select('id', { count: 'exact', head: true }).gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()),
+    supabase.from('site_visits').select('id', { count: 'exact', head: true }).gte('created_at', thisWeekStart.toISOString()),
+    supabase.from('site_visits').select('id', { count: 'exact', head: true }).gte('created_at', thisMonthStart.toISOString()),
     
     // Datasets
     supabase.from('user_profiles').select('id, email, username, created_at, role').gte('created_at', lastMonthStart.toISOString()).order('created_at', { ascending: false }),
-    supabase.from('transactions').select('amount, status, created_at'), // Light fetch
+    supabase.from('transactions').select('amount, status, created_at'),
     supabase.from('transactions').select('id, tx_ref, amount, status, created_at, user_id').order('created_at', { ascending: false }).limit(50),
     supabase.from('ppv_purchases').select('amount, status, created_at').in('status', ['success', 'successful']),
     supabase.from('watch_history').select('user_id, movie_id, movies(title, type, thumbnail_url)').order('created_at', { ascending: false }).limit(1000),
-    supabase.from('site_visits').select('visitor_id, created_at') // Light fetch of all for accurate unique tracking
+    
+    // Fetch only the latest visits ordered descending (fast unique calculation, tiny payload)
+    supabase.from('site_visits').select('visitor_id, created_at').order('created_at', { ascending: false }).limit(3000)
   ]);
 
   // ── 2. AGGREGATE LOGIC ──────────────────────────────────────────────────
@@ -148,8 +160,7 @@ export default async function AdminDashboardPage() {
   const topMovies = Object.values(movieCounts).sort((a, b) => b.views - a.views).slice(0, 20);
   const topUsersRaw = Object.values(userViewCounts).sort((a, b) => b.watchCount - a.watchCount).slice(0, 10);
 
-  // Fetch emails only for the unique UUIDs we actually need to display
-  // Only resolve emails for the top 10 users + last 50 transaction user IDs (not all from history)
+  // Fetch emails only for displayed UUIDs
   const displayUuids = new Set();
   topUsersRaw.forEach(u => displayUuids.add(u.id));
   last50Txs?.forEach(tx => { if (tx.user_id) displayUuids.add(tx.user_id); });
@@ -173,37 +184,51 @@ export default async function AdminDashboardPage() {
   const topUsers = topUsersRaw.map(u => ({
     ...u,
     email: uuidMap[u.id] || u.id,
-    isSubscribed: false, // In a real deeper join we could verify subscription
+    isSubscribed: false,
   }));
 
-  // Analytics (Site Visits)
-  let uniqueToday = new Set(), uniqueYesterday = new Set(), uniqueThisWeek = new Set(), uniqueLastWeek = new Set(), uniqueThisMonth = new Set(), uniqueLastMonth = new Set();
-  let nonUniqueToday = 0, nonUniqueYesterday = 0, nonUniqueThisWeek = 0, nonUniqueThisMonth = 0;
-  const visitorCounts = {};
+  // ── 3. VISITOR ANALYTICS & TOTAL VISITS CALCULATION ─────────────────────
+  const visitsToday = visitsTodayCount || 0;
+  const visitsYesterday = visitsYesterdayCount || 0;
+  const visitsThisWeek = visitsThisWeekCount || 0;
+  const visitsThisMonth = visitsThisMonthCount || 0;
+  const visitsGrowthDaily = calcGrowth(visitsToday, visitsYesterday);
 
-  visitsRaw?.forEach(v => {
+  // Unique Visitors from recent visits (descending)
+  const uniqueToday = new Set();
+  const uniqueYesterday = new Set();
+  const uniqueThisWeek = new Set();
+  const uniqueThisMonth = new Set();
+
+  recentVisitsRaw?.forEach(v => {
     const vDate = new Date(v.created_at);
     const vid = v.visitor_id;
+    if (!vid) return;
 
-    if (!visitorCounts[vid]) visitorCounts[vid] = 0;
-    visitorCounts[vid]++;
-
-    if (vDate >= todayStart) { if (uniqueToday.has(vid)) nonUniqueToday++; uniqueToday.add(vid); }
-    else if (vDate >= yesterdayStart) { if (uniqueYesterday.has(vid)) nonUniqueYesterday++; uniqueYesterday.add(vid); }
+    if (vDate >= todayStart) {
+      uniqueToday.add(vid);
+    } else if (vDate >= yesterdayStart) {
+      uniqueYesterday.add(vid);
+    }
     
-    if (vDate >= thisWeekStart) { if (uniqueThisWeek.has(vid)) nonUniqueThisWeek++; uniqueThisWeek.add(vid); }
-    else if (vDate >= lastWeekStart) uniqueLastWeek.add(vid);
-
-    if (vDate >= thisMonthStart) { if (uniqueThisMonth.has(vid)) nonUniqueThisMonth++; uniqueThisMonth.add(vid); }
-    else if (vDate >= lastMonthStart) uniqueLastMonth.add(vid);
+    if (vDate >= thisWeekStart) {
+      uniqueThisWeek.add(vid);
+    }
+    if (vDate >= thisMonthStart) {
+      uniqueThisMonth.add(vid);
+    }
   });
 
-  const totalUniqueVisitors = Object.keys(visitorCounts).length;
-  const returningVisitors = Object.values(visitorCounts).filter(c => c > 1).length;
+  const uniqueTodayCount = uniqueToday.size;
+  const uniqueYesterdayCount = uniqueYesterday.size;
+  const uniqueThisWeekCount = uniqueThisWeek.size;
+  const uniqueThisMonthCount = uniqueThisMonth.size;
+  const uniqueGrowthDaily = calcGrowth(uniqueTodayCount, uniqueYesterdayCount);
 
-  const visitorsGrowthDaily = calcGrowth(uniqueToday.size, uniqueYesterday.size);
-  const visitorsGrowthWeekly = calcGrowth(uniqueThisWeek.size, uniqueLastWeek.size);
-  const visitorsGrowthMonthly = calcGrowth(uniqueThisMonth.size, uniqueLastMonth.size);
+  // Average pages per visitor
+  const pagesPerVisitorToday = uniqueTodayCount > 0 ? (visitsToday / uniqueTodayCount).toFixed(1) : '1.0';
+  const pagesPerVisitorThisWeek = uniqueThisWeekCount > 0 ? (visitsThisWeek / uniqueThisWeekCount).toFixed(1) : '1.0';
+  const pagesPerVisitorThisMonth = uniqueThisMonthCount > 0 ? (visitsThisMonth / uniqueThisMonthCount).toFixed(1) : '1.0';
 
   return (
     <DashboardClient
@@ -226,11 +251,21 @@ export default async function AdminDashboardPage() {
         ppvRevenue, ppvCount, ppvMonthly,
         activePromos: activePromos || 0, comingSoonCount: comingSoonCount || 0,
         
-        totalPageViews: totalPageViews || 0, totalUniqueVisitors, returningVisitors,
-        uniqueToday: uniqueToday.size, uniqueYesterday: uniqueYesterday.size, visitorsGrowthDaily,
-        uniqueThisWeek: uniqueThisWeek.size, uniqueLastWeek: uniqueLastWeek.size, visitorsGrowthWeekly,
-        uniqueThisMonth: uniqueThisMonth.size, uniqueLastMonth: uniqueLastMonth.size, visitorsGrowthMonthly,
-        nonUniqueToday, nonUniqueYesterday, nonUniqueThisWeek, nonUniqueThisMonth,
+        // Web Traffic & Total Visits
+        totalPageViews: totalPageViews || 0,
+        visitsToday,
+        visitsYesterday,
+        visitsGrowthDaily,
+        visitsThisWeek,
+        visitsThisMonth,
+        uniqueToday: uniqueTodayCount,
+        uniqueYesterday: uniqueYesterdayCount,
+        uniqueGrowthDaily,
+        uniqueThisWeek: uniqueThisWeekCount,
+        uniqueThisMonth: uniqueThisMonthCount,
+        pagesPerVisitorToday,
+        pagesPerVisitorThisWeek,
+        pagesPerVisitorThisMonth,
       }}
       transactions={enrichedTxs}
       recentSignups={recentSignups}

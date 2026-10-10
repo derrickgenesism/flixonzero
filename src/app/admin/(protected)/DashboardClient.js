@@ -183,11 +183,12 @@ export default function DashboardClient({ stats, transactions, recentSignups, to
     activePromos, comingSoonCount,
     
     // Web Analytics
-    totalPageViews, totalUniqueVisitors, returningVisitors,
-    uniqueToday, uniqueYesterday, visitorsGrowthDaily,
-    uniqueThisWeek, visitorsGrowthWeekly,
-    uniqueThisMonth, visitorsGrowthMonthly,
-    nonUniqueToday, nonUniqueYesterday, nonUniqueThisWeek, nonUniqueThisMonth
+    totalPageViews,
+    visitsToday, visitsYesterday, visitsGrowthDaily,
+    visitsThisWeek, visitsThisMonth,
+    uniqueToday, uniqueYesterday, uniqueGrowthDaily,
+    uniqueThisWeek, uniqueThisMonth,
+    pagesPerVisitorToday, pagesPerVisitorThisWeek, pagesPerVisitorThisMonth
   } = stats;
 
   const txColumns = [
@@ -293,12 +294,107 @@ export default function DashboardClient({ stats, transactions, recentSignups, to
         <KpiCard label="Transactions This Month" value={fmt(txsThisMonth.tried)} sub={`${txsThisMonth.successful} S / ${txsThisMonth.pending} P / ${txsThisMonth.tried - txsThisMonth.successful - txsThisMonth.pending} F`} accent="#34d399" icon="📈" />
       </div>
 
-      <SectionHeading title="Visitor Engagement & Web Analytics" />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <KpiCard label="Unique Visitors Today" value={fmt(uniqueToday)} growth={visitorsGrowthDaily} sub={`${fmt(nonUniqueToday)} returning sessions today`} accent="#10b981" icon="🌐" />
-        <KpiCard label="Unique Visitors This Week" value={fmt(uniqueThisWeek)} growth={visitorsGrowthWeekly} sub={`${fmt(nonUniqueThisWeek)} returning sessions this week`} accent="#14b8a6" icon="📱" />
-        <KpiCard label="Unique Visitors This Month" value={fmt(uniqueThisMonth)} growth={visitorsGrowthMonthly} sub={`${fmt(nonUniqueThisMonth)} returning sessions this month`} accent="#0ea5e9" icon="🗓️" />
-        <KpiCard label="All Time Page Views" value={fmt(totalPageViews)} sub={`${fmt(totalUniqueVisitors)} all-time unique visitors`} accent="#f472b6" icon="👁️" />
+      <SectionHeading title="Visitor Engagement & Web Traffic" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+        <KpiCard
+          label="Total Visits Today"
+          value={fmt(visitsToday)}
+          growth={visitsGrowthDaily}
+          sub={`${fmt(uniqueToday)} unique visitors (${pagesPerVisitorToday} pages/visitor)`}
+          accent="#10b981"
+          icon="⚡"
+        />
+        <KpiCard
+          label="Unique Visitors Today"
+          value={fmt(uniqueToday)}
+          growth={uniqueGrowthDaily}
+          sub={`vs ${fmt(uniqueYesterday)} people yesterday`}
+          accent="#0ea5e9"
+          icon="👥"
+        />
+        <KpiCard
+          label="Visits This Week"
+          value={fmt(visitsThisWeek)}
+          sub={`${fmt(uniqueThisWeek)} unique people (${pagesPerVisitorThisWeek} pages/visitor)`}
+          accent="#14b8a6"
+          icon="📈"
+        />
+        <KpiCard
+          label="Visits This Month"
+          value={fmt(visitsThisMonth)}
+          sub={`${fmt(uniqueThisMonth)} unique people (${pagesPerVisitorThisMonth} pages/visitor)`}
+          accent="#a78bfa"
+          icon="🗓️"
+        />
+        <KpiCard
+          label="All-Time Page Views"
+          value={fmt(totalPageViews)}
+          sub="Total content views recorded"
+          accent="#f472b6"
+          icon="👁️"
+        />
+      </div>
+
+      {/* Traffic Summary Breakdown Table */}
+      <div style={{
+        background: 'var(--bg2)', borderRadius: '16px', border: '1px solid var(--border)',
+        padding: '20px 24px', marginBottom: '28px', display: 'flex', flexDirection: 'column', gap: '14px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#fff' }}>📊 Daily & Weekly Traffic Overview</h3>
+            <p style={{ margin: '4px 0 0', color: 'var(--text2)', fontSize: '12px' }}>
+              Comparison of total page visits versus unique visitors with average user engagement.
+            </p>
+          </div>
+          <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(74,222,128,0.1)', color: '#4ade80', fontWeight: '600' }}>
+            ⚡ Low-Latency Serverless Tracking
+          </span>
+        </div>
+
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text2)', fontSize: '11px', textTransform: 'uppercase' }}>
+                <th style={{ padding: '10px 14px' }}>Time Period</th>
+                <th style={{ padding: '10px 14px' }}>Total Visits (Page Views)</th>
+                <th style={{ padding: '10px 14px' }}>Unique Visitors</th>
+                <th style={{ padding: '10px 14px' }}>Avg Pages / Person</th>
+                <th style={{ padding: '10px 14px' }}>Day-over-Day</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ padding: '12px 14px', fontWeight: '700', color: '#fff' }}>Today</td>
+                <td style={{ padding: '12px 14px', color: '#10b981', fontWeight: '700', fontSize: '14px' }}>{fmt(visitsToday)} visits</td>
+                <td style={{ padding: '12px 14px', color: '#0ea5e9', fontWeight: '600' }}>{fmt(uniqueToday)} people</td>
+                <td style={{ padding: '12px 14px', color: '#fff' }}>{pagesPerVisitorToday} pages / person</td>
+                <td style={{ padding: '12px 14px' }}><GrowthBadge value={visitsGrowthDaily} /></td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ padding: '12px 14px', fontWeight: '600', color: 'var(--text2)' }}>Yesterday</td>
+                <td style={{ padding: '12px 14px', color: '#ccc' }}>{fmt(visitsYesterday)} visits</td>
+                <td style={{ padding: '12px 14px', color: '#ccc' }}>{fmt(uniqueYesterday)} people</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text3)' }}>{uniqueYesterday > 0 ? (visitsYesterday / uniqueYesterday).toFixed(1) : '1.0'} pages / person</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text3)' }}>Baseline</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ padding: '12px 14px', fontWeight: '700', color: '#fff' }}>This Week</td>
+                <td style={{ padding: '12px 14px', color: '#14b8a6', fontWeight: '700' }}>{fmt(visitsThisWeek)} visits</td>
+                <td style={{ padding: '12px 14px', color: '#0ea5e9', fontWeight: '600' }}>{fmt(uniqueThisWeek)} people</td>
+                <td style={{ padding: '12px 14px', color: '#fff' }}>{pagesPerVisitorThisWeek} pages / person</td>
+                <td style={{ padding: '12px 14px', color: '#4ade80' }}>Active</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '12px 14px', fontWeight: '700', color: '#fff' }}>This Month</td>
+                <td style={{ padding: '12px 14px', color: '#a78bfa', fontWeight: '700' }}>{fmt(visitsThisMonth)} visits</td>
+                <td style={{ padding: '12px 14px', color: '#0ea5e9', fontWeight: '600' }}>{fmt(uniqueThisMonth)} people</td>
+                <td style={{ padding: '12px 14px', color: '#fff' }}>{pagesPerVisitorThisMonth} pages / person</td>
+                <td style={{ padding: '12px 14px', color: '#4ade80' }}>Month to Date</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Tables Grid */}
