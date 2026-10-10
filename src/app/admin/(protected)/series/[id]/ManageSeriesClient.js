@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import VjSelector from '@/components/admin/VjSelector';
 import { updateSeries, deleteSeries, addEpisode, removeEpisode } from '../actions';
 import { useRouter } from 'next/navigation';
 
@@ -214,33 +215,13 @@ export default function ManageSeriesClient({ series, initialEpisodes, tmdbApiKey
 
             <div>
               <label style={{ display: 'block', fontSize: '13px', color: 'var(--text2)', marginBottom: '8px' }}>VJ (Translator)</label>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {['VJ ICE P', 'VJ Emmy', 'VJ Junior', 'VJ Jingo', 'VJ Mark'].map(vj => {
-                  const isSelected = formData.categories.includes(vj);
-                  return (
-                    <button
-                      key={vj}
-                      type="button"
-                      onClick={() => {
-                        let cats = [...formData.categories];
-                        if (isSelected) {
-                          cats = cats.filter(c => c !== vj);
-                        } else {
-                          cats.push(vj);
-                        }
-                        setFormData({...formData, categories: cats});
-                      }}
-                      style={{
-                        padding: '6px 12px', borderRadius: '20px', border: '1px solid #444', 
-                        background: isSelected ? 'var(--acc)' : '#222',
-                        color: '#fff', cursor: 'pointer', fontSize: '12px'
-                      }}
-                    >
-                      {vj}
-                    </button>
-                  );
-                })}
-              </div>
+              <VjSelector
+                selectedVjs={formData.categories.filter(c => c && c.toLowerCase().startsWith('vj '))}
+                onChange={(newVjs) => {
+                  const nonVjCats = formData.categories.filter(c => !c || !c.toLowerCase().startsWith('vj '));
+                  setFormData({ ...formData, categories: [...nonVjCats, ...newVjs] });
+                }}
+              />
             </div>
 
             <div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import VjSelector from '@/components/admin/VjSelector';
 import Link from 'next/link';
 import { updateMovie, deleteMovie } from './actions';
 
@@ -243,67 +244,23 @@ export default function EditMovieClient({ movie }) {
                 <input type="text" value={form.categories} onChange={e => set('categories', e.target.value)} placeholder="Action, Drama, Thriller" style={inputStyle} />
               </Field>
 
-              <Field label="VJ (Translator) & Special Tags">
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '15px' }}>
-                    {(() => {
-                      const catsArray = typeof form.categories === 'string' ? form.categories.split(',').map(s => s.trim()).filter(Boolean) : [];
-                      const allVjs = Array.from(new Set(['VJ ICE P', 'VJ Emmy', 'VJ Junior', 'VJ Jingo', 'VJ Mark', ...catsArray.filter(c => c && c.toLowerCase().startsWith('vj '))]));
-                      
-                      return allVjs.map(vj => {
-                        const isSelected = catsArray.includes(vj);
-                        return (
-                          <button
-                            key={vj}
-                            type="button"
-                            onClick={() => {
-                              let cats = [...catsArray];
-                              if (isSelected) {
-                                cats = cats.filter(c => c !== vj);
-                              } else {
-                                cats.push(vj);
-                              }
-                              set('categories', cats.join(', '));
-                            }}
-                            style={{
-                              padding: '6px 12px', borderRadius: '20px', border: '1px solid #444', 
-                              background: isSelected ? 'var(--acc)' : '#222',
-                              color: '#fff', cursor: 'pointer', fontSize: '12px'
-                            }}
-                          >
-                            {vj}
-                          </button>
-                        );
-                      });
-                    })()}
-                    
-                    {(() => {
-                      const catsArray = typeof form.categories === 'string' ? form.categories.split(',').map(s => s.trim()).filter(Boolean) : [];
-                      return (
-                        <input
-                          type="text"
-                          placeholder="Type new VJ & press Enter..."
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              const val = e.target.value.trim();
-                              if (val && val.toLowerCase().startsWith('vj ') && !catsArray.includes(val)) {
-                                set('categories', [...catsArray, val].join(', '));
-                                e.target.value = '';
-                              } else if (val && !val.toLowerCase().startsWith('vj ')) {
-                                alert('VJ name must start with "VJ "');
-                              }
-                            }
-                          }}
-                          style={{
-                            padding: '6px 12px', borderRadius: '20px', border: '1px solid #444', 
-                            background: 'transparent', color: '#fff', fontSize: '12px', width: '200px'
-                          }}
-                        />
-                      );
-                    })()}
-                  </div>
+              <Field label="VJ (Translator)">
+                {(() => {
+                  const catsArray = typeof form.categories === 'string' ? form.categories.split(',').map(s => s.trim()).filter(Boolean) : [];
+                  const selectedVjs = catsArray.filter(c => c && c.toLowerCase().startsWith('vj '));
+                  return (
+                    <VjSelector
+                      selectedVjs={selectedVjs}
+                      onChange={(newVjs) => {
+                        const nonVjCats = catsArray.filter(c => !c || !c.toLowerCase().startsWith('vj '));
+                        set('categories', [...nonVjCats, ...newVjs].join(', '));
+                      }}
+                    />
+                  );
+                })()}
+              </Field>
 
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '5px' }}>Special Tags</label>
+              <Field label="Special Tags">
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                     {(() => {
                       const catsArray = typeof form.categories === 'string' ? form.categories.split(',').map(s => s.trim()).filter(Boolean) : [];

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import VjSelector from '@/components/admin/VjSelector';
 import { fetchTMDBSuggestions, fetchTMDBSeriesDetails, createSeries } from '../actions';
 
 export default function AddSeriesClient({ tmdbApiKey }) {
@@ -211,33 +212,13 @@ export default function AddSeriesClient({ tmdbApiKey }) {
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '5px' }}>VJ (Translator)</label>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {['VJ ICE P', 'VJ Emmy', 'VJ Junior', 'VJ Jingo', 'VJ Mark'].map(vj => {
-                const isSelected = formData.categories.includes(vj);
-                return (
-                  <button
-                    key={vj}
-                    type="button"
-                    onClick={() => {
-                      let cats = [...formData.categories];
-                      if (isSelected) {
-                        cats = cats.filter(c => c !== vj);
-                      } else {
-                        cats.push(vj);
-                      }
-                      handleManualEdit('categories', cats);
-                    }}
-                    style={{
-                      padding: '6px 12px', borderRadius: '20px', border: '1px solid #444', 
-                      background: isSelected ? 'var(--acc)' : '#222',
-                      color: '#fff', cursor: 'pointer', fontSize: '12px'
-                    }}
-                  >
-                    {vj}
-                  </button>
-                );
-              })}
-            </div>
+            <VjSelector
+              selectedVjs={formData.categories.filter(c => c && c.toLowerCase().startsWith('vj '))}
+              onChange={(newVjs) => {
+                const nonVjCats = formData.categories.filter(c => !c || !c.toLowerCase().startsWith('vj '));
+                handleManualEdit('categories', [...nonVjCats, ...newVjs]);
+              }}
+            />
           </div>
         </div>
       </div>
