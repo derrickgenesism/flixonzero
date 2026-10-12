@@ -343,29 +343,26 @@ export default async function MoviePage({ params }) {
         </div>
       </div>
 
-      {/* Free viewer → Premium upsell strip */}
+      {/* Free viewer → Offer strip */}
       {hasAccess && !isPremiumUser && (
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '14px 20px 0' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '12px 20px 0' }}>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap',
-            padding: '14px 18px', borderRadius: '14px',
-            background: 'linear-gradient(135deg, rgba(229,9,20,0.16) 0%, rgba(20,20,20,0.9) 60%)',
-            border: '1px solid rgba(229,9,20,0.35)',
+            padding: '10px 16px', borderRadius: '12px',
+            background: 'linear-gradient(135deg, rgba(229,9,20,0.14) 0%, rgba(20,20,20,0.9) 60%)',
+            border: '1px solid rgba(229,9,20,0.3)',
           }}>
             <div style={{ flex: 1, minWidth: '220px' }}>
-              <div style={{ fontSize: '15px', fontWeight: '800', color: '#fff', marginBottom: '3px' }}>
-                Enjoying this for free? Go Premium
-              </div>
-              <div style={{ fontSize: '12.5px', color: 'var(--text2)', lineHeight: 1.5 }}>
-                Download movies to watch offline and unlock every premium movie &amp; series.
+              <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#fff' }}>
+                If you want more movies, get them at a cheap price.
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               {offer.enabled && (
                 <OfferCountdown durationMinutes={offer.durationMinutes} discountPercent={offer.discountPercent} variant="compact" />
               )}
-              <Link href="/checkout" className="gms-btn gms-btn--primary" style={{ padding: '10px 20px', fontSize: '14px', fontWeight: '800', borderRadius: '10px' }}>
-                Subscribe Now
+              <Link href="/checkout" className="gms-btn gms-btn--primary" style={{ padding: '8px 16px', fontSize: '13px', fontWeight: '700', borderRadius: '8px', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                See the Offer →
               </Link>
             </div>
           </div>

@@ -2,73 +2,77 @@ import Link from 'next/link';
 import OfferCountdown from '@/components/OfferCountdown';
 
 /**
- * FreeMoviesHero — header banner for the "Free to Watch" listing pages.
- * Server component (no JS cost); only the small countdown is a client component.
- *
- * Props:
- *  total       number   – how many free movies are available
- *  offer       object   – result of parseOfferSettings()
- *  showUpsell  boolean  – false for active subscribers (hides the subscribe CTA)
- *  titleTag    string   – 'h1' | 'h2' (avoid duplicate <h1> on pages that already have one)
+ * FreeMoviesHero — compact offer card positioned down below the free movies.
+ * Shows "Free to Watch" and "50% off", with concise copy and "See the Offer".
  */
-export default function FreeMoviesHero({ total = 0, offer, showUpsell = true, titleTag = 'h1' }) {
-  const Title = titleTag;
+export default function FreeMoviesHero({ offer, showUpsell = true }) {
+  if (!showUpsell) return null;
+
+  const percent = offer?.discountPercent ?? 50;
 
   return (
-    <section
-      aria-label="Free movies"
-      style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 clamp(16px, 4vw, 40px) 8px' }}
-    >
+    <div style={{ maxWidth: '1100px', margin: '36px auto 20px', padding: '0 24px' }}>
       <div style={{
-        position: 'relative', overflow: 'hidden',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap',
-        padding: 'clamp(18px, 3vw, 28px)', borderRadius: '20px',
-        background: 'linear-gradient(135deg, rgba(34,197,94,0.20) 0%, rgba(20,20,20,0.95) 55%, rgba(229,9,20,0.16) 100%)',
-        border: '1px solid rgba(74,222,128,0.28)',
-        boxShadow: '0 10px 40px rgba(0,0,0,0.35)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16px',
+        flexWrap: 'wrap',
+        padding: '12px 18px',
+        borderRadius: '12px',
+        background: 'linear-gradient(135deg, rgba(229, 9, 20, 0.14) 0%, rgba(20, 20, 20, 0.9) 60%)',
+        border: '1px solid rgba(229, 9, 20, 0.3)',
+        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.35)'
       }}>
-        {/* Left: heading */}
-        <div style={{ flex: 1, minWidth: '240px' }}>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '10px',
-            padding: '4px 12px', borderRadius: '999px',
-            background: 'rgba(74,222,128,0.14)', border: '1px solid rgba(74,222,128,0.35)',
-            fontSize: '11px', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: '#4ade80',
-          }}>
-            <span aria-hidden="true">🎁</span> Free to Watch
-          </span>
-
-          <Title style={{ margin: '0 0 8px', fontSize: 'clamp(24px, 4.5vw, 38px)', fontWeight: '900', letterSpacing: '-0.6px', lineHeight: 1.1, color: '#fff' }}>
-            Free Movies
-          </Title>
-
-          <p style={{ margin: 0, maxWidth: '520px', fontSize: '14px', lineHeight: 1.6, color: 'var(--text2)' }}>
-            Press play on any of these — no payment needed.
-            {showUpsell ? ' Want downloads and the full premium library too? Subscribe while prices are low.' : ''}
-            {total > 0 && (
-              <strong style={{ display: 'block', marginTop: '8px', fontSize: '12.5px', color: '#4ade80', fontWeight: '700' }}>
-                {total} free {total === 1 ? 'movie' : 'movies'} available now
-              </strong>
+        {/* Left: badges + text */}
+        <div style={{ flex: 1, minWidth: '220px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+            <span style={{
+              background: 'rgba(74, 222, 128, 0.15)',
+              color: '#4ade80',
+              border: '1px solid rgba(74, 222, 128, 0.35)',
+              fontSize: '11px',
+              fontWeight: '800',
+              padding: '2px 8px',
+              borderRadius: '5px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Free to Watch
+            </span>
+            {percent > 0 && (
+              <span style={{
+                background: 'rgba(255, 211, 77, 0.15)',
+                color: '#ffd34d',
+                border: '1px solid rgba(255, 211, 77, 0.3)',
+                fontSize: '11px',
+                fontWeight: '800',
+                padding: '2px 8px',
+                borderRadius: '5px'
+              }}>
+                {percent}% OFF
+              </span>
             )}
-          </p>
+          </div>
+          <div style={{ color: '#fff', fontSize: '13.5px', fontWeight: '600' }}>
+            If you want more movies, get them at a cheap price.
+          </div>
         </div>
 
-        {/* Right: offer + CTA (hidden for subscribers) */}
-        {showUpsell && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
-            {offer?.enabled && (
-              <OfferCountdown durationMinutes={offer.durationMinutes} discountPercent={offer.discountPercent} variant="compact" />
-            )}
-            <Link
-              href="/checkout"
-              className="gms-btn gms-btn--primary"
-              style={{ padding: '12px 26px', fontSize: '15px', fontWeight: '800', borderRadius: '12px' }}
-            >
-              Go Premium
-            </Link>
-          </div>
-        )}
+        {/* Right side: timer + See the Offer button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {offer?.enabled && (
+            <OfferCountdown durationMinutes={offer.durationMinutes} discountPercent={offer.discountPercent} variant="compact" />
+          )}
+          <Link
+            href="/checkout"
+            className="gms-btn gms-btn--primary"
+            style={{ padding: '8px 16px', fontSize: '13px', fontWeight: '700', borderRadius: '8px', textDecoration: 'none', whiteSpace: 'nowrap' }}
+          >
+            See the Offer →
+          </Link>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }

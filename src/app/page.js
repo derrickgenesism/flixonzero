@@ -175,16 +175,16 @@ export default async function Home({ searchParams }) {
 
         {category && category !== 'All' ? (
           <>
-          {category === 'Free' && (
-            <FreeMoviesHero total={categoryTotal} offer={parseOfferSettings(settings)} showUpsell={!isSubscribed} />
-          )}
           <PaginatedMovieGrid 
-            title={category === 'Free' ? 'All Free Movies' : `${category} Movies`} 
+            title={category === 'Free' ? 'Free to Watch' : `${category} Movies`} 
             initialMovies={categoryMovies} 
             totalCount={categoryTotal} 
             fetchAction={fetchMoviesPage} 
             actionArg={category} 
           />
+          {category === 'Free' && (
+            <FreeMoviesHero offer={parseOfferSettings(settings)} showUpsell={!isSubscribed} />
+          )}
           </>
         ) : (
           <>

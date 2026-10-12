@@ -123,8 +123,6 @@ export default async function CategoryPage({ params, searchParams }) {
           )}
         </div>
 
-        {freeHero}
-
         <PaginatedMovieGrid
           title=""
           initialMovies={movies}
@@ -132,6 +130,8 @@ export default async function CategoryPage({ params, searchParams }) {
           fetchAction={fetchMoviesPage}
           actionArg={name}
         />
+
+        {freeHero}
 
         {/* FAQ Section for SEO */}
         <section aria-label={`FAQ for ${name} translated movies`} style={{ maxWidth: '1100px', margin: '40px auto 0', padding: '0 40px' }}>

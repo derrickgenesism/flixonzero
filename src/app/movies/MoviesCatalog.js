@@ -45,9 +45,19 @@ export default function MoviesCatalog({ initialMovies }) {
       result = result.filter(m => m.categories?.includes(categoryFilter));
     }
 
+    const getTime = (m) => {
+      if (m.created_at) {
+        const t = new Date(m.created_at).getTime();
+        if (!isNaN(t) && t > 0) return t;
+      }
+      const numId = Number(m.id);
+      if (!isNaN(numId) && numId > 1000000000000) return numId;
+      return 0;
+    };
+
     switch (sortBy) {
       case 'oldest':
-        result.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        result.sort((a, b) => (getTime(a) - getTime(b)) || (Number(a.id) - Number(b.id)));
         break;
       case 'most_watched':
         result.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
@@ -57,7 +67,7 @@ export default function MoviesCatalog({ initialMovies }) {
         break;
       case 'latest':
       default:
-        result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        result.sort((a, b) => (getTime(b) - getTime(a)) || (Number(b.id) - Number(a.id)));
         break;
     }
 

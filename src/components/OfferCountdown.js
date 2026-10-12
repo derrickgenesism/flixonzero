@@ -77,32 +77,27 @@ export default function OfferCountdown({ durationMinutes = 60, discountPercent =
         </div>
       ) : (
         <div className="flx-offer-banner" role="timer" aria-label={`Offer ends in ${h} hours ${m} minutes ${s} seconds`}>
-          <div className="flx-offer-info">
-            <div className="flx-offer-tag">
-              <span className="flx-offer-dot" />
-              Flash Offer
-            </div>
-            <div className="flx-offer-title">
+          <div className="flx-offer-left">
+            <span className="flx-offer-dot" />
+            <span className="flx-offer-badge">Flash Offer</span>
+            <span className="flx-offer-text">
               {percent > 0 ? (
-                <>
-                  <strong>{percent}% OFF</strong> all subscription plans
-                </>
+                <><strong>{percent}% OFF</strong> all subscription plans</>
               ) : (
-                <>Special low prices on all plans</>
+                <>Special low prices available now</>
               )}
-            </div>
-            <div className="flx-offer-sub">Prices are very low right now — grab yours before the timer runs out.</div>
+            </span>
           </div>
-          <div className="flx-offer-clock">
-            {[['Hrs', h], ['Min', m], ['Sec', s]].map(([label, value], i) => (
-              <div key={label} className="flx-offer-clock-group">
-                {i > 0 && <span className="flx-offer-colon">:</span>}
-                <div className="flx-offer-unit">
-                  <div className="flx-offer-num">{value}</div>
-                  <div className="flx-offer-label">{label}</div>
-                </div>
-              </div>
-            ))}
+
+          <div className="flx-offer-right">
+            <span className="flx-offer-ends-label">Ends in:</span>
+            <div className="flx-offer-digits">
+              <span className="flx-offer-digit-box">{h}</span>
+              <span className="flx-offer-colon">:</span>
+              <span className="flx-offer-digit-box">{m}</span>
+              <span className="flx-offer-colon">:</span>
+              <span className="flx-offer-digit-box">{s}</span>
+            </div>
           </div>
         </div>
       )}
@@ -111,52 +106,52 @@ export default function OfferCountdown({ durationMinutes = 60, discountPercent =
         @keyframes flxOfferPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
 
         .flx-offer-dot {
-          width: 8px; height: 8px; border-radius: 50%;
+          width: 7px; height: 7px; border-radius: 50%;
           background: #ff3b3b; display: inline-block; flex-shrink: 0;
-          box-shadow: 0 0 8px rgba(255,59,59,.9);
+          box-shadow: 0 0 6px rgba(255,59,59,.9);
           animation: flxOfferPulse 1.4s ease-in-out infinite;
         }
 
-        /* ── Banner ── */
+        /* ── Compact Slim Banner ── */
         .flx-offer-banner {
-          display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-          padding: 14px 18px; border-radius: 16px;
-          background: linear-gradient(135deg, rgba(229,9,20,.24) 0%, rgba(229,9,20,.08) 55%, rgba(255,255,255,.03) 100%);
-          border: 1px solid rgba(229,9,20,.45);
-          box-shadow: 0 0 28px rgba(229,9,20,.14);
+          display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+          padding: 8px 14px; border-radius: 10px;
+          background: linear-gradient(135deg, rgba(229,9,20,.18) 0%, rgba(20,20,20,.95) 70%);
+          border: 1px solid rgba(229,9,20,.35);
+          box-shadow: 0 4px 14px rgba(0,0,0,.3);
         }
-        .flx-offer-info { flex: 1; min-width: 200px; text-align: left; }
-        .flx-offer-tag {
-          display: inline-flex; align-items: center; gap: 7px; margin-bottom: 6px;
-          font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #ff6b6b;
+        .flx-offer-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .flx-offer-badge {
+          background: rgba(229,9,20,.2); border: 1px solid rgba(229,9,20,.5);
+          color: #ff6b6b; font-size: 10.5px; font-weight: 800; padding: 2px 7px;
+          border-radius: 4px; text-transform: uppercase; letter-spacing: .5px;
         }
-        .flx-offer-title { font-size: 17px; font-weight: 700; color: #fff; line-height: 1.25; }
-        .flx-offer-title strong { color: #ffd34d; font-weight: 900; }
-        .flx-offer-sub { font-size: 12px; color: var(--text2, #a0a0a0); margin-top: 3px; line-height: 1.4; }
-        .flx-offer-clock { display: flex; align-items: center; }
-        .flx-offer-clock-group { display: flex; align-items: center; }
-        .flx-offer-colon { color: rgba(255,255,255,.45); font-weight: 900; font-size: 20px; margin: 0 5px 14px; }
-        .flx-offer-unit {
-          min-width: 52px; padding: 7px 8px 5px; border-radius: 10px; text-align: center;
-          background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.12);
+        .flx-offer-text { font-size: 13.5px; color: #fff; font-weight: 600; }
+        .flx-offer-text strong { color: #ffd34d; font-weight: 800; }
+        .flx-offer-right { display: flex; align-items: center; gap: 6px; }
+        .flx-offer-ends-label { font-size: 11px; color: var(--text3, #888); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+        .flx-offer-digits { display: inline-flex; align-items: center; gap: 2px; }
+        .flx-offer-digit-box {
+          background: #000; border: 1px solid rgba(255,255,255,.15);
+          color: #fff; font-size: 13px; font-weight: 800; padding: 2px 6px;
+          border-radius: 4px; font-variant-numeric: tabular-nums;
         }
-        .flx-offer-num { font-size: 22px; font-weight: 900; color: #fff; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: .5px; }
-        .flx-offer-label { font-size: 9px; font-weight: 700; color: var(--text3, #686868); text-transform: uppercase; letter-spacing: .8px; margin-top: 3px; }
+        .flx-offer-colon { color: rgba(255,255,255,.4); font-size: 12px; font-weight: 900; }
 
         /* ── Compact pill ── */
         .flx-offer-pill {
-          display: inline-flex; align-items: center; gap: 8px;
-          padding: 6px 12px; border-radius: 999px;
-          background: rgba(229,9,20,.14); border: 1px solid rgba(229,9,20,.4);
-          font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap;
+          display: inline-flex; align-items: center; gap: 7px;
+          padding: 5px 10px; border-radius: 999px;
+          background: rgba(229,9,20,.14); border: 1px solid rgba(229,9,20,.35);
+          font-size: 11.5px; font-weight: 700; color: #fff; white-space: nowrap;
         }
         .flx-offer-pill-text { color: #ffd34d; }
-        .flx-offer-pill-time { font-variant-numeric: tabular-nums; font-weight: 900; letter-spacing: .5px; }
+        .flx-offer-pill-time { font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: .5px; }
 
         @media (max-width: 560px) {
-          .flx-offer-banner { padding: 12px 14px; justify-content: center; text-align: center; }
-          .flx-offer-info { text-align: center; min-width: 100%; }
-          .flx-offer-title { font-size: 16px; }
+          .flx-offer-banner { padding: 8px 12px; justify-content: center; text-align: center; }
+          .flx-offer-left { justify-content: center; }
+          .flx-offer-right { justify-content: center; width: 100%; margin-top: 2px; }
         }
         @media (prefers-reduced-motion: reduce) { .flx-offer-dot { animation: none; } }
       `}</style>

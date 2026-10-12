@@ -53,7 +53,8 @@ export async function insertMovie(movieData) {
     video_url: movieData.video_url || null,
     categories: categories,
     release_year: movieData.release_year,
-    actors: movieData.actors
+    actors: movieData.actors,
+    created_at: new Date().toISOString()
   }).select();
 
   if (error) {

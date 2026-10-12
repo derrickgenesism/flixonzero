@@ -15,7 +15,7 @@ export default async function MoviesPage() {
   const { data: movies, error } = await supabase
     .from('movies')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false, nullsFirst: false });
 
   if (error) {
     console.error('Error fetching movies for catalog:', error);
