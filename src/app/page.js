@@ -7,6 +7,8 @@ import Hero from '@/components/Hero';
 import MovieRow from '@/components/MovieRow';
 import PaginatedMovieGrid from '@/components/PaginatedMovieGrid';
 import CategoryBar from '@/components/CategoryBar';
+import FreeMoviesHero from '@/components/FreeMoviesHero';
+import { parseOfferSettings } from '@/lib/offer';
 
 export const metadata = {
   title: 'FlixOn Uganda � Watch VJ Translated Movies Online | Luganda Dubbed Films',
@@ -172,13 +174,18 @@ export default async function Home({ searchParams }) {
         </div>
 
         {category && category !== 'All' ? (
+          <>
+          {category === 'Free' && (
+            <FreeMoviesHero total={categoryTotal} offer={parseOfferSettings(settings)} showUpsell={!isSubscribed} />
+          )}
           <PaginatedMovieGrid 
-            title={`${category} Movies`} 
+            title={category === 'Free' ? 'All Free Movies' : `${category} Movies`} 
             initialMovies={categoryMovies} 
             totalCount={categoryTotal} 
             fetchAction={fetchMoviesPage} 
             actionArg={category} 
           />
+          </>
         ) : (
           <>
             {isSectionEnabled('Continue Watching') && continueWatching.length > 0 && (

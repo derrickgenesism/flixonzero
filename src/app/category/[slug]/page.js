@@ -3,6 +3,9 @@ import { fetchMoviesPage } from '@/app/actions/fetchMovies';
 import Navbar from '@/components/Navbar';
 import PaginatedMovieGrid from '@/components/PaginatedMovieGrid';
 import Link from 'next/link';
+import FreeMoviesHero from '@/components/FreeMoviesHero';
+import { getCachedSettings } from '@/lib/cache';
+import { parseOfferSettings } from '@/lib/offer';
 
 // VJ translator names
 const VJ_NAMES = ['VJ Junior', 'VJ Emmy', 'VJ Ice P', 'VJ ICE P', 'VJ Jingo', 'VJ Mark', 'VJ Kamil'];
@@ -53,6 +56,20 @@ export default async function CategoryPage({ params, searchParams }) {
 
   // Fetch movies for this category
   const { movies, total } = await fetchMoviesPage(name, page, 24);
+
+  // "Free to Watch" gets a banner with the offer countdown (hidden CTA for subscribers)
+  let freeHero = null;
+  if (name === 'Free to Watch') {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    let subscribed = false;
+    if (user) {
+      const { data: userProfile } = await supabase.from('user_profiles').select('subscription_end_date').eq('email', user.email).single();
+      subscribed = !!(userProfile?.subscription_end_date && new Date(userProfile.subscription_end_date) > new Date());
+    }
+    const settings = await getCachedSettings();
+    freeHero = <FreeMoviesHero total={total} offer={parseOfferSettings(settings)} showUpsell={!subscribed} titleTag="h2" />;
+  }
 
   // Build JSON-LD ItemList for Google
   const baseUrl = 'https://flixon.net';
@@ -105,6 +122,8 @@ export default async function CategoryPage({ params, searchParams }) {
             </p>
           )}
         </div>
+
+        {freeHero}
 
         <PaginatedMovieGrid
           title=""

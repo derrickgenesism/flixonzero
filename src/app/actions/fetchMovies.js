@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { getCachedMovies } from '@/lib/cache';
 
 const PAGE_SIZE = 24;
 
