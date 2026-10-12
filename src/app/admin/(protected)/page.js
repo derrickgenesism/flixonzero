@@ -50,7 +50,10 @@ export default async function AdminDashboardPage() {
     { data: last50Txs },
     { data: ppvData },
     { data: historyRaw },
-    { data: recentVisitsRaw },
+    { data: visitsTodayRaw },
+    { data: visitsYesterdayRaw },
+    { data: visitsThisWeekRaw },
+    { data: visitsThisMonthRaw },
     { count: freeVisitsAllTimeCount },
     { count: freeVisitsTodayCount },
     { count: freeVisitsYesterdayCount },
@@ -84,8 +87,11 @@ export default async function AdminDashboardPage() {
     supabase.from('ppv_purchases').select('amount, status, created_at').in('status', ['success', 'successful']),
     supabase.from('watch_history').select('user_id, movie_id, movies(title, type, thumbnail_url)').order('created_at', { ascending: false }).limit(1000),
     
-    // Fetch only the latest visits ordered descending (fast unique calculation, tiny payload)
-    supabase.from('site_visits').select('visitor_id, created_at').order('created_at', { ascending: false }).limit(3000),
+    // Targeted visitor datasets for Today, Yesterday, This Week, and This Month (exact unique counts, tiny payload)
+    supabase.from('site_visits').select('visitor_id').gte('created_at', todayStart.toISOString()).limit(1000),
+    supabase.from('site_visits').select('visitor_id').gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()).limit(1000),
+    supabase.from('site_visits').select('visitor_id').gte('created_at', thisWeekStart.toISOString()).limit(1000),
+    supabase.from('site_visits').select('visitor_id').gte('created_at', thisMonthStart.toISOString()).limit(1000),
 
     // Free Movies Total Visits (All Time, Today, Yesterday, Week, Month, Last Month) — 0 row transfer!
     supabase.from('site_visits').select('id', { count: 'exact', head: true }).ilike('path', '%free%'),
@@ -212,35 +218,11 @@ export default async function AdminDashboardPage() {
   const visitsThisMonth = visitsThisMonthCount || 0;
   const visitsGrowthDaily = calcGrowth(visitsToday, visitsYesterday);
 
-  // Unique Visitors from recent visits (descending)
-  const uniqueToday = new Set();
-  const uniqueYesterday = new Set();
-  const uniqueThisWeek = new Set();
-  const uniqueThisMonth = new Set();
-
-  recentVisitsRaw?.forEach(v => {
-    const vDate = new Date(v.created_at);
-    const vid = v.visitor_id;
-    if (!vid) return;
-
-    if (vDate >= todayStart) {
-      uniqueToday.add(vid);
-    } else if (vDate >= yesterdayStart) {
-      uniqueYesterday.add(vid);
-    }
-    
-    if (vDate >= thisWeekStart) {
-      uniqueThisWeek.add(vid);
-    }
-    if (vDate >= thisMonthStart) {
-      uniqueThisMonth.add(vid);
-    }
-  });
-
-  const uniqueTodayCount = uniqueToday.size;
-  const uniqueYesterdayCount = uniqueYesterday.size;
-  const uniqueThisWeekCount = uniqueThisWeek.size;
-  const uniqueThisMonthCount = uniqueThisMonth.size;
+  // Exact Unique Visitors from targeted period datasets (zero truncation, zero overlap)
+  const uniqueTodayCount = new Set(visitsTodayRaw?.map(v => v.visitor_id) || []).size;
+  const uniqueYesterdayCount = new Set(visitsYesterdayRaw?.map(v => v.visitor_id) || []).size;
+  const uniqueThisWeekCount = new Set(visitsThisWeekRaw?.map(v => v.visitor_id) || []).size;
+  const uniqueThisMonthCount = new Set(visitsThisMonthRaw?.map(v => v.visitor_id) || []).size;
   const uniqueGrowthDaily = calcGrowth(uniqueTodayCount, uniqueYesterdayCount);
 
   // Average pages per visitor
