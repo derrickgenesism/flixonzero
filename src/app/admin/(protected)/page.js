@@ -50,7 +50,14 @@ export default async function AdminDashboardPage() {
     { data: last50Txs },
     { data: ppvData },
     { data: historyRaw },
-    { data: recentVisitsRaw }
+    { data: recentVisitsRaw },
+    { count: freeVisitsAllTimeCount },
+    { count: freeVisitsTodayCount },
+    { count: freeVisitsYesterdayCount },
+    { count: freeVisitsThisWeekCount },
+    { count: freeVisitsThisMonthCount },
+    { count: freeVisitsLastMonthCount },
+    { data: freeVisitsRaw }
   ] = await Promise.all([
     // Counts (Zero row data transferred — microsecond header counts)
     supabase.from('user_profiles').select('id', { count: 'exact', head: true }),
@@ -78,7 +85,18 @@ export default async function AdminDashboardPage() {
     supabase.from('watch_history').select('user_id, movie_id, movies(title, type, thumbnail_url)').order('created_at', { ascending: false }).limit(1000),
     
     // Fetch only the latest visits ordered descending (fast unique calculation, tiny payload)
-    supabase.from('site_visits').select('visitor_id, created_at').order('created_at', { ascending: false }).limit(3000)
+    supabase.from('site_visits').select('visitor_id, created_at').order('created_at', { ascending: false }).limit(3000),
+
+    // Free Movies Total Visits (All Time, Today, Yesterday, Week, Month, Last Month) — 0 row transfer!
+    supabase.from('site_visits').select('id', { count: 'exact', head: true }).ilike('path', '%free%'),
+    supabase.from('site_visits').select('id', { count: 'exact', head: true }).ilike('path', '%free%').gte('created_at', todayStart.toISOString()),
+    supabase.from('site_visits').select('id', { count: 'exact', head: true }).ilike('path', '%free%').gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()),
+    supabase.from('site_visits').select('id', { count: 'exact', head: true }).ilike('path', '%free%').gte('created_at', thisWeekStart.toISOString()),
+    supabase.from('site_visits').select('id', { count: 'exact', head: true }).ilike('path', '%free%').gte('created_at', thisMonthStart.toISOString()),
+    supabase.from('site_visits').select('id', { count: 'exact', head: true }).ilike('path', '%free%').gte('created_at', lastMonthStart.toISOString()).lt('created_at', thisMonthStart.toISOString()),
+
+    // Recent Free Visits Dataset (Tiny payload: 2 string fields)
+    supabase.from('site_visits').select('visitor_id, created_at').ilike('path', '%free%').order('created_at', { ascending: false }).limit(1000)
   ]);
 
   // ── 2. AGGREGATE LOGIC ──────────────────────────────────────────────────
@@ -230,6 +248,101 @@ export default async function AdminDashboardPage() {
   const pagesPerVisitorThisWeek = uniqueThisWeekCount > 0 ? (visitsThisWeek / uniqueThisWeekCount).toFixed(1) : '1.0';
   const pagesPerVisitorThisMonth = uniqueThisMonthCount > 0 ? (visitsThisMonth / uniqueThisMonthCount).toFixed(1) : '1.0';
 
+  // ── 4. FREE MOVIES TRAFFIC & AUDIENCE ANALYTICS ──────────────────────────
+  const freeVisitsToday = freeVisitsTodayCount || 0;
+  const freeVisitsYesterday = freeVisitsYesterdayCount || 0;
+  const freeVisitsThisWeek = freeVisitsThisWeekCount || 0;
+  const freeVisitsThisMonth = freeVisitsThisMonthCount || 0;
+  const freeVisitsLastMonth = freeVisitsLastMonthCount || 0;
+  const freeVisitsAllTime = freeVisitsAllTimeCount || 0;
+
+  const freeVisitsGrowthDaily = calcGrowth(freeVisitsToday, freeVisitsYesterday);
+  const freeVisitsGrowthMonthly = calcGrowth(freeVisitsThisMonth, freeVisitsLastMonth);
+
+  const freeUniqueToday = new Set();
+  const freeUniqueYesterday = new Set();
+  const freeUniqueThisWeek = new Set();
+  const freeUniqueThisMonth = new Set();
+
+  const freeFreqToday = {};
+  const freeFreqThisWeek = {};
+  const freeFreqThisMonth = {};
+
+  const priorToTodayFree = new Set();
+  const priorToWeekFree = new Set();
+  const priorToMonthFree = new Set();
+
+  // First pass: identify visitor history prior to respective boundaries
+  freeVisitsRaw?.forEach(v => {
+    const vid = v.visitor_id;
+    if (!vid) return;
+    const vDate = new Date(v.created_at);
+    if (vDate < todayStart) priorToTodayFree.add(vid);
+    if (vDate < thisWeekStart) priorToWeekFree.add(vid);
+    if (vDate < thisMonthStart) priorToMonthFree.add(vid);
+  });
+
+  // Second pass: analyze current periods
+  freeVisitsRaw?.forEach(v => {
+    const vid = v.visitor_id;
+    if (!vid) return;
+    const vDate = new Date(v.created_at);
+
+    if (vDate >= todayStart) {
+      freeUniqueToday.add(vid);
+      freeFreqToday[vid] = (freeFreqToday[vid] || 0) + 1;
+    } else if (vDate >= yesterdayStart) {
+      freeUniqueYesterday.add(vid);
+    }
+
+    if (vDate >= thisWeekStart) {
+      freeUniqueThisWeek.add(vid);
+      freeFreqThisWeek[vid] = (freeFreqThisWeek[vid] || 0) + 1;
+    }
+
+    if (vDate >= thisMonthStart) {
+      freeUniqueThisMonth.add(vid);
+      freeFreqThisMonth[vid] = (freeFreqThisMonth[vid] || 0) + 1;
+    }
+  });
+
+  const freeUniqueTodayCount = freeUniqueToday.size;
+  const freeUniqueYesterdayCount = freeUniqueYesterday.size;
+  const freeUniqueThisWeekCount = freeUniqueThisWeek.size;
+  const freeUniqueThisMonthCount = freeUniqueThisMonth.size;
+  const freeUniqueGrowthDaily = calcGrowth(freeUniqueTodayCount, freeUniqueYesterdayCount);
+
+  // Returning visitors: active in period who had prior visits OR visited >1 time
+  let freeReturningToday = 0;
+  freeUniqueToday.forEach(vid => {
+    if (priorToTodayFree.has(vid) || freeFreqToday[vid] > 1) freeReturningToday++;
+  });
+
+  let freeReturningThisWeek = 0;
+  freeUniqueThisWeek.forEach(vid => {
+    if (priorToWeekFree.has(vid) || freeFreqThisWeek[vid] > 1) freeReturningThisWeek++;
+  });
+
+  let freeReturningThisMonth = 0;
+  freeUniqueThisMonth.forEach(vid => {
+    if (priorToMonthFree.has(vid) || freeFreqThisMonth[vid] > 1) freeReturningThisMonth++;
+  });
+
+  const freeNewToday = Math.max(0, freeUniqueTodayCount - freeReturningToday);
+  const freeNewThisWeek = Math.max(0, freeUniqueThisWeekCount - freeReturningThisWeek);
+  const freeNewThisMonth = Math.max(0, freeUniqueThisMonthCount - freeReturningThisMonth);
+
+  const freeReturnRateToday = freeUniqueTodayCount > 0 ? ((freeReturningToday / freeUniqueTodayCount) * 100).toFixed(1) : '0';
+  const freeReturnRateThisWeek = freeUniqueThisWeekCount > 0 ? ((freeReturningThisWeek / freeUniqueThisWeekCount) * 100).toFixed(1) : '0';
+  const freeReturnRateThisMonth = freeUniqueThisMonthCount > 0 ? ((freeReturningThisMonth / freeUniqueThisMonthCount) * 100).toFixed(1) : '0';
+
+  const freePagesPerVisitorToday = freeUniqueTodayCount > 0 ? (freeVisitsToday / freeUniqueTodayCount).toFixed(1) : '1.0';
+  const freePagesPerVisitorThisWeek = freeUniqueThisWeekCount > 0 ? (freeVisitsThisWeek / freeUniqueThisWeekCount).toFixed(1) : '1.0';
+  const freePagesPerVisitorThisMonth = freeUniqueThisMonthCount > 0 ? (freeVisitsThisMonth / freeUniqueThisMonthCount).toFixed(1) : '1.0';
+
+  const freeTrafficShareToday = visitsToday > 0 ? ((freeVisitsToday / visitsToday) * 100).toFixed(1) : '0';
+  const freeTrafficShareThisMonth = visitsThisMonth > 0 ? ((freeVisitsThisMonth / visitsThisMonth) * 100).toFixed(1) : '0';
+
   return (
     <DashboardClient
       stats={{
@@ -266,6 +379,35 @@ export default async function AdminDashboardPage() {
         pagesPerVisitorToday,
         pagesPerVisitorThisWeek,
         pagesPerVisitorThisMonth,
+
+        // Free Movies Traffic & Audience Analytics
+        freeVisitsToday,
+        freeVisitsYesterday,
+        freeVisitsGrowthDaily,
+        freeVisitsThisWeek,
+        freeVisitsThisMonth,
+        freeVisitsLastMonth,
+        freeVisitsGrowthMonthly,
+        freeVisitsAllTime,
+        freeUniqueToday: freeUniqueTodayCount,
+        freeUniqueYesterday: freeUniqueYesterdayCount,
+        freeUniqueGrowthDaily,
+        freeUniqueThisWeek: freeUniqueThisWeekCount,
+        freeUniqueThisMonth: freeUniqueThisMonthCount,
+        freeReturningToday,
+        freeReturningThisWeek,
+        freeReturningThisMonth,
+        freeNewToday,
+        freeNewThisWeek,
+        freeNewThisMonth,
+        freeReturnRateToday,
+        freeReturnRateThisWeek,
+        freeReturnRateThisMonth,
+        freePagesPerVisitorToday,
+        freePagesPerVisitorThisWeek,
+        freePagesPerVisitorThisMonth,
+        freeTrafficShareToday,
+        freeTrafficShareThisMonth,
       }}
       transactions={enrichedTxs}
       recentSignups={recentSignups}

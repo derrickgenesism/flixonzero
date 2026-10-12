@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 export default function AnalyticsTracker() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const lastTrackedRef = useRef({ path: '', time: 0 });
 
   useEffect(() => {
@@ -18,12 +19,16 @@ export default function AnalyticsTracker() {
       return;
     }
 
-    // 3. Debounce rapid identical navigation (prevent double pings within 1 second)
+    // Build full path including query string (e.g. /?category=Free)
+    const queryString = searchParams ? searchParams.toString() : '';
+    const fullPath = queryString ? `${pathname}?${queryString}` : (pathname || '/');
+
+    // 3. Debounce rapid identical navigation (prevent double pings within 1.5 seconds)
     const now = Date.now();
-    if (lastTrackedRef.current.path === pathname && (now - lastTrackedRef.current.time) < 1000) {
+    if (lastTrackedRef.current.path === fullPath && (now - lastTrackedRef.current.time) < 1500) {
       return;
     }
-    lastTrackedRef.current = { path: pathname, time: now };
+    lastTrackedRef.current = { path: fullPath, time: now };
 
     try {
       // Get or create persistent visitor ID (365 days / localStorage)
@@ -65,7 +70,7 @@ export default function AnalyticsTracker() {
           visitor_id: visitorId,
           session_id: sessionId,
           user_id: userId,
-          path: pathname,
+          path: fullPath,
           referrer: document.referrer || null,
           user_agent: navigator.userAgent
         }),
@@ -74,7 +79,7 @@ export default function AnalyticsTracker() {
     } catch (e) {
       // Silent error handling for analytics
     }
-  }, [pathname]);
+  }, [pathname, searchParams]);
 
   return null;
 }

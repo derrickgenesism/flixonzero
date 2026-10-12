@@ -188,7 +188,19 @@ export default function DashboardClient({ stats, transactions, recentSignups, to
     visitsThisWeek, visitsThisMonth,
     uniqueToday, uniqueYesterday, uniqueGrowthDaily,
     uniqueThisWeek, uniqueThisMonth,
-    pagesPerVisitorToday, pagesPerVisitorThisWeek, pagesPerVisitorThisMonth
+    pagesPerVisitorToday, pagesPerVisitorThisWeek, pagesPerVisitorThisMonth,
+
+    // Free Movies Analytics
+    freeVisitsToday, freeVisitsYesterday, freeVisitsGrowthDaily,
+    freeVisitsThisWeek, freeVisitsThisMonth, freeVisitsLastMonth, freeVisitsGrowthMonthly,
+    freeVisitsAllTime,
+    freeUniqueToday, freeUniqueYesterday, freeUniqueGrowthDaily,
+    freeUniqueThisWeek, freeUniqueThisMonth,
+    freeReturningToday, freeReturningThisWeek, freeReturningThisMonth,
+    freeNewToday, freeNewThisWeek, freeNewThisMonth,
+    freeReturnRateToday, freeReturnRateThisWeek, freeReturnRateThisMonth,
+    freePagesPerVisitorToday, freePagesPerVisitorThisWeek, freePagesPerVisitorThisMonth,
+    freeTrafficShareToday, freeTrafficShareThisMonth
   } = stats;
 
   const txColumns = [
@@ -391,6 +403,136 @@ export default function DashboardClient({ stats, transactions, recentSignups, to
                 <td style={{ padding: '12px 14px', color: '#0ea5e9', fontWeight: '600' }}>{fmt(uniqueThisMonth)} people</td>
                 <td style={{ padding: '12px 14px', color: '#fff' }}>{pagesPerVisitorThisMonth} pages / person</td>
                 <td style={{ padding: '12px 14px', color: '#4ade80' }}>Month to Date</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── FREE MOVIES TRAFFIC & AUDIENCE INSIGHTS ── */}
+      <SectionHeading title="🎟️ Free Movies Traffic & Audience Insights" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+        <KpiCard
+          label="Free Visits Today"
+          value={fmt(freeVisitsToday)}
+          growth={freeVisitsGrowthDaily}
+          sub={`${fmt(freeUniqueToday)} unique viewers (${freePagesPerVisitorToday} pages/visitor)`}
+          accent="#4ade80"
+          icon="🎟️"
+        />
+        <KpiCard
+          label="Unique Free Viewers Today"
+          value={fmt(freeUniqueToday)}
+          growth={freeUniqueGrowthDaily}
+          sub={`${fmt(freeNewToday)} new · ${fmt(freeReturningToday)} returning (${freeReturnRateToday}% return rate)`}
+          accent="#38bdf8"
+          icon="👥"
+        />
+        <KpiCard
+          label="Free Visits This Month"
+          value={fmt(freeVisitsThisMonth)}
+          growth={freeVisitsGrowthMonthly}
+          sub={`${fmt(freeUniqueThisMonth)} unique viewers (${freeTrafficShareThisMonth}% of all traffic)`}
+          accent="#a78bfa"
+          icon="📅"
+        />
+        <KpiCard
+          label="Returning Viewers (Month)"
+          value={fmt(freeReturningThisMonth)}
+          sub={`${freeReturnRateThisMonth}% retention rate (${fmt(freeNewThisMonth)} first-timers)`}
+          accent="#f59e0b"
+          icon="🔄"
+        />
+        <KpiCard
+          label="All-Time Free Page Views"
+          value={fmt(freeVisitsAllTime)}
+          sub="Gateway funnel to subscription checkout"
+          accent="#f472b6"
+          icon="🎯"
+        />
+      </div>
+
+      {/* Free Movies Breakdown Table */}
+      <div style={{
+        background: 'var(--bg2)', borderRadius: '16px', border: '1px solid var(--border)',
+        padding: '20px 24px', marginBottom: '28px', display: 'flex', flexDirection: 'column', gap: '14px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#fff' }}>🎬 Free Movies Audience & Retention Breakdown</h3>
+            <p style={{ margin: '4px 0 0', color: 'var(--text2)', fontSize: '12px' }}>
+              Breakdown of free movies visits, unique vs returning audience, retention rate, and traffic engagement.
+            </p>
+          </div>
+          <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(74,222,128,0.1)', color: '#4ade80', fontWeight: '600' }}>
+            ⚡ Zero-Compute Serverless Queries
+          </span>
+        </div>
+
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text2)', fontSize: '11px', textTransform: 'uppercase' }}>
+                <th style={{ padding: '10px 14px' }}>Time Period</th>
+                <th style={{ padding: '10px 14px' }}>Free Page Views</th>
+                <th style={{ padding: '10px 14px' }}>Unique Viewers</th>
+                <th style={{ padding: '10px 14px' }}>Returning Viewers</th>
+                <th style={{ padding: '10px 14px' }}>First-Time Viewers</th>
+                <th style={{ padding: '10px 14px' }}>Retention Rate</th>
+                <th style={{ padding: '10px 14px' }}>Avg Views / Viewer</th>
+                <th style={{ padding: '10px 14px' }}>Growth / Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ padding: '12px 14px', fontWeight: '700', color: '#fff' }}>Today</td>
+                <td style={{ padding: '12px 14px', color: '#4ade80', fontWeight: '700', fontSize: '14px' }}>{fmt(freeVisitsToday)} views</td>
+                <td style={{ padding: '12px 14px', color: '#38bdf8', fontWeight: '600' }}>{fmt(freeUniqueToday)} people</td>
+                <td style={{ padding: '12px 14px', color: '#f59e0b', fontWeight: '600' }}>{fmt(freeReturningToday)} returning</td>
+                <td style={{ padding: '12px 14px', color: '#ccc' }}>{fmt(freeNewToday)} new</td>
+                <td style={{ padding: '12px 14px', color: '#fff' }}>{freeReturnRateToday}%</td>
+                <td style={{ padding: '12px 14px', color: '#fff' }}>{freePagesPerVisitorToday} views/person</td>
+                <td style={{ padding: '12px 14px' }}><GrowthBadge value={freeVisitsGrowthDaily} /></td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ padding: '12px 14px', fontWeight: '600', color: 'var(--text2)' }}>Yesterday</td>
+                <td style={{ padding: '12px 14px', color: '#ccc' }}>{fmt(freeVisitsYesterday)} views</td>
+                <td style={{ padding: '12px 14px', color: '#ccc' }}>{fmt(freeUniqueYesterday)} people</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text3)' }}>—</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text3)' }}>—</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text3)' }}>—</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text3)' }}>{freeUniqueYesterday > 0 ? (freeVisitsYesterday / freeUniqueYesterday).toFixed(1) : '1.0'} views/person</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text3)' }}>Baseline</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ padding: '12px 14px', fontWeight: '700', color: '#fff' }}>This Week</td>
+                <td style={{ padding: '12px 14px', color: '#14b8a6', fontWeight: '700' }}>{fmt(freeVisitsThisWeek)} views</td>
+                <td style={{ padding: '12px 14px', color: '#38bdf8', fontWeight: '600' }}>{fmt(freeUniqueThisWeek)} people</td>
+                <td style={{ padding: '12px 14px', color: '#f59e0b', fontWeight: '600' }}>{fmt(freeReturningThisWeek)} returning</td>
+                <td style={{ padding: '12px 14px', color: '#ccc' }}>{fmt(freeNewThisWeek)} new</td>
+                <td style={{ padding: '12px 14px', color: '#fff' }}>{freeReturnRateThisWeek}%</td>
+                <td style={{ padding: '12px 14px', color: '#fff' }}>{freePagesPerVisitorThisWeek} views/person</td>
+                <td style={{ padding: '12px 14px', color: '#4ade80' }}>Active</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ padding: '12px 14px', fontWeight: '700', color: '#fff' }}>This Month</td>
+                <td style={{ padding: '12px 14px', color: '#a78bfa', fontWeight: '700' }}>{fmt(freeVisitsThisMonth)} views</td>
+                <td style={{ padding: '12px 14px', color: '#38bdf8', fontWeight: '600' }}>{fmt(freeUniqueThisMonth)} people</td>
+                <td style={{ padding: '12px 14px', color: '#f59e0b', fontWeight: '600' }}>{fmt(freeReturningThisMonth)} returning</td>
+                <td style={{ padding: '12px 14px', color: '#ccc' }}>{fmt(freeNewThisMonth)} new</td>
+                <td style={{ padding: '12px 14px', color: '#fff' }}>{freeReturnRateThisMonth}%</td>
+                <td style={{ padding: '12px 14px', color: '#fff' }}>{freePagesPerVisitorThisMonth} views/person</td>
+                <td style={{ padding: '12px 14px' }}><GrowthBadge value={freeVisitsGrowthMonthly} /></td>
+              </tr>
+              <tr>
+                <td style={{ padding: '12px 14px', fontWeight: '700', color: '#fff' }}>All Time</td>
+                <td style={{ padding: '12px 14px', color: '#f472b6', fontWeight: '700' }}>{fmt(freeVisitsAllTime)} views</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text3)' }}>—</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text3)' }}>—</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text3)' }}>—</td>
+                <td style={{ padding: '12px 14px', color: '#4ade80' }}>Funnel Gateway</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text3)' }}>—</td>
+                <td style={{ padding: '12px 14px', color: '#4ade80' }}>All-Time</td>
               </tr>
             </tbody>
           </table>
