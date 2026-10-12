@@ -11,6 +11,8 @@ import StarRating from '@/components/StarRating';
 import ShareButton from '@/components/ShareButton';
 import PayPerViewButton from '@/components/PayPerViewButton';
 import AlreadyPaidButton from '@/components/AlreadyPaidButton';
+import OfferCountdown from '@/components/OfferCountdown';
+import { parseOfferSettings } from '@/lib/offer';
 
 const VJ_NAMES = ['VJ Junior', 'VJ Emmy', 'VJ Ice P', 'VJ ICE P', 'VJ Jingo', 'VJ Mark', 'VJ Kamil'];
 
@@ -129,6 +131,7 @@ export default async function MoviePage({ params }) {
 
   const settings = await getCachedSettings();
   const globalFreeMode = settings.find(s => s.setting_key === 'free_mode_enabled')?.setting_value === 'true';
+  const offer = parseOfferSettings(settings);
 
   if (user) {
     const { data: userProfile } = await supabase.from('user_profiles').select('subscription_end_date').eq('email', user.email).single();
@@ -290,7 +293,7 @@ export default async function MoviePage({ params }) {
                     <p style={{ fontSize: '15px', color: 'var(--text2)', marginBottom: '28px', lineHeight: '1.7' }}>
                       Create a free account to watch <strong style={{ color: '#fff' }}>{movie.title}</strong>.
                     </p>
-                    <Link href="/signup" className="gms-btn gms-btn--primary" style={{ fontSize: '16px', padding: '14px 32px' }}>Create Free Account</Link>
+                    <Link href="/login" className="gms-btn gms-btn--primary" style={{ fontSize: '16px', padding: '14px 32px' }}>Create Free Account</Link>
                     <div style={{ marginTop: '16px', fontSize: '13px', color: 'var(--text3)' }}>
                       Already have an account? <Link href="/login" style={{ color: 'var(--text2)' }}>Sign In</Link>
                     </div>
@@ -339,6 +342,35 @@ export default async function MoviePage({ params }) {
           )}
         </div>
       </div>
+
+      {/* Free viewer → Premium upsell strip */}
+      {hasAccess && !isPremiumUser && (
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '14px 20px 0' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap',
+            padding: '14px 18px', borderRadius: '14px',
+            background: 'linear-gradient(135deg, rgba(229,9,20,0.16) 0%, rgba(20,20,20,0.9) 60%)',
+            border: '1px solid rgba(229,9,20,0.35)',
+          }}>
+            <div style={{ flex: 1, minWidth: '220px' }}>
+              <div style={{ fontSize: '15px', fontWeight: '800', color: '#fff', marginBottom: '3px' }}>
+                Enjoying this for free? Go Premium
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--text2)', lineHeight: 1.5 }}>
+                Download movies to watch offline and unlock every premium movie &amp; series.
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              {offer.enabled && (
+                <OfferCountdown durationMinutes={offer.durationMinutes} discountPercent={offer.discountPercent} variant="compact" />
+              )}
+              <Link href="/checkout" className="gms-btn gms-btn--primary" style={{ padding: '10px 20px', fontSize: '14px', fontWeight: '800', borderRadius: '10px' }}>
+                Subscribe Now
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Movie Info */}
       <div className="flx-movie-info">
@@ -406,7 +438,7 @@ export default async function MoviePage({ params }) {
                     </Link>
                   )}
                   {actualVideoUrl && !actualVideoUrl.includes('pelpic') && !actualVideoUrl.includes('upstream') && (
-                    <DownloadButton movieId={movie.id} title={movie.title} requiresSubscription={!canDownload} />
+                    <DownloadButton movieId={movie.id} title={movie.title} requiresSubscription={!canDownload} offer={offer} />
                   )}
                 </>
               )}

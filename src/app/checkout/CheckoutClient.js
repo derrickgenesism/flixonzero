@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { processDirectCharge, checkTransactionStatus } from './actions';
+import OfferCountdown from '@/components/OfferCountdown';
 
-export default function CheckoutClient({ plans, promoEnabled = true }) {
+export default function CheckoutClient({ plans, promoEnabled = true, offer = null }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [network, setNetwork] = useState('');
@@ -316,6 +317,12 @@ export default function CheckoutClient({ plans, promoEnabled = true }) {
           Unlock unlimited streaming. Cancel anytime.
         </p>
       </div>
+
+      {offer?.enabled && (
+        <div style={{ maxWidth: '960px', margin: '0 auto 20px' }}>
+          <OfferCountdown durationMinutes={offer.durationMinutes} discountPercent={offer.discountPercent} variant="banner" />
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 300px))', gap: '12px', maxWidth: '960px', margin: '0 auto', justifyContent: 'center' }}>
         {plans.map((plan, index) => {

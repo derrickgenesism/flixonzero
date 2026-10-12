@@ -250,6 +250,48 @@ export default async function AdminSettingsPage() {
 
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '30px 0' }} />
 
+        <h3 style={{ margin: '0 0 6px', color: 'var(--acc)' }}>Limited-Time Offer Countdown</h3>
+        <p style={{ margin: '0 0 15px', fontSize: '13px', color: 'var(--text3)' }}>Shows a countdown banner above the subscription plans, a small timer on movies people watch for free, and in the &quot;Subscribe to download&quot; prompt. Each visitor gets their own timer that restarts when it hits zero.</p>
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              name="offer_enabled"
+              defaultChecked={settings?.find(s => s.setting_key === 'offer_enabled')?.setting_value !== 'false'}
+            />
+            Show offer countdown
+          </label>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px' }}>Countdown length (minutes)</label>
+            <input
+              type="number"
+              min="1"
+              max="1440"
+              name="offer_duration_minutes"
+              defaultValue={settings?.find(s => s.setting_key === 'offer_duration_minutes')?.setting_value || '60'}
+              placeholder="60"
+              style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px' }}>Discount shown (% OFF)</label>
+            <input
+              type="number"
+              min="0"
+              max="99"
+              name="offer_discount_percent"
+              defaultValue={settings?.find(s => s.setting_key === 'offer_discount_percent')?.setting_value || '50'}
+              placeholder="50"
+              style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
+            />
+          </div>
+        </div>
+        <p style={{ margin: '-10px 0 25px', fontSize: '12px', color: 'var(--text3)' }}>Set the discount to 0 to hide the percentage and just show &quot;Special Price&quot;. Changes show on checkout immediately and on movie pages within an hour.</p>
+
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '30px 0' }} />
+
         <h3 style={{ margin: '0 0 6px', color: 'var(--acc)' }}>Promo & Gift Codes</h3>
         <p style={{ margin: '0 0 15px', fontSize: '13px', color: 'var(--text3)' }}>Enable or disable the &quot;Have a promo code?&quot; input during checkout.</p>
         <div style={{ marginBottom: '25px' }}>

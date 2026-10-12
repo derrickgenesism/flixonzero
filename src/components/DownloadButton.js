@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import Link from 'next/link';
+import OfferCountdown from '@/components/OfferCountdown';
 import { useRouter } from 'next/navigation';
 
-export default function DownloadButton({ movieId, title, requiresSubscription }) {
+export default function DownloadButton({ movieId, title, requiresSubscription, offer = null }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -13,6 +16,21 @@ export default function DownloadButton({ movieId, title, requiresSubscription })
     return false;
   });
   const abortRef = useRef(null);
+
+  // "Subscribe to download" prompt (shown instead of a plain error when a non-subscriber taps Download)
+  const [showSubscribe, setShowSubscribe] = useState(false);
+
+  useEffect(() => {
+    if (!showSubscribe) return;
+    const onKey = (e) => { if (e.key === 'Escape') setShowSubscribe(false); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [showSubscribe]);
 
   const [statusState, setStatusState] = useState(null); // null, 'downloading', 'completed'
 
@@ -59,6 +77,11 @@ export default function DownloadButton({ movieId, title, requiresSubscription })
         });
         const dlData = await dlRes.json();
         if (!dlData.downloadUrl) {
+          if (dlRes.status === 403 || dlData.error === 'Subscription required') {
+            setShowSubscribe(true);
+            setLoading(false);
+            return;
+          }
           setError(dlData.error || 'Unable to generate download link.');
           setLoading(false);
           return;
@@ -87,6 +110,11 @@ export default function DownloadButton({ movieId, title, requiresSubscription })
       const dlData = await res.json();
 
       if (!dlData.downloadUrl) {
+        if (res.status === 403 || dlData.error === 'Subscription required') {
+          setShowSubscribe(true);
+          setLoading(false);
+          return;
+        }
         setError(dlData.error || 'Download link generation failed. Please try again.');
         setLoading(false);
         return;
@@ -232,6 +260,101 @@ export default function DownloadButton({ movieId, title, requiresSubscription })
         <span style={{ color: '#ef4444', fontSize: '12px' }}>{error}</span>
       )}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {showSubscribe && typeof document !== 'undefined' && createPortal(
+        <div
+          className="flx-dlmodal-backdrop"
+          onClick={() => setShowSubscribe(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Subscribe to download"
+        >
+          <div className="flx-dlmodal" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="flx-dlmodal-close" onClick={() => setShowSubscribe(false)} aria-label="Close">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            <div className="flx-dlmodal-icon">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </div>
+
+            <h3 className="flx-dlmodal-title">Subscribe to download</h3>
+            <p className="flx-dlmodal-text">
+              Downloads are for subscribers. Subscribe now to save{title ? <> <strong>{title}</strong></> : ' this movie'} to your device and watch it offline — you can keep streaming it free right here in the meantime.
+            </p>
+
+            {offer?.enabled && (
+              <div style={{ marginBottom: '16px' }}>
+                <OfferCountdown durationMinutes={offer.durationMinutes} discountPercent={offer.discountPercent} variant="compact" />
+              </div>
+            )}
+
+            <ul className="flx-dlmodal-list">
+              {['Download movies and watch offline', 'Unlimited access to all premium movies & series', 'Pay in seconds with MTN or Airtel Mobile Money'].map((t) => (
+                <li key={t}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  {t}
+                </li>
+              ))}
+            </ul>
+
+            <Link href="/checkout" className="gms-btn gms-btn--primary flx-dlmodal-cta">
+              Subscribe &amp; Download
+            </Link>
+            <button type="button" className="flx-dlmodal-later" onClick={() => setShowSubscribe(false)}>
+              Continue watching free
+            </button>
+          </div>
+
+          <style>{`
+            .flx-dlmodal-backdrop {
+              position: fixed; inset: 0; z-index: 10000;
+              display: flex; align-items: center; justify-content: center; padding: 20px;
+              background: rgba(0,0,0,.78); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+              animation: flxDlFade .18s ease-out;
+            }
+            .flx-dlmodal {
+              position: relative; width: 100%; max-width: 400px; max-height: 92vh; overflow-y: auto;
+              padding: 28px 24px 22px; text-align: center; border-radius: 20px;
+              background: linear-gradient(180deg, #1b1b1b 0%, #121212 100%);
+              border: 1px solid rgba(229,9,20,.35);
+              box-shadow: 0 20px 60px rgba(0,0,0,.7), 0 0 40px rgba(229,9,20,.12);
+              animation: flxDlPop .22s ease-out;
+            }
+            .flx-dlmodal-close {
+              position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 50%;
+              display: flex; align-items: center; justify-content: center; cursor: pointer;
+              background: rgba(255,255,255,.08); border: none; color: #bbb;
+            }
+            .flx-dlmodal-close:hover { background: rgba(255,255,255,.16); color: #fff; }
+            .flx-dlmodal-icon {
+              width: 62px; height: 62px; margin: 0 auto 14px; border-radius: 50%;
+              display: flex; align-items: center; justify-content: center;
+              background: linear-gradient(135deg, #e50914, #ff4d4d); box-shadow: 0 8px 24px rgba(229,9,20,.45);
+            }
+            .flx-dlmodal-title { margin: 0 0 8px; font-size: 21px; font-weight: 900; color: #fff; letter-spacing: -.3px; }
+            .flx-dlmodal-text { margin: 0 0 16px; font-size: 13.5px; line-height: 1.6; color: var(--text2, #a0a0a0); }
+            .flx-dlmodal-text strong { color: #fff; }
+            .flx-dlmodal-list { list-style: none; margin: 0 0 20px; padding: 0; text-align: left; display: flex; flex-direction: column; gap: 8px; }
+            .flx-dlmodal-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #d4d4d4; }
+            .flx-dlmodal-cta { display: flex; justify-content: center; width: 100%; padding: 14px; font-size: 15px; font-weight: 800; border-radius: 12px; text-decoration: none; box-sizing: border-box; }
+            .flx-dlmodal-later { margin-top: 10px; background: transparent; border: none; color: var(--text3, #686868); font-size: 13px; cursor: pointer; padding: 6px; }
+            .flx-dlmodal-later:hover { color: #fff; }
+            @keyframes flxDlFade { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes flxDlPop { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+            @media (prefers-reduced-motion: reduce) { .flx-dlmodal-backdrop, .flx-dlmodal { animation: none; } }
+          `}</style>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
