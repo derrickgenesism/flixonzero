@@ -32,7 +32,7 @@ export default function CheckoutClient({ plans, promoEnabled = true, offer = nul
           const res = await checkTransactionStatus(txRef);
           if (res.status === 'successful') {
             clearInterval(intervalId);
-            router.push('/?payment=success');
+            window.location.assign('/?payment=success'); // hard load: bypasses every client/router cache
           }
         } catch (err) {
           console.error("Polling error:", err);
@@ -108,7 +108,7 @@ export default function CheckoutClient({ plans, promoEnabled = true, offer = nul
     
     const res = await checkTransactionStatus(txRef);
     if (res.status === 'successful') {
-      router.push('/?payment=success');
+      window.location.assign('/?payment=success'); // hard load: bypasses every client/router cache
     } else {
       setVerificationMessage("Payment not yet confirmed by your network. If you just entered your PIN, please wait a few seconds and try again.");
     }
@@ -198,7 +198,7 @@ export default function CheckoutClient({ plans, promoEnabled = true, offer = nul
           onClick={() => setSelectedPlan(null)}
           style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '5px' }}
         >
-          ← Back to plans
+          â† Back to plans
         </button>
         
         <h2 style={{ margin: '0 0 10px', color: '#fff' }}>Mobile Money Payment</h2>

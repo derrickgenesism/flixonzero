@@ -1,6 +1,8 @@
 const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
+import { activateTransaction } from '@/lib/payments';
 
 export async function POST(req) {
   try {
@@ -93,7 +95,7 @@ export async function POST(req) {
         return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
       }
 
-      // If already processed, ignore
+      // If already processed, ignore (fast path; the claim below is the real guard)
       if (transaction.status === 'successful') {
         return NextResponse.json({ status: 'already_processed' }, { status: 200 });
       }
@@ -103,148 +105,18 @@ export async function POST(req) {
         return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 });
       }
 
-      // 4. Update Transaction Status
-      await supabase
-        .from('transactions')
-        .update({ 
-          status: 'successful', 
-          flw_transaction_id: payload.data.id.toString()
-        })
-        .eq('id', transaction.id);
+      // Atomic claim + grant (shared with the in-app polling fallback so access
+      // and affiliate commission are applied exactly once, whichever path wins).
+      const result = await activateTransaction(_injectedAdminClient(), transaction, payload.data.id);
 
-      // 5. Grant Access
-      if (transaction.plan_type === 'extra_profile') {
-        const { data: authData } = await supabase.auth.admin.getUserById(transaction.user_id);
-        const userEmail = authData?.user?.email;
-        if (userEmail) {
-          // Increment extra_profile_slots
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('extra_profile_slots')
-            .eq('email', userEmail)
-            .single();
-          
-          await supabase
-            .from('user_profiles')
-            .update({
-              extra_profile_slots: (profile?.extra_profile_slots || 0) + 1
-            })
-            .eq('email', userEmail);
-            
-          console.log(`Successfully added extra profile slot for user ${userEmail}`);
-        }
-        return NextResponse.json({ status: 'extra_profile_success' }, { status: 200 });
+      if (result.activated) {
+        console.log(`Successfully processed ${result.type} for user ${transaction.user_id} (${transaction.plan_type})`);
+        revalidatePath('/', 'layout');
+      } else {
+        return NextResponse.json({ status: 'already_processed' }, { status: 200 });
       }
 
-      // --- SUBSCRIPTION LOGIC ---
-      let daysToAdd = transaction.duration_days || 0;
-
-      // We must lookup by email because user_profiles.id is an integer, but transaction.user_id is a UUID
-      const { data: authData } = await supabase.auth.admin.getUserById(transaction.user_id);
-      const userEmail = authData?.user?.email;
-
-      if (userEmail) {
-        // Calculate new expiry (if they already have an active subscription, add to it)
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('subscription_end_date')
-          .eq('email', userEmail)
-          .single();
-
-        let currentExpiry = new Date();
-        if (profile?.subscription_end_date) {
-          const profileExpiry = new Date(profile.subscription_end_date);
-          if (profileExpiry > currentExpiry) {
-            currentExpiry = profileExpiry;
-          }
-        }
-
-        currentExpiry.setDate(currentExpiry.getDate() + daysToAdd);
-
-        if (profile) {
-          // Update the user's profile
-          await supabase
-            .from('user_profiles')
-            .update({ 
-              subscription_end_date: currentExpiry.toISOString(),
-              subscription_plan: transaction.plan_type
-            })
-            .eq('email', userEmail);
-        } else {
-          // Profile didn't exist, insert a new one
-          await supabase
-            .from('user_profiles')
-            .insert({
-              email: userEmail,
-              username: userEmail.split('@')[0],
-              subscription_end_date: currentExpiry.toISOString(),
-              subscription_plan: transaction.plan_type
-            });
-        }
-      }
-
-      console.log(`Successfully processed subscription for user ${transaction.user_id} (${transaction.plan_type})`);
-
-      // 6. Referral Processing (CPA)
-      try {
-        const { data: allSettings } = await _injectedAdminClient().from('admin_settings').select('*');
-        const cpaEnabled = allSettings?.find(s => s.setting_key === 'affiliate_cpa_enabled')?.setting_value === 'true';
-        
-        if (cpaEnabled && userEmail) {
-          // Check if this user was referred by an affiliate
-          const { data: profileWithRef } = await supabase
-            .from('user_profiles')
-            .select('id, referred_by')
-            .eq('email', userEmail)
-            .single();
-
-          if (profileWithRef && profileWithRef.referred_by) {
-            // plan_type is stored as the plan's numeric ID string (e.g. "1", "2", "3")
-            const planNumericId = Number(transaction.plan_type);
-
-            if (!isNaN(planNumericId) && planNumericId > 0) {
-              const rewardSettingKey = `affiliate_plan_${planNumericId}_reward`;
-              const rewardAmountStr = allSettings?.find(s => s.setting_key === rewardSettingKey)?.setting_value;
-              const reward = Number(rewardAmountStr || 0);
-
-              if (reward > 0) {
-                // Get affiliate
-                const { data: affiliate } = await supabase
-                  .from('affiliates')
-                  .select('id, balance, total_earned')
-                  .eq('id', profileWithRef.referred_by)
-                  .single();
-
-                if (affiliate) {
-                  // Add balance
-                  await supabase
-                    .from('affiliates')
-                    .update({ 
-                      balance: Number(affiliate.balance) + reward,
-                      total_earned: Number(affiliate.total_earned) + reward
-                    })
-                    .eq('id', affiliate.id);
-
-                  // Record commission
-                  await supabase.from('affiliate_commissions').insert({
-                    affiliate_id: affiliate.id,
-                    amount: reward,
-                    type: 'subscription',
-                    description: `Commission for ${transaction.plan_type}`,
-                    referred_user_id: profileWithRef.id
-                  });
-
-                  console.log(`Credited affiliate ${affiliate.id} with ${reward} UGX for subscription of ${profileWithRef.id}`);
-                }
-              }
-            }
-          }
-        }
-      } catch (refErr) {
-        console.error('Error processing affiliate commission:', refErr);
-      }
-
-      return NextResponse.json({ status: 'success' }, { status: 200 });
+      return NextResponse.json({ status: result.type === 'extra_profile' ? 'extra_profile_success' : 'success' }, { status: 200 });
     }
 
     // Ignore other events (e.g. transfer.completed)

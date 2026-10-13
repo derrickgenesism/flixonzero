@@ -13,6 +13,10 @@ import PayPerViewButton from '@/components/PayPerViewButton';
 import AlreadyPaidButton from '@/components/AlreadyPaidButton';
 import OfferCountdown from '@/components/OfferCountdown';
 import { parseOfferSettings } from '@/lib/offer';
+import { reconcileRecentPending } from '@/lib/payments';
+
+// Access depends on the logged-in user's subscription: always render fresh.
+export const dynamic = 'force-dynamic';
 
 const VJ_NAMES = ['VJ Junior', 'VJ Emmy', 'VJ Ice P', 'VJ ICE P', 'VJ Jingo', 'VJ Mark', 'VJ Kamil'];
 
@@ -136,6 +140,11 @@ export default async function MoviePage({ params }) {
   if (user) {
     const { data: userProfile } = await supabase.from('user_profiles').select('subscription_end_date').eq('email', user.email).single();
     if (userProfile?.subscription_end_date && new Date(userProfile.subscription_end_date) > new Date()) {
+      isPremiumUser = true;
+    }
+
+    // Self-heal: user paid but webhook/polling has not landed yet -> confirm now, never show a paywall to a paying user.
+    if (!isPremiumUser && await reconcileRecentPending(user.id)) {
       isPremiumUser = true;
     }
 

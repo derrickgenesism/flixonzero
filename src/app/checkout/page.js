@@ -4,8 +4,11 @@ import Navbar from '@/components/Navbar';
 import CheckoutClient from './CheckoutClient';
 import { OFFER_SETTING_KEYS, parseOfferSettings } from '@/lib/offer';
 
+// Plans/offers/subscription state must never be served from a cache.
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
-  title: 'Subscribe — Flixon',
+  title: 'Subscribe â€” Flixon',
   description: 'Choose a Flixon plan and unlock unlimited premium movies and series.',
 };
 

@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
+import { reconcileRecentPending } from '@/lib/payments';
 import { getActiveProfile } from '@/app/profiles/actions';
 import { fetchMoviesPage } from '@/app/actions/fetchMovies';
 import { getCachedMovies, getCachedSettings, getCachedSeries } from '@/lib/cache';
@@ -11,7 +12,7 @@ import FreeMoviesHero from '@/components/FreeMoviesHero';
 import { parseOfferSettings } from '@/lib/offer';
 
 export const metadata = {
-  title: 'FlixOn Uganda � Watch VJ Translated Movies Online | Luganda Dubbed Films',
+  title: 'FlixOn Uganda ï¿½ Watch VJ Translated Movies Online | Luganda Dubbed Films',
   description: 'FlixOn is Uganda\'s #1 streaming platform for VJ translated movies. Watch the latest Hollywood and Bollywood films dubbed in Luganda by VJ Junior, VJ Emmy, VJ Ice P, VJ Jingo, VJ Mark and more. Stream or download movies online in Uganda.',
   alternates: {
     canonical: '/',
@@ -41,6 +42,9 @@ export default async function Home({ searchParams }) {
     profile = await getActiveProfile();
     const { data: userProfile } = await supabase.from('user_profiles').select('subscription_end_date').eq('email', user.email).single();
     if (userProfile?.subscription_end_date && new Date(userProfile.subscription_end_date) > new Date()) {
+      isSubscribed = true;
+    }
+    if (!isSubscribed && await reconcileRecentPending(user.id)) {
       isSubscribed = true;
     }
   }
@@ -255,7 +259,7 @@ export default async function Home({ searchParams }) {
                       <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', aspectRatio: '2/3', background: 'var(--bg2)' }}>
                         {m.thumbnail_url && <img src={m.thumbnail_url} alt={m.title} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.5)' }} />}
                         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
-                          <span style={{ fontSize: '28px' }}>🎬</span>
+                          <span style={{ fontSize: '28px' }}>ðŸŽ¬</span>
                           <span style={{ fontSize: '11px', fontWeight: '700', background: 'var(--acc)', padding: '3px 10px', borderRadius: '20px', color: '#fff' }}>COMING SOON</span>
                         </div>
                       </div>
@@ -273,17 +277,17 @@ export default async function Home({ searchParams }) {
           </>
         )}
 
-        {/* SEO Content Section — Uganda VJ keyword text for Google */}
+        {/* SEO Content Section â€” Uganda VJ keyword text for Google */}
         <section aria-label="About FlixOn Uganda" style={{ padding: '0 40px', maxWidth: '1100px', margin: '0 auto 40px' }}>
           <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '32px', border: '1px solid rgba(255,255,255,0.07)' }}>
             <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#fff', margin: '0 0 12px' }}>
               Uganda&apos;s #1 Platform for VJ Translated Movies
             </h2>
             <p style={{ fontSize: '14px', color: 'var(--text2)', lineHeight: '1.85', margin: '0 0 16px', maxWidth: '800px' }}>
-              FlixOn is Uganda&apos;s leading streaming platform for VJ translated movies. Watch thousands of Hollywood and Bollywood blockbusters with authentic Luganda voice-overs from Uganda&apos;s top VJ translators — <strong style={{ color: 'var(--text)' }}>VJ Junior</strong>, <strong style={{ color: 'var(--text)' }}>VJ Emmy</strong>, <strong style={{ color: 'var(--text)' }}>VJ Ice P</strong>, <strong style={{ color: 'var(--text)' }}>VJ Jingo</strong>, and <strong style={{ color: 'var(--text)' }}>VJ Mark</strong>.
+              FlixOn is Uganda&apos;s leading streaming platform for VJ translated movies. Watch thousands of Hollywood and Bollywood blockbusters with authentic Luganda voice-overs from Uganda&apos;s top VJ translators â€” <strong style={{ color: 'var(--text)' }}>VJ Junior</strong>, <strong style={{ color: 'var(--text)' }}>VJ Emmy</strong>, <strong style={{ color: 'var(--text)' }}>VJ Ice P</strong>, <strong style={{ color: 'var(--text)' }}>VJ Jingo</strong>, and <strong style={{ color: 'var(--text)' }}>VJ Mark</strong>.
             </p>
             <p style={{ fontSize: '14px', color: 'var(--text2)', lineHeight: '1.85', margin: '0 0 20px', maxWidth: '800px' }}>
-              Whether you&apos;re searching for VJ Junior action movies, VJ Emmy comedies, or the latest VJ Ice P translated films — FlixOn has the biggest library of Luganda dubbed movies in Uganda. Stream or download anytime on your phone, tablet, or TV.
+              Whether you&apos;re searching for VJ Junior action movies, VJ Emmy comedies, or the latest VJ Ice P translated films â€” FlixOn has the biggest library of Luganda dubbed movies in Uganda. Stream or download anytime on your phone, tablet, or TV.
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
               {['VJ Junior Movies', 'VJ Emmy Movies', 'VJ Ice P Movies', 'VJ Jingo Movies', 'VJ Mark Movies', 'Action Movies Uganda', 'Comedy Movies Uganda', 'Luganda Dubbed Films'].map(tag => (
