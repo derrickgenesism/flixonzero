@@ -118,6 +118,76 @@ export async function applyForAffiliate() {
   return { success: true };
 }
 
+export async function instantActivateAffiliate() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { error: 'Please log in first' };
+
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from('user_profiles')
+    .select('id, email, username')
+    .eq('email', user.email)
+    .maybeSingle();
+
+  if (!profile) return { error: 'Profile not found' };
+
+  const { data: existing } = await admin
+    .from('affiliates')
+    .select('id, referral_code, status')
+    .eq('user_id', profile.id)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.status !== 'approved') {
+      await admin.from('affiliates').update({ status: 'approved' }).eq('id', existing.id);
+    }
+    revalidatePath('/account');
+    revalidatePath('/account/referrals');
+    return { success: true, referralCode: existing.referral_code };
+  }
+
+  const code = crypto.randomBytes(4).toString('hex').toLowerCase();
+  const referralCode = `ref_${code}`;
+  const now = new Date();
+
+  const { error } = await admin.from('affiliates').insert({
+    user_id: profile.id,
+    referral_code: referralCode,
+    balance: 0,
+    total_earned: 0,
+    total_withdrawn: 0,
+    created_at: now.toISOString(),
+    status: 'approved'
+  });
+
+  if (error) {
+    console.error('[instantActivateAffiliate] error:', error);
+    return { error: 'Failed to activate partner code' };
+  }
+
+  // Telegram alert about new activated partner
+  const dateFormatted = now.toLocaleDateString('en-UG', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'Africa/Kampala'
+  });
+  await sendTelegramNotice(
+    `⚡ <b>NEW PARTNER ACTIVATED (1-CLICK)</b>\n\n` +
+    `• <b>Partner:</b> @${profile.username || 'User'} (ID #${profile.id})\n` +
+    `• <b>Email:</b> <code>${profile.email}</code>\n` +
+    `• <b>Referral Code:</b> <code>${referralCode}</code>\n` +
+    `• <b>Date:</b> ${dateFormatted} EAT`
+  );
+
+  revalidatePath('/account');
+  revalidatePath('/account/referrals');
+  return { success: true, referralCode };
+}
+
 export async function convertToWatchDays(formData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -129,13 +199,34 @@ export async function convertToWatchDays(formData) {
     return { error: 'Minimum conversion amount is 1,000 UGX' };
   }
 
-  // 10,000 UGX = 30 VIP days (approx 333.33 UGX per day)
-  const daysToAdd = Math.floor((amount / 10000) * 30);
-  if (daysToAdd < 1) {
-    return { error: 'Amount too small to convert to at least 1 day' };
+  const admin = createAdminClient();
+
+  // Fetch subscription plans to determine pricing equivalent
+  const { data: plans } = await admin
+    .from('subscription_plans')
+    .select('id, name, price, duration_days')
+    .eq('is_active', true)
+    .order('price', { ascending: true });
+
+  const dailyPlan = plans?.find(p => p.duration_days === 1) || { price: 1000, duration_days: 1 };
+  const dailyRate = Math.round(Number(dailyPlan.price) / Number(dailyPlan.duration_days));
+  const twoWeeksPlan = plans?.find(p => p.duration_days === 14);
+  const monthlyPlan = plans?.find(p => p.duration_days === 30);
+
+  let daysToAdd = 0;
+  if (monthlyPlan && amount >= Number(monthlyPlan.price)) {
+    const months = Math.floor(amount / Number(monthlyPlan.price));
+    daysToAdd = months * 30;
+  } else if (twoWeeksPlan && amount >= Number(twoWeeksPlan.price)) {
+    const fortnights = Math.floor(amount / Number(twoWeeksPlan.price));
+    daysToAdd = fortnights * 14;
+  } else {
+    daysToAdd = Math.floor(amount / dailyRate);
   }
 
-  const admin = createAdminClient();
+  if (daysToAdd < 1) {
+    return { error: `Minimum conversion is 1 Day (${dailyRate.toLocaleString()} UGX)` };
+  }
 
   const { data: profile } = await admin
     .from('user_profiles')
@@ -173,11 +264,15 @@ export async function convertToWatchDays(formData) {
   }
 
   // 2. Extend subscription
-  let currentEnd = profile.subscription_end_date ? new Date(profile.subscription_end_date) : new Date();
-  if (currentEnd < new Date()) currentEnd = new Date(); // If expired, start from today
+  const now = new Date();
+  const isCurrentlyActive = profile.subscription_end_date && new Date(profile.subscription_end_date) > now;
+  const currentEnd = isCurrentlyActive ? new Date(profile.subscription_end_date) : now;
+  const prevDays = isCurrentlyActive
+    ? Math.max(0, Math.ceil((new Date(profile.subscription_end_date) - now) / (1000 * 60 * 60 * 24)))
+    : 0;
 
-  const newEnd = new Date(currentEnd);
-  newEnd.setDate(newEnd.getDate() + daysToAdd);
+  const newEnd = new Date(currentEnd.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+  const newTotalDays = prevDays + daysToAdd;
 
   await admin
     .from('user_profiles')
@@ -187,19 +282,23 @@ export async function convertToWatchDays(formData) {
     })
     .eq('id', profile.id);
 
-  // 3. Record commission ledger
+  // 3. Record commission ledger with clear breakdown
+  const description = prevDays > 0
+    ? `Converted ${amount.toLocaleString()} UGX to +${daysToAdd} Watch Days (${prevDays} existing + ${daysToAdd} added = ${newTotalDays} total days)`
+    : `Converted ${amount.toLocaleString()} UGX to ${daysToAdd} VIP Watch Days`;
+
   await admin.from('affiliate_commissions').insert({
     affiliate_id: affiliate.id,
     amount: -amount,
     type: 'watch_days',
-    description: `Converted ${amount.toLocaleString()} UGX to ${daysToAdd} VIP Watch Days`
+    description
   });
 
   revalidatePath('/account/referrals');
   revalidatePath('/account');
   return { 
     success: true, 
-    message: `🎉 Success! Added ${daysToAdd} Watch Days to your account. Your access expires on ${newEnd.toLocaleDateString()}.` 
+    message: `🎉 Success! Added +${daysToAdd} Watch Days. ${prevDays > 0 ? `Added to your existing ${prevDays} days (${newTotalDays} total days remaining).` : `You now have ${newTotalDays} days remaining.`} Access active until ${newEnd.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' })}.` 
   };
 }
 

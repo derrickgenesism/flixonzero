@@ -40,6 +40,12 @@ export async function getAffiliateSettings() {
       'affiliate_ppc_enabled',
       'affiliate_cpa_enabled',
       'affiliate_cpm_rate',
+      'affiliate_commission_type',
+      'affiliate_commission_percentage',
+      'affiliate_boost_enabled',
+      'affiliate_boost_multiplier',
+      'affiliate_boost_ends_at',
+      'affiliate_boost_name',
       'affiliate_plan_1_reward',
       'affiliate_plan_2_reward',
       'affiliate_plan_3_reward',
@@ -65,26 +71,38 @@ export async function getAffiliateSettings() {
 export async function updateSettings(formData) {
   const { admin } = await verifyAdmin()
 
+  // Track checkboxes present in submitted form
+  const formKeys = new Set(Array.from(formData.keys()))
+
+  // If a specific section form was submitted, handle unchecked checkboxes
+  if (formKeys.has('_section_boost')) {
+    if (!formKeys.has('affiliate_boost_enabled')) {
+      await admin.from('admin_settings').upsert({ setting_key: 'affiliate_boost_enabled', setting_value: 'false' }, { onConflict: 'setting_key' })
+    }
+  }
+  if (formKeys.has('_section_cpa')) {
+    if (!formKeys.has('affiliate_cpa_enabled')) {
+      await admin.from('admin_settings').upsert({ setting_key: 'affiliate_cpa_enabled', setting_value: 'false' }, { onConflict: 'setting_key' })
+    }
+  }
+  if (formKeys.has('_section_ppc')) {
+    if (!formKeys.has('affiliate_ppc_enabled')) {
+      await admin.from('admin_settings').upsert({ setting_key: 'affiliate_ppc_enabled', setting_value: 'false' }, { onConflict: 'setting_key' })
+    }
+  }
+
   for (const [key, val] of formData.entries()) {
     if (key.startsWith('affiliate_')) {
-      const { data: existing } = await admin
-        .from('admin_settings')
-        .select('id')
-        .eq('setting_key', key)
-        .maybeSingle()
-
-      if (existing) {
-        await admin.from('admin_settings')
-          .update({ setting_value: String(val) })
-          .eq('setting_key', key)
-      } else {
-        await admin.from('admin_settings')
-          .insert({ setting_key: key, setting_value: String(val) })
-      }
+      await admin.from('admin_settings').upsert(
+        { setting_key: key, setting_value: String(val).trim() },
+        { onConflict: 'setting_key' }
+      )
     }
   }
 
   revalidatePath('/admin/affiliates')
+  revalidatePath('/account')
+  revalidatePath('/account/referrals')
   return { success: true }
 }
 

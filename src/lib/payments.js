@@ -103,13 +103,37 @@ async function creditAffiliate(admin, userEmail, transaction) {
   const planNumericId = Number(transaction.plan_type);
   if (isNaN(planNumericId) || planNumericId <= 0) return;
 
-  // Check specific plan reward, with fallback for Monthly Pass (Plan 3 -> Plan 2 setting)
-  let rewardStr = allSettings?.find((s) => s.setting_key === `affiliate_plan_${planNumericId}_reward`)?.setting_value;
-  if (!rewardStr && planNumericId === 3) {
-    rewardStr = allSettings?.find((s) => s.setting_key === 'affiliate_plan_2_reward')?.setting_value;
+  // 1. Determine Base Reward: Percentage Mode vs Fixed Plan Mode
+  const commType = allSettings?.find((s) => s.setting_key === 'affiliate_commission_type')?.setting_value || 'fixed';
+  let baseReward = 0;
+
+  if (commType === 'percentage') {
+    const pct = Number(allSettings?.find((s) => s.setting_key === 'affiliate_commission_percentage')?.setting_value || 25);
+    baseReward = Math.round(Number(transaction.amount || 0) * (pct / 100));
+  } else {
+    // Check specific plan reward, with fallback for Monthly Pass (Plan 3 -> Plan 2 setting)
+    let rewardStr = allSettings?.find((s) => s.setting_key === `affiliate_plan_${planNumericId}_reward`)?.setting_value;
+    if (!rewardStr && planNumericId === 3) {
+      rewardStr = allSettings?.find((s) => s.setting_key === 'affiliate_plan_2_reward')?.setting_value;
+    }
+    baseReward = Number(rewardStr || 0);
   }
-  const reward = Number(rewardStr || 0);
-  if (reward <= 0) return;
+
+  if (baseReward <= 0) return;
+
+  // 2. Check Promotional Boost / Multiplier Campaign
+  const boostEnabled = allSettings?.find((s) => s.setting_key === 'affiliate_boost_enabled')?.setting_value === 'true';
+  const boostEndsAt = allSettings?.find((s) => s.setting_key === 'affiliate_boost_ends_at')?.setting_value;
+  const isBoostActive = boostEnabled && (!boostEndsAt || new Date(boostEndsAt) > new Date());
+
+  let multiplier = 1;
+  let boostName = '';
+  if (isBoostActive) {
+    multiplier = Math.max(1, Number(allSettings?.find((s) => s.setting_key === 'affiliate_boost_multiplier')?.setting_value || 2));
+    boostName = allSettings?.find((s) => s.setting_key === 'affiliate_boost_name')?.setting_value || 'Special Commission Boost';
+  }
+
+  const finalReward = Math.round(baseReward * multiplier);
 
   const { data: affiliate } = await admin
     .from('affiliates')
@@ -122,16 +146,20 @@ async function creditAffiliate(admin, userEmail, transaction) {
   await admin
     .from('affiliates')
     .update({
-      balance: Number(affiliate.balance || 0) + reward,
-      total_earned: Number(affiliate.total_earned || 0) + reward,
+      balance: Number(affiliate.balance || 0) + finalReward,
+      total_earned: Number(affiliate.total_earned || 0) + finalReward,
     })
     .eq('id', affiliate.id);
 
+  const description = isBoostActive && multiplier > 1
+    ? `Commission for plan #${transaction.plan_type} [🔥 ${multiplier}X Boost: ${boostName}]`
+    : `Commission for plan #${transaction.plan_type} (${commType === 'percentage' ? `${allSettings?.find(s => s.setting_key === 'affiliate_commission_percentage')?.setting_value || 25}% of ${transaction.amount} UGX` : 'Fixed CPA'})`;
+
   await admin.from('affiliate_commissions').insert({
     affiliate_id: affiliate.id,
-    amount: reward,
+    amount: finalReward,
     type: 'subscription',
-    description: `Commission for subscription plan #${transaction.plan_type}`,
+    description,
     referred_user_id: profileWithRef.id,
   });
 
@@ -155,6 +183,8 @@ async function creditAffiliate(admin, userEmail, transaction) {
         timeZone: 'Africa/Kampala'
       });
 
+      const boostBadge = isBoostActive && multiplier > 1 ? ` (Includes 🔥 <b>${multiplier}X Boost!</b>)` : '';
+
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -162,10 +192,10 @@ async function creditAffiliate(admin, userEmail, transaction) {
           chat_id: chatId,
           text: `🎉 <b>AFFILIATE COMMISSION EARNED</b> 🎉\n\n` +
                 `• <b>Affiliate ID:</b> #${affiliate.id}\n` +
-                `• <b>Commission:</b> <b>+${reward.toLocaleString()} UGX</b>\n` +
-                `• <b>Purchased Plan:</b> Plan #${transaction.plan_type}\n` +
+                `• <b>Commission:</b> <b>+${finalReward.toLocaleString()} UGX</b>${boostBadge}\n` +
+                `• <b>Purchased Plan:</b> Plan #${transaction.plan_type} (${Number(transaction.amount || 0).toLocaleString()} UGX)\n` +
                 `• <b>Customer:</b> <code>${userEmail}</code>\n` +
-                `• <b>New Balance:</b> ${(Number(affiliate.balance || 0) + reward).toLocaleString()} UGX\n` +
+                `• <b>New Balance:</b> ${(Number(affiliate.balance || 0) + finalReward).toLocaleString()} UGX\n` +
                 `• <b>Date:</b> ${dateFormatted} at ${timeFormatted} EAT`,
           parse_mode: 'HTML'
         })

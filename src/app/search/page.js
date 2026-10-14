@@ -1,7 +1,8 @@
-﻿import { searchMoviesPage } from '@/app/actions/fetchMovies';
+import { searchMoviesPage } from '@/app/actions/fetchMovies';
 import Navbar from '@/components/Navbar';
 import PaginatedMovieGrid from '@/components/PaginatedMovieGrid';
 import SearchInput from '@/components/SearchInput';
+import RequestMovieTrigger from '@/components/RequestMovieTrigger';
 import Link from 'next/link';
 
 export const metadata = { title: 'Search - Flixon' };
@@ -62,8 +63,15 @@ export default async function SearchPage({ searchParams }) {
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
-                <h3 style={{ color: '#fff', fontSize: '18px', marginBottom: '8px' }}>No matches found</h3>
-                <p style={{ color: 'var(--text3)', fontSize: '14px' }}>Try searching for a different title, genre, or VJ.</p>
+                <h3 style={{ color: '#fff', fontSize: '18px', marginBottom: '8px' }}>No matches found for &quot;{query}&quot;</h3>
+                <p style={{ color: 'var(--text3)', fontSize: '14px', marginBottom: '18px', maxWidth: '420px', margin: '0 auto 18px' }}>
+                  Can&apos;t find what you are looking for? Request it now with your favorite Ugandan VJ translation and we&apos;ll upload it!
+                </p>
+                <RequestMovieTrigger
+                  initialTitle={query}
+                  buttonText={`🎬 Request "${query}"`}
+                  style={{ padding: '10px 22px', fontSize: '14px', fontWeight: '700' }}
+                />
               </div>
             )}
           </div>

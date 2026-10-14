@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import ConvertToWatchDaysButton from './ConvertToWatchDaysButton';
+import AffiliateEarnCard from './AffiliateEarnCard';
 
 export const metadata = { title: 'My Account — Flixon' };
 
@@ -100,10 +100,25 @@ export default async function AccountPage() {
       remainingText = `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`;
     }
   }
-  // Conversion rate from settings
-  const { data: convSetting } = await _injectedAdminClient().from('admin_settings').select('setting_value').eq('setting_key', 'referral_ugx_per_day').maybeSingle();
-  const ugxPerDay = Number(convSetting?.setting_value || 500);
-  const convertibleDays = Math.floor(availableBalance / ugxPerDay);
+  // Fetch active plans and boost settings
+  const { data: plans } = await _injectedAdminClient()
+    .from('subscription_plans')
+    .select('id, name, price, duration_days')
+    .eq('is_active', true)
+    .order('price', { ascending: true });
+
+  const { data: boostSettings } = await _injectedAdminClient()
+    .from('admin_settings')
+    .select('setting_key, setting_value')
+    .in('setting_key', ['affiliate_boost_enabled', 'affiliate_boost_multiplier', 'affiliate_boost_ends_at', 'affiliate_boost_name']);
+
+  const boostMap = Object.fromEntries((boostSettings || []).map(s => [s.setting_key, s.setting_value]));
+  const isBoostActive = boostMap.affiliate_boost_enabled === 'true' &&
+    (!boostMap.affiliate_boost_ends_at || new Date(boostMap.affiliate_boost_ends_at) > new Date());
+  const boostData = isBoostActive ? {
+    multiplier: boostMap.affiliate_boost_multiplier || '2.0',
+    name: boostMap.affiliate_boost_name || 'Special Multiplier Boost'
+  } : null;
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -155,44 +170,16 @@ export default async function AccountPage() {
           </div>
         </div>
 
-        {/* Referral Card */}
-        {availableBalance > 0 ? (
-          <div style={{ background: 'rgba(251,191,36,0.06)', borderRadius: '16px', padding: '28px', marginBottom: '24px', border: '1px solid rgba(251,191,36,0.2)' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', color: 'var(--text2)' }}>💰 Referral Balance</h2>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
-              <div>
-                <div style={{ fontSize: '28px', fontWeight: '900', color: '#fbbf24', marginBottom: '4px' }}>
-                  {Number(availableBalance).toLocaleString()} UGX
-                </div>
-                <p style={{ margin: 0, fontSize: '14px', color: 'var(--text2)' }}>
-                  Available to withdraw or convert to watch days
-                  {convertibleDays > 0 && <strong style={{ color: '#fff' }}> ({convertibleDays} days @ {ugxPerDay.toLocaleString()} UGX/day)</strong>}
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <ConvertToWatchDaysButton availableBalance={availableBalance} ugxPerDay={ugxPerDay} convertibleDays={convertibleDays} />
-                <Link href="/account/referrals" className="gms-btn gms-btn--ghost" style={{ padding: '10px 18px', fontSize: '14px' }}>
-                  Partner Dashboard →
-                </Link>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '24px 28px', marginBottom: '24px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <span style={{ fontSize: '32px' }}>🤝</span>
-              <div>
-                <h3 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: '700', color: '#fff' }}>Partner & Referral Program</h3>
-                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text3)' }}>
-                  Invite friends to FlixOn and earn cash for clicks plus high commissions on every subscription!
-                </p>
-              </div>
-            </div>
-            <Link href="/account/referrals" className="gms-btn gms-btn--primary" style={{ padding: '10px 20px', fontSize: '14px' }}>
-              {affiliateStatus === 'approved' ? 'Partner Dashboard →' : (affiliateStatus === 'pending' ? 'Application Under Review ⏳' : 'Join Partner Program →')}
-            </Link>
-          </div>
-        )}
+        {/* Affiliate & Earning Card */}
+        <AffiliateEarnCard
+          affiliateCode={affiliateCode}
+          affiliateStatus={affiliateStatus}
+          availableBalance={availableBalance}
+          subscriptionEndDate={profile?.subscription_end_date}
+          plans={plans || []}
+          boostData={boostData}
+          siteUrl={process.env.NEXT_PUBLIC_SITE_URL || 'https://flixon.net'}
+        />
 
         {/* PPV Rentals */}
         {ppvPurchases && ppvPurchases.length > 0 && (

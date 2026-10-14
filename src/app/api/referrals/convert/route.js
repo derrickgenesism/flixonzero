@@ -3,22 +3,43 @@ import { createClient as createServerClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 
 // POST /api/referrals/convert
-// Convert referral earnings into subscription watch days
+// Convert referral earnings into subscription watch days based directly on platform subscription plans
 export async function POST(request) {
   try {
     const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { days } = await request.json();
-    if (!days || days < 1) return NextResponse.json({ error: 'Invalid days' }, { status: 400 });
+    const body = await request.json();
+    const daysRequested = Number(body.days);
+    if (!daysRequested || daysRequested < 1) {
+      return NextResponse.json({ error: 'Invalid number of days' }, { status: 400 });
+    }
 
     const admin = createAdminClient();
 
-    // Rate: 10,000 UGX = 30 days (~333.33 UGX per day)
-    const { data: setting } = await admin.from('admin_settings').select('setting_value').eq('setting_key', 'referral_ugx_per_day').maybeSingle();
-    const ugxPerDay = Number(setting?.setting_value || 333);
-    const totalCost = days * ugxPerDay;
+    // Fetch active subscription plans to determine pricing equivalent
+    const { data: plans } = await admin
+      .from('subscription_plans')
+      .select('id, name, price, duration_days')
+      .eq('is_active', true)
+      .order('price', { ascending: true });
+
+    const dailyPlan = plans?.find(p => p.duration_days === 1) || { price: 1000, duration_days: 1 };
+    const twoWeeksPlan = plans?.find(p => p.duration_days === 14);
+    const monthlyPlan = plans?.find(p => p.duration_days === 30);
+
+    const dailyRate = Math.round(Number(dailyPlan.price) / Number(dailyPlan.duration_days));
+
+    // Determine cost: package pricing if exact match, otherwise dailyRate per day
+    let totalCost = 0;
+    if (twoWeeksPlan && daysRequested === 14) {
+      totalCost = Number(twoWeeksPlan.price);
+    } else if (monthlyPlan && daysRequested === 30) {
+      totalCost = Number(monthlyPlan.price);
+    } else {
+      totalCost = daysRequested * dailyRate;
+    }
 
     // Get user profile
     const { data: profile } = await admin
@@ -55,11 +76,15 @@ export async function POST(request) {
       .eq('id', affiliate.id);
 
     // 2. Extend subscription
-    const currentEnd = profile.subscription_end_date && new Date(profile.subscription_end_date) > new Date()
-      ? new Date(profile.subscription_end_date)
-      : new Date();
+    const now = new Date();
+    const isCurrentlyActive = profile.subscription_end_date && new Date(profile.subscription_end_date) > now;
+    const currentEnd = isCurrentlyActive ? new Date(profile.subscription_end_date) : now;
+    const prevDays = isCurrentlyActive
+      ? Math.max(0, Math.ceil((new Date(profile.subscription_end_date) - now) / (1000 * 60 * 60 * 24)))
+      : 0;
 
-    const newEnd = new Date(currentEnd.getTime() + days * 24 * 60 * 60 * 1000);
+    const newEnd = new Date(currentEnd.getTime() + daysRequested * 24 * 60 * 60 * 1000);
+    const newTotalDays = prevDays + daysRequested;
 
     await admin
       .from('user_profiles')
@@ -69,18 +94,25 @@ export async function POST(request) {
       })
       .eq('id', profile.id);
 
-    // 3. Record in affiliate_commissions
+    // 3. Record in affiliate_commissions with transparent breakdown description
+    const description = prevDays > 0
+      ? `Converted ${totalCost.toLocaleString()} UGX to +${daysRequested} Watch Days (${prevDays} existing + ${daysRequested} added = ${newTotalDays} total days)`
+      : `Converted ${totalCost.toLocaleString()} UGX to ${daysRequested} VIP Watch Days`;
+
     await admin.from('affiliate_commissions').insert({
       affiliate_id: affiliate.id,
       amount: -totalCost,
       type: 'watch_days',
-      description: `Converted ${totalCost.toLocaleString()} UGX to ${days} Watch Days`
+      description
     });
 
     return NextResponse.json({
       success: true,
-      daysAdded: days,
-      newExpiry: newEnd.toISOString()
+      daysAdded: daysRequested,
+      prevDays,
+      newTotalDays,
+      newExpiry: newEnd.toISOString(),
+      message: `🎉 Successfully added +${daysRequested} Watch Days! ${prevDays > 0 ? `Added to your existing ${prevDays} days (${newTotalDays} total days remaining).` : `You have ${newTotalDays} days remaining.`}`
     });
   } catch (err) {
     console.error('[convert error]', err);

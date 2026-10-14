@@ -18,6 +18,7 @@ export default function ReferralsClient({
   const [loadingPayout, setLoadingPayout] = useState(false)
   const [convertMessage, setConvertMessage] = useState(null)
   const [payoutMessage, setPayoutMessage] = useState(null)
+  const [confirmConvert, setConfirmConvert] = useState(false)
 
   const availableBalance = Number(affiliate?.balance || 0)
   const totalEarned = Number(affiliate?.total_earned || 0)
@@ -59,7 +60,7 @@ export default function ReferralsClient({
 
   // Convert submission
   async function handleConvertSubmit(e) {
-    e.preventDefault()
+    if (e && e.preventDefault) e.preventDefault()
     setLoadingConvert(true)
     setConvertMessage(null)
     const formData = new FormData()
@@ -67,6 +68,7 @@ export default function ReferralsClient({
 
     const res = await convertToWatchDays(formData)
     setLoadingConvert(false)
+    setConfirmConvert(false)
     if (res?.success) {
       setConvertMessage({ type: 'success', text: res.message })
       setConvertAmount('')
@@ -94,8 +96,20 @@ export default function ReferralsClient({
     }
   }
 
-  // Live days calculation: 10,000 UGX = 30 days
-  const daysPreview = convertAmount ? Math.floor((Number(convertAmount) / 10000) * 30) : 0
+  // Live days calculation strictly following platform subscription plans (Daily = 1,000 UGX/day; 2-Weeks = 5,000 UGX = 14 days; Monthly = 9,000 UGX = 30 days)
+  const amtNum = Number(convertAmount) || 0
+  let daysPreview = 0
+  if (amtNum >= 9000) {
+    const months = Math.floor(amtNum / 9000)
+    const rem = amtNum % 9000
+    daysPreview = months * 30 + Math.floor(rem / 1000)
+  } else if (amtNum >= 5000) {
+    const fortnights = Math.floor(amtNum / 5000)
+    const rem = amtNum % 5000
+    daysPreview = fortnights * 14 + Math.floor(rem / 1000)
+  } else {
+    daysPreview = Math.floor(amtNum / 1000)
+  }
 
   return (
     <div>
@@ -288,7 +302,7 @@ export default function ReferralsClient({
             <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#60a5fa', margin: 0 }}>Convert to Watch Days</h2>
           </div>
           <p style={{ color: 'var(--text2)', fontSize: '13px', marginBottom: '20px', lineHeight: '1.6' }}>
-            Enjoy unlimited movie streaming! Convert your balance into VIP access days instantly with zero fees. (Rate: 10,000 UGX = 30 Days)
+            Enjoy unlimited movie streaming! Convert your balance into VIP access days matching our official plan pricing (Daily Pass: 1,000 UGX = 1 day, 2-Weeks: 5,000 UGX = 14 days, Monthly: 9,000 UGX = 30 days).
           </p>
 
           {convertMessage && (
@@ -305,36 +319,86 @@ export default function ReferralsClient({
             </div>
           )}
 
-          <form onSubmit={handleConvertSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '6px' }}>Amount to convert (UGX)</label>
-              <input 
-                type="number" 
-                value={convertAmount}
-                onChange={e => setConvertAmount(e.target.value)}
-                placeholder="e.g. 5000"
-                required
-                min={1000}
-                max={availableBalance}
-                className="flx-form-input"
-                style={{ width: '100%' }}
-              />
-              {daysPreview > 0 && (
-                <div style={{ fontSize: '12px', color: '#60a5fa', marginTop: '6px', fontWeight: '600' }}>
-                  ✨ You will receive: <strong>{daysPreview} VIP Watch Days</strong>
-                </div>
-              )}
+          {confirmConvert ? (
+            /* Step 2: Confirmation Warning */
+            <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '10px', padding: '16px', marginBottom: '14px' }}>
+              <div style={{ fontSize: '14px', fontWeight: '800', color: '#fbbf24', marginBottom: '8px' }}>
+                ⚠️ Confirm Conversion
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#fff', lineHeight: '1.5' }}>
+                Are you sure you want to convert <strong>{amtNum.toLocaleString()} UGX</strong> to add <strong>+{daysPreview} VIP Watch Days</strong> to your account? This action cannot be reversed.
+              </p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setConfirmConvert(false)}
+                  disabled={loadingConvert}
+                  className="gms-btn gms-btn--ghost"
+                  style={{ flex: 1, padding: '10px', fontSize: '13px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConvertSubmit}
+                  disabled={loadingConvert}
+                  className="gms-btn gms-btn--primary"
+                  style={{ flex: 1.3, padding: '10px', fontSize: '13px', background: '#d97706', borderColor: '#d97706', fontWeight: '800' }}
+                >
+                  {loadingConvert ? 'Converting...' : 'Yes, Confirm'}
+                </button>
+              </div>
             </div>
-
-            <button 
-              type="submit" 
-              className="gms-btn gms-btn--primary" 
-              style={{ background: '#3b82f6', width: '100%', padding: '12px' }}
-              disabled={loadingConvert || availableBalance < 1000}
+          ) : (
+            /* Step 1: Input Form */
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (amtNum < 1000) {
+                  alert('Minimum conversion is 1,000 UGX (1 Day Pass)');
+                  return;
+                }
+                if (amtNum > availableBalance) {
+                  alert(`Insufficient balance. You have ${availableBalance.toLocaleString()} UGX.`);
+                  return;
+                }
+                setConfirmConvert(true);
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
             >
-              {loadingConvert ? 'Converting...' : 'Instant VIP Convert'}
-            </button>
-          </form>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '6px' }}>Amount to convert (UGX)</label>
+                <input 
+                  type="number" 
+                  value={convertAmount}
+                  onChange={e => {
+                    setConvertAmount(e.target.value);
+                    setConfirmConvert(false);
+                  }}
+                  placeholder="e.g. 1000, 3000, 5000"
+                  required
+                  min={1000}
+                  max={availableBalance}
+                  className="flx-form-input"
+                  style={{ width: '100%' }}
+                />
+                {daysPreview > 0 && (
+                  <div style={{ fontSize: '12px', color: '#60a5fa', marginTop: '6px', fontWeight: '600' }}>
+                    ✨ Equivalent: <strong>+{daysPreview} VIP Watch Days</strong>
+                  </div>
+                )}
+              </div>
+
+              <button 
+                type="submit" 
+                className="gms-btn gms-btn--primary" 
+                style={{ background: '#3b82f6', width: '100%', padding: '12px' }}
+                disabled={availableBalance < 1000}
+              >
+                Review & Convert {amtNum > 0 ? `${amtNum.toLocaleString()} UGX` : ''} →
+              </button>
+            </form>
+          )}
         </div>
 
         {/* Request Cash Payout */}

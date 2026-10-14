@@ -33,6 +33,7 @@ export default function AffiliatesClient({ data }) {
   const [selectedUser, setSelectedUser] = useState(null)
   const [adjustAmount, setAdjustAmount] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
+  const [commType, setCommType] = useState(config.affiliate_commission_type || 'fixed')
 
   async function handleSaveSettings(formData) {
     setLoading(true)
@@ -124,6 +125,66 @@ export default function AffiliatesClient({ data }) {
 
       {/* Settings Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '40px' }}>
+        {/* Promotional Offers & Boosts Manager */}
+        <div style={{ background: 'var(--bg2)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '20px' }}>🔥</span>
+            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>Promotional Offers & Boosts</h2>
+          </div>
+          <p style={{ color: 'var(--text3)', fontSize: '13px', marginBottom: '16px', lineHeight: '1.5' }}>
+            Activate temporary commission multiplier boosts (e.g. 2X Weekend Boost) to motivate affiliates to share heavily.
+          </p>
+          <form action={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <input type="hidden" name="_section_boost" value="1" />
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', cursor: 'pointer' }}>
+                <input type="checkbox" name="affiliate_boost_enabled" value="true" defaultChecked={config.affiliate_boost_enabled === 'true'} />
+                <strong style={{ color: '#fbbf24' }}>Enable Multiplier Boost Campaign</strong>
+              </label>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                Multiplier (e.g. 2.0 = Double Commission, 1.5 = 50% extra)
+              </label>
+              <input 
+                type="number" 
+                step="0.1"
+                min="1.0"
+                max="5.0"
+                name="affiliate_boost_multiplier" 
+                defaultValue={config.affiliate_boost_multiplier || '2.0'}
+                className="flx-form-input" 
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                Campaign Name / Headline
+              </label>
+              <input 
+                type="text" 
+                name="affiliate_boost_name" 
+                defaultValue={config.affiliate_boost_name || 'Weekend 2X Cash Blitz'}
+                placeholder="e.g. Weekend 2X Cash Blitz"
+                className="flx-form-input" 
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                Offer Expiration (Leave blank for indefinite)
+              </label>
+              <input 
+                type="datetime-local" 
+                name="affiliate_boost_ends_at" 
+                defaultValue={config.affiliate_boost_ends_at ? config.affiliate_boost_ends_at.slice(0, 16) : ''}
+                className="flx-form-input" 
+              />
+            </div>
+            <button type="submit" className="gms-btn gms-btn--primary" disabled={loading} style={{ background: '#d97706', borderColor: '#d97706' }}>
+              {loading ? 'Saving...' : 'Save Boost Campaign'}
+            </button>
+          </form>
+        </div>
+
         {/* PPC Settings */}
         <div style={{ background: 'var(--bg2)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
           <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '12px' }}>Pay-Per-Click (PPC) Settings</h2>
@@ -131,6 +192,7 @@ export default function AffiliatesClient({ data }) {
             Rewards partners for sending unique human visitors to FlixOn through their link.
           </p>
           <form action={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <input type="hidden" name="_section_ppc" value="1" />
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', cursor: 'pointer' }}>
                 <input type="checkbox" name="affiliate_ppc_enabled" value="true" defaultChecked={config.affiliate_ppc_enabled === 'true'} />
@@ -148,7 +210,7 @@ export default function AffiliatesClient({ data }) {
                 className="flx-form-input" 
               />
               <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
-                Affiliates will earn {(Number(config.affiliate_cpm_rate || 5000) / 1000).toFixed(2)} UGX per unique verified visit.
+                Affiliates earn {(Number(config.affiliate_cpm_rate || 5000) / 1000).toFixed(2)} UGX per unique verified visit.
               </p>
             </div>
             <button type="submit" className="gms-btn gms-btn--primary" disabled={loading}>
@@ -160,10 +222,11 @@ export default function AffiliatesClient({ data }) {
         {/* CPA Settings */}
         <div style={{ background: 'var(--bg2)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
           <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '12px' }}>Subscription (CPA) Settings</h2>
-          <p style={{ color: 'var(--text3)', fontSize: '13px', marginBottom: '20px', lineHeight: '1.5' }}>
-            Fixed commissions paid to partners when referred users purchase specific VIP passes.
+          <p style={{ color: 'var(--text3)', fontSize: '13px', marginBottom: '16px', lineHeight: '1.5' }}>
+            Choose how partners earn when referred users buy VIP passes: Fixed UGX or Percentage % of plan price.
           </p>
           <form action={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <input type="hidden" name="_section_cpa" value="1" />
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', cursor: 'pointer' }}>
                 <input type="checkbox" name="affiliate_cpa_enabled" value="true" defaultChecked={config.affiliate_cpa_enabled === 'true'} />
@@ -171,40 +234,88 @@ export default function AffiliatesClient({ data }) {
               </label>
             </div>
 
-            {plans.length > 0 ? (
-              plans.map(p => {
-                const planKey = `affiliate_plan_${p.id}_reward`
-                const defaultVal = config[planKey] || (p.price >= 9000 ? 3000 : (p.price >= 5000 ? 1500 : 200))
+            {/* Mode Selector */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>
+                Commission Calculation Mode
+              </label>
+              <div style={{ display: 'flex', gap: '14px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#fff', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="affiliate_commission_type"
+                    value="fixed"
+                    checked={commType === 'fixed'}
+                    onChange={() => setCommType('fixed')}
+                  />
+                  Fixed UGX per Plan
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#fff', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="affiliate_commission_type"
+                    value="percentage"
+                    checked={commType === 'percentage'}
+                    onChange={() => setCommType('percentage')}
+                  />
+                  Percentage (%)
+                </label>
+              </div>
+            </div>
 
-                return (
-                  <div key={p.id}>
-                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
-                      Commission for <strong>{p.name}</strong> ({Number(p.price).toLocaleString()} UGX)
-                    </label>
-                    <input 
-                      type="number" 
-                      name={planKey}
-                      defaultValue={defaultVal}
-                      className="flx-form-input" 
-                    />
-                  </div>
-                )
-              })
+            {commType === 'percentage' ? (
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                  Commission Percentage (%)
+                </label>
+                <input 
+                  type="number" 
+                  name="affiliate_commission_percentage" 
+                  defaultValue={config.affiliate_commission_percentage || 25}
+                  min="1"
+                  max="80"
+                  className="flx-form-input" 
+                />
+                <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+                  Partners earn this percentage on every subscription (e.g. 25% of 9,000 UGX Monthly Pass = 2,250 UGX).
+                </p>
+              </div>
             ) : (
-              <>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
-                    Daily Pass Commission (UGX)
-                  </label>
-                  <input type="number" name="affiliate_plan_1_reward" defaultValue={config.affiliate_plan_1_reward || 200} className="flx-form-input" />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
-                    Monthly Pass Commission (UGX)
-                  </label>
-                  <input type="number" name="affiliate_plan_3_reward" defaultValue={config.affiliate_plan_3_reward || config.affiliate_plan_2_reward || 3000} className="flx-form-input" />
-                </div>
-              </>
+              plans.length > 0 ? (
+                plans.map(p => {
+                  const planKey = `affiliate_plan_${p.id}_reward`
+                  const defaultVal = config[planKey] || (p.price >= 9000 ? 3000 : (p.price >= 5000 ? 1500 : 200))
+
+                  return (
+                    <div key={p.id}>
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                        Commission for <strong>{p.name}</strong> ({Number(p.price).toLocaleString()} UGX)
+                      </label>
+                      <input 
+                        type="number" 
+                        name={planKey}
+                        defaultValue={defaultVal}
+                        className="flx-form-input" 
+                      />
+                    </div>
+                  )
+                })
+              ) : (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                      Daily Pass Commission (UGX)
+                    </label>
+                    <input type="number" name="affiliate_plan_1_reward" defaultValue={config.affiliate_plan_1_reward || 200} className="flx-form-input" />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                      Monthly Pass Commission (UGX)
+                    </label>
+                    <input type="number" name="affiliate_plan_3_reward" defaultValue={config.affiliate_plan_3_reward || config.affiliate_plan_2_reward || 3000} className="flx-form-input" />
+                  </div>
+                </>
+              )
             )}
 
             <button type="submit" className="gms-btn gms-btn--primary" disabled={loading}>

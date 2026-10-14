@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import SearchInput from './SearchInput';
 import NotificationBell from './NotificationBell';
+import MovieRequestModal from './MovieRequestModal';
 import { logoutAndClearProfile } from '@/app/profiles/actions';
 
 import { createClient } from '@/utils/supabase/client';
@@ -12,6 +13,7 @@ import { createClient } from '@/utils/supabase/client';
 export default function NavbarClient({ user, activeProfile, isActive, daysLeft, seriesEnabled }) {
   const [scrolled, setScrolled] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
   const pathname = usePathname();
   const supabase = createClient();
 
@@ -98,6 +100,15 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft, 
         {seriesEnabled && <Link href="/series" className={`flx-nav__link${pathname.startsWith('/series') ? ' flx-nav__link--active' : ''}`}>Series</Link>}
         <Link href="/movies" className={`flx-nav__link${pathname === '/movies' ? ' flx-nav__link--active' : ''}`}>Movies</Link>
         <Link href="/my-list" className={`flx-nav__link${pathname === '/my-list' ? ' flx-nav__link--active' : ''}`}>My List</Link>
+        <button
+          type="button"
+          onClick={() => setRequestModalOpen(true)}
+          className="flx-nav__link"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit', display: 'flex', alignItems: 'center', gap: '5px' }}
+        >
+          <span>Request</span>
+          <span style={{ fontSize: '9px', background: 'var(--acc, #e50914)', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>NEW</span>
+        </button>
       </div>
 
       {/* Center: Search */}
@@ -144,6 +155,12 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft, 
           </>
         )}
       </div>
+
+      <MovieRequestModal
+        isOpen={requestModalOpen}
+        onClose={() => setRequestModalOpen(false)}
+        defaultEmail={user?.email || ''}
+      />
     </nav>
   );
 }
