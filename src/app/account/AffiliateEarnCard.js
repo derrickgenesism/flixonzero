@@ -23,7 +23,11 @@ export default function AffiliateEarnCard({
   const [simFriends, setSimFriends] = useState(5);
 
   const isApproved = affiliateCode && (affiliateStatus === 'approved' || !affiliateStatus);
-  const referralLink = affiliateCode ? `${siteUrl}/ref/${affiliateCode}` : '';
+  // Guarantee official domain https://flixon.net is always used (never leaking vercel.app deployment URLs)
+  const cleanBaseUrl = (!siteUrl || siteUrl.includes('vercel.app') || siteUrl.includes('your-domain'))
+    ? 'https://flixon.net'
+    : siteUrl.replace(/\/+$/, '');
+  const referralLink = affiliateCode ? `${cleanBaseUrl}/?ref=${affiliateCode}` : '';
 
   // Commission calculation for simulator (e.g. 3,000 UGX per monthly pass or 25%)
   const monthlyCommission = boostData?.multiplier ? Math.round(3000 * Number(boostData.multiplier)) : 3000;

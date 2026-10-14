@@ -178,7 +178,7 @@ export default async function AccountPage() {
           subscriptionEndDate={profile?.subscription_end_date}
           plans={plans || []}
           boostData={boostData}
-          siteUrl={process.env.NEXT_PUBLIC_SITE_URL || 'https://flixon.net'}
+          siteUrl="https://flixon.net"
         />
 
         {/* PPV Rentals */}

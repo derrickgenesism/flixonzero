@@ -158,11 +158,12 @@ export default async function ReferralsPage() {
   }
 
   // STATE 4: Approved (Dashboard)
-  // Dynamically resolve real website origin from request headers
+  // Always use the official production domain https://flixon.net for shareable referral links,
+  // preventing internal/preview deployment URLs (like flixozero.vercel.app) from leaking to end users.
   const headersList = await headers();
-  const host = headersList.get('host') || 'localhost:3000';
-  const proto = headersList.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
-  const siteUrl = `${proto}://${host}`;
+  const host = headersList.get('host') || '';
+  const isLocalDev = process.env.NODE_ENV === 'development' && (host.includes('localhost') || host.includes('127.0.0.1'));
+  const siteUrl = isLocalDev ? `http://${host}` : 'https://flixon.net';
   const referralLink = `${siteUrl}/?ref=${affiliate.referral_code}`;
 
   // Get stats: Total Signups

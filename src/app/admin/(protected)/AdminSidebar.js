@@ -1,8 +1,8 @@
-﻿'use client';
+'use client';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
-export default function AdminSidebar({ unreadSupportCount }) {
+export default function AdminSidebar({ unreadSupportCount, pendingPayoutsCount = 0 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -57,7 +57,14 @@ export default function AdminSidebar({ unreadSupportCount }) {
           <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px', color: 'var(--text3)', textTransform: 'uppercase', margin: '12px 0 4px' }}>Revenue</div>
           <Link href="/admin/plans" style={{ color: '#fff', fontSize: '14px' }}>💳 Subscription Plans</Link>
           <Link href="/admin/transactions" style={{ color: '#fff', fontSize: '14px' }}>💰 Transactions</Link>
-          <Link href="/admin/payouts" style={{ color: '#fff', fontSize: '14px' }}>💸 Payout Requests</Link>
+          <Link href="/admin/payouts" style={{ color: '#fff', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>💸 Payout Requests</span>
+            {pendingPayoutsCount > 0 && (
+              <span style={{ background: '#fbbf24', color: '#000', fontSize: '11px', fontWeight: '800', padding: '2px 7px', borderRadius: '10px' }}>
+                {pendingPayoutsCount}
+              </span>
+            )}
+          </Link>
           <Link href="/admin/affiliates" style={{ color: '#fff', fontSize: '14px' }}>🤝 Affiliates & Referrals</Link>
           <Link href="/admin/promo-codes" style={{ color: '#fff', fontSize: '14px' }}>🎁 Promo Codes</Link>
 

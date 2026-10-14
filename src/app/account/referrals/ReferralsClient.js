@@ -41,21 +41,26 @@ export default function ReferralsClient({
     targetSignups = 20
   }
 
+  // Guarantee official domain https://flixon.net is always used for referral sharing
+  const effectiveLink = (referralLink || (affiliate?.referral_code ? `https://flixon.net/?ref=${affiliate.referral_code}` : 'https://flixon.net'))
+    .replace(/^https?:\/\/[^/]*vercel\.app/i, 'https://flixon.net')
+    .replace(/^https?:\/\/your-domain\.com/i, 'https://flixon.net')
+
   // Copy referral link handler
   function handleCopy() {
-    if (!referralLink) return
+    if (!effectiveLink) return
     if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(referralLink)
+      navigator.clipboard.writeText(effectiveLink)
       setCopied(true)
       setTimeout(() => setCopied(false), 2500)
     }
   }
 
   // Pre-formatted share messages
-  const shareText = encodeURIComponent(`Watch the latest movies, Hollywood & Luganda translated on FlixOn! Sign up with my link to start streaming: ${referralLink}`)
+  const shareText = encodeURIComponent(`Watch the latest movies, Hollywood & Luganda translated on FlixOn! Sign up with my link to start streaming: ${effectiveLink}`)
   const whatsappUrl = `https://api.whatsapp.com/send?text=${shareText}`
-  const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Watch the latest movies and series on FlixOn!')}`
-  const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`
+  const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(effectiveLink)}&text=${encodeURIComponent('Watch the latest movies and series on FlixOn!')}`
+  const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(effectiveLink)}`
   const twitterUrl = `https://twitter.com/intent/tweet?text=${shareText}`
 
   // Convert submission
@@ -174,7 +179,7 @@ export default function ReferralsClient({
           <input 
             type="text" 
             readOnly 
-            value={referralLink} 
+            value={effectiveLink} 
             style={{ 
               flex: 1, 
               minWidth: '240px',
@@ -411,6 +416,58 @@ export default function ReferralsClient({
             Withdraw your earnings directly to your MTN or Airtel Mobile Money. Minimum cash withdrawal is 5,000 UGX.
           </p>
 
+          {/* Pending Payout Banner */}
+          {commissions.find(c => c.type === 'payout_pending') && (
+            <div style={{
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '13px',
+              marginBottom: '16px',
+              background: 'rgba(251,191,36,0.1)',
+              color: '#fbbf24',
+              border: '1px solid rgba(251,191,36,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{ fontSize: '20px' }}>⏳</span>
+              <div>
+                <div style={{ fontWeight: '700' }}>
+                  Payout Request Pending: {Math.abs(Number(commissions.find(c => c.type === 'payout_pending').amount)).toLocaleString()} UGX
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
+                  {commissions.find(c => c.type === 'payout_pending').description} · Once sent by admin, status will show <strong>GREEN (Sent)</strong> below.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Latest Sent Payout Banner */}
+          {!commissions.find(c => c.type === 'payout_pending') && commissions.find(c => c.type === 'payout_completed') && (
+            <div style={{
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '13px',
+              marginBottom: '16px',
+              background: 'rgba(74,222,128,0.08)',
+              color: '#4ade80',
+              border: '1px solid rgba(74,222,128,0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{ fontSize: '20px' }}>✅</span>
+              <div>
+                <div style={{ fontWeight: '700' }}>
+                  Latest Payout Sent: {Math.abs(Number(commissions.find(c => c.type === 'payout_completed').amount)).toLocaleString()} UGX
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
+                  {commissions.find(c => c.type === 'payout_completed').description} · Sent on {new Date(commissions.find(c => c.type === 'payout_completed').created_at).toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+          )}
+
           {payoutMessage && (
             <div style={{
               padding: '10px 14px',
@@ -477,13 +534,14 @@ export default function ReferralsClient({
               <th style={{ padding: '14px 20px', fontWeight: '500' }}>Date</th>
               <th style={{ padding: '14px 20px', fontWeight: '500' }}>Type</th>
               <th style={{ padding: '14px 20px', fontWeight: '500' }}>Description</th>
+              <th style={{ padding: '14px 20px', fontWeight: '500' }}>Status</th>
               <th style={{ padding: '14px 20px', fontWeight: '500', textAlign: 'right' }}>Amount</th>
             </tr>
           </thead>
           <tbody>
             {commissions.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--text3)' }}>
+                <td colSpan={5} style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--text3)' }}>
                   No earnings or transactions recorded yet. Share your partner link to start earning!
                 </td>
               </tr>
@@ -495,22 +553,69 @@ export default function ReferralsClient({
               let badgeBg = 'rgba(74,222,128,0.1)'
               let typeLabel = 'Commission'
 
+              let statusLabel = 'Credited'
+              let statusColor = '#4ade80'
+              let statusBg = 'rgba(74,222,128,0.15)'
+              let statusBorder = 'rgba(74,222,128,0.35)'
+
               if (comm.type === 'click') {
                 typeLabel = 'Link Visit'
                 badgeColor = '#38bdf8'
                 badgeBg = 'rgba(56,189,248,0.1)'
+                statusLabel = 'Verified'
+                statusColor = '#38bdf8'
+                statusBg = 'rgba(56,189,248,0.12)'
+                statusBorder = 'rgba(56,189,248,0.3)'
               } else if (comm.type === 'subscription') {
                 typeLabel = 'Subscription'
                 badgeColor = '#4ade80'
                 badgeBg = 'rgba(74,222,128,0.1)'
+                statusLabel = 'Credited'
+                statusColor = '#4ade80'
+                statusBg = 'rgba(74,222,128,0.15)'
+                statusBorder = 'rgba(74,222,128,0.35)'
               } else if (comm.type === 'watch_days') {
                 typeLabel = 'VIP Convert'
-                badgeColor = '#a78bfa'
-                badgeBg = 'rgba(167,139,250,0.1)'
+                badgeColor = '#60a5fa'
+                badgeBg = 'rgba(96,165,250,0.1)'
+                statusLabel = 'Converted'
+                statusColor = '#60a5fa'
+                statusBg = 'rgba(96,165,250,0.15)'
+                statusBorder = 'rgba(96,165,250,0.35)'
+              } else if (comm.type === 'payout_pending') {
+                // When NOT SENT: Shows Pending
+                typeLabel = 'Cash Payout'
+                badgeColor = '#fbbf24'
+                badgeBg = 'rgba(251,191,36,0.1)'
+                statusLabel = '⏳ Pending'
+                statusColor = '#fbbf24'
+                statusBg = 'rgba(251,191,36,0.12)'
+                statusBorder = 'rgba(251,191,36,0.35)'
+              } else if (comm.type === 'payout_completed') {
+                // When SENT: Shows Green
+                typeLabel = 'Cash Payout'
+                badgeColor = '#4ade80'
+                badgeBg = 'rgba(74,222,128,0.1)'
+                statusLabel = '✅ Sent'
+                statusColor = '#4ade80'
+                statusBg = 'rgba(74,222,128,0.15)'
+                statusBorder = 'rgba(74,222,128,0.4)'
+              } else if (comm.type === 'payout_rejected') {
+                typeLabel = 'Cash Payout'
+                badgeColor = '#f87171'
+                badgeBg = 'rgba(239,68,68,0.1)'
+                statusLabel = '❌ Rejected'
+                statusColor = '#f87171'
+                statusBg = 'rgba(239,68,68,0.12)'
+                statusBorder = 'rgba(239,68,68,0.35)'
               } else if (comm.type?.startsWith('payout')) {
                 typeLabel = 'Cash Payout'
                 badgeColor = '#fbbf24'
                 badgeBg = 'rgba(251,191,36,0.1)'
+                statusLabel = 'Pending'
+                statusColor = '#fbbf24'
+                statusBg = 'rgba(251,191,36,0.12)'
+                statusBorder = 'rgba(251,191,36,0.35)'
               }
 
               return (
@@ -525,6 +630,22 @@ export default function ReferralsClient({
                   </td>
                   <td style={{ padding: '14px 20px', color: 'var(--text2)' }}>
                     {comm.description || 'Affiliate Activity'}
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <span style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      color: statusColor,
+                      background: statusBg,
+                      border: `1px solid ${statusBorder}`,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      {statusLabel}
+                    </span>
                   </td>
                   <td style={{ padding: '14px 20px', textAlign: 'right', fontWeight: '700', color: isPositive ? '#4ade80' : '#f87171' }}>
                     {isPositive ? `+${amountNum.toLocaleString()}` : amountNum.toLocaleString()} UGX

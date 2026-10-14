@@ -1,4 +1,4 @@
-﻿import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import AdminSidebar from './AdminSidebar'
 
@@ -27,6 +27,12 @@ export default async function AdminLayout({ children }) {
     .eq('is_read', false)
     .eq('sender_role', 'user');
 
+  // Fetch pending payouts count (unsent)
+  const { count: pendingPayoutsCount } = await supabase
+    .from('affiliate_commissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('type', 'payout_pending');
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg)' }}>
       <style dangerouslySetInnerHTML={{
@@ -46,7 +52,10 @@ export default async function AdminLayout({ children }) {
         `
       }} />
       <div className="admin-layout-wrapper" style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%' }}>
-        <AdminSidebar unreadSupportCount={unreadSupportCount || 0} />
+        <AdminSidebar 
+          unreadSupportCount={unreadSupportCount || 0} 
+          pendingPayoutsCount={pendingPayoutsCount || 0} 
+        />
         
         {/* Main Content */}
         <main className="admin-main-content">

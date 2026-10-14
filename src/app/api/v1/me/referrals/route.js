@@ -56,14 +56,14 @@ export async function GET() {
     const balance        = Number(affiliate?.balance || 0);
 
     const headersList = await headers();
-    const host = headersList.get('host') || 'flixon.com';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const siteUrl = `${protocol}://${host}`;
+    const host = headersList.get('host') || '';
+    const isDev = process.env.NODE_ENV === 'development' && (host.includes('localhost') || host.includes('127.0.0.1'));
+    const siteUrl = isDev ? `http://${host}` : 'https://flixon.net';
 
     return NextResponse.json({
       data: {
         ref_code: refCode,
-        referral_link: refCode ? `${siteUrl}/login?ref=${refCode}` : null,
+        referral_link: refCode ? `${siteUrl}/?ref=${refCode}` : null,
         affiliate_status: affiliate?.status || 'none',
         stats: {
           total_referrals: totalSignups || 0,

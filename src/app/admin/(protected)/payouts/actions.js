@@ -20,9 +20,11 @@ async function verifyAdmin() {
   return { user, admin };
 }
 
-export async function approvePayout(formData) {
+export async function approvePayout(arg) {
   const { admin } = await verifyAdmin();
-  const id = formData.get('id');
+  const id = typeof arg === 'string' ? arg : arg?.get?.('id');
+
+  if (!id) return { error: 'Missing payout ID' };
 
   const { data: comm } = await admin
     .from('affiliate_commissions')
@@ -30,17 +32,24 @@ export async function approvePayout(formData) {
     .eq('id', id)
     .maybeSingle();
 
-  if (!comm || comm.type !== 'payout_pending') return;
+  if (!comm || comm.type !== 'payout_pending') {
+    return { error: 'Payout request not found or not in pending state' };
+  }
+
+  const cleanDesc = (comm.description || 'Mobile Money Payout').replace(/\s*\(Pending Admin Transfer\)/gi, '').trim();
 
   const { error } = await admin
     .from('affiliate_commissions')
     .update({ 
       type: 'payout_completed',
-      description: comm.description.replace('(Pending Admin Transfer)', '(Paid & Sent)')
+      description: `${cleanDesc} (Paid & Sent)`
     })
     .eq('id', id);
 
-  if (error) console.error('Error approving payout:', error);
+  if (error) {
+    console.error('Error approving payout:', error);
+    return { error: 'Database update failed' };
+  }
 
   // Send support message to notify user
   try {
@@ -51,6 +60,18 @@ export async function approvePayout(formData) {
         .select('id')
         .eq('user_id', userId)
         .maybeSingle();
+
+      if (!thread) {
+        const { data: newThread } = await admin
+          .from('support_threads')
+          .insert({
+            user_id: userId,
+            subject: 'FlixOn Partner Cash Payout'
+          })
+          .select('id')
+          .single();
+        thread = newThread;
+      }
 
       if (thread) {
         await admin.from('support_messages').insert({
@@ -66,12 +87,17 @@ export async function approvePayout(formData) {
   }
 
   revalidatePath('/admin/payouts');
+  revalidatePath('/account/referrals');
+  revalidatePath('/account');
+  return { success: true };
 }
 
-export async function rejectPayout(formData) {
+export async function rejectPayout(arg, optionalReason) {
   const { admin } = await verifyAdmin();
-  const id = formData.get('id');
-  const reason = formData.get('reason') || 'Invalid mobile money number or transfer issue';
+  const id = typeof arg === 'string' ? arg : arg?.get?.('id');
+  const reason = (typeof arg?.get === 'function' ? arg.get('reason') : optionalReason) || 'Invalid mobile money number or transfer issue';
+
+  if (!id) return { error: 'Missing payout ID' };
 
   const { data: comm } = await admin
     .from('affiliate_commissions')
@@ -79,7 +105,9 @@ export async function rejectPayout(formData) {
     .eq('id', id)
     .maybeSingle();
 
-  if (!comm || comm.type !== 'payout_pending') return;
+  if (!comm || comm.type !== 'payout_pending') {
+    return { error: 'Payout request not found or not in pending state' };
+  }
 
   const refundAmount = Math.abs(Number(comm.amount));
 
@@ -95,11 +123,12 @@ export async function rejectPayout(formData) {
   }
 
   // 2. Mark commission record as rejected
+  const cleanDesc = (comm.description || 'Mobile Money Payout').replace(/\s*\(Pending Admin Transfer\)/gi, '').trim();
   await admin
     .from('affiliate_commissions')
     .update({
       type: 'payout_rejected',
-      description: `${comm.description.replace('(Pending Admin Transfer)', '')} (Rejected: ${reason})`
+      description: `${cleanDesc} (Rejected: ${reason})`
     })
     .eq('id', id);
 
@@ -112,6 +141,18 @@ export async function rejectPayout(formData) {
         .select('id')
         .eq('user_id', userId)
         .maybeSingle();
+
+      if (!thread) {
+        const { data: newThread } = await admin
+          .from('support_threads')
+          .insert({
+            user_id: userId,
+            subject: 'FlixOn Partner Cash Payout'
+          })
+          .select('id')
+          .single();
+        thread = newThread;
+      }
 
       if (thread) {
         await admin.from('support_messages').insert({
@@ -127,4 +168,7 @@ export async function rejectPayout(formData) {
   }
 
   revalidatePath('/admin/payouts');
+  revalidatePath('/account/referrals');
+  revalidatePath('/account');
+  return { success: true };
 }
