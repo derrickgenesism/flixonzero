@@ -148,6 +148,13 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
     const data = await response.json();
     console.log("FLUTTERWAVE DIRECT CHARGE RESPONSE:", data);
 
+    const flwId = data.data?.id || data.id;
+    if (flwId) {
+      await supabase.from('transactions').update({
+        flw_transaction_id: String(flwId)
+      }).eq('tx_ref', tx_ref);
+    }
+
     if (data.status === 'success' || data.message === 'Charge initiated') {
       if (data.meta && data.meta.authorization && data.meta.authorization.mode === 'redirect') {
         return { success: true, redirect_url: data.meta.authorization.redirect, tx_ref };
@@ -156,6 +163,11 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
     } else {
       console.error("Flutterwave API Error:", data);
       recordImmediateFailedAttempt(sec.ip, phoneNumber);
+      // Mark transaction failed in database
+      await supabase.from('transactions').update({
+        status: 'failed',
+        flw_transaction_id: flwId ? String(flwId) : null
+      }).eq('tx_ref', tx_ref);
       return { error: data.message || 'Failed to initiate mobile money charge', ip: sec.ip };
     }
   } catch (error) {

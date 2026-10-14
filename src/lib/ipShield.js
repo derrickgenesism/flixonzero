@@ -102,6 +102,7 @@ export async function getSecuritySettings() {
       .in('setting_key', [
         'blocked_ips',
         'blocked_fingerprints',
+        'blocked_phones',
         'vpn_blocking_enabled',
         'vpn_blocking_mode',
         'ip_whitelist'
@@ -112,6 +113,7 @@ export async function getSecuritySettings() {
       return cachedSettings || {
         blockedIps: [],
         blockedFingerprints: [],
+        blockedPhones: [],
         vpnBlockingEnabled: false,
         vpnBlockingMode: 'checkout',
         whitelist: []
@@ -136,6 +138,14 @@ export async function getSecuritySettings() {
       blockedFingerprints = [];
     }
 
+    let blockedPhones = [];
+    try {
+      const rawPhones = getVal('blocked_phones');
+      if (rawPhones) blockedPhones = JSON.parse(rawPhones);
+    } catch {
+      blockedPhones = [];
+    }
+
     let whitelist = [];
     try {
       const rawWl = getVal('ip_whitelist');
@@ -150,6 +160,7 @@ export async function getSecuritySettings() {
     cachedSettings = {
       blockedIps, // Array of { ip, reason, blocked_at, accounts }
       blockedFingerprints, // Array of string fingerprints
+      blockedPhones, // Array of normalized Ugandan phone strings
       vpnBlockingEnabled,
       vpnBlockingMode,
       whitelist
@@ -161,6 +172,7 @@ export async function getSecuritySettings() {
     return {
       blockedIps: [],
       blockedFingerprints: [],
+      blockedPhones: [],
       vpnBlockingEnabled: false,
       vpnBlockingMode: 'checkout',
       whitelist: []
@@ -191,6 +203,66 @@ export async function isFingerprintBlocked(fingerprint) {
   if (!fingerprint) return false;
   const settings = await getSecuritySettings();
   return settings.blockedFingerprints?.includes(fingerprint);
+}
+
+/**
+ * Checks if a phone number is in the blocked list
+ */
+export async function isPhoneBlocked(phone) {
+  if (!phone) return false;
+  const settings = await getSecuritySettings();
+  return (settings.blockedPhones || []).includes(phone);
+}
+
+/**
+ * Blocks a phone number in admin_settings
+ */
+export async function blockPhoneNumber(phone, reason = 'Automated enumeration / attack') {
+  if (!phone) return { success: false, error: 'No phone provided' };
+  const admin = createAdminClient();
+  const settings = await getSecuritySettings();
+  const currentPhones = new Set(settings.blockedPhones || []);
+  currentPhones.add(phone);
+
+  await admin.from('admin_settings').upsert(
+    {
+      setting_key: 'blocked_phones',
+      setting_value: JSON.stringify(Array.from(currentPhones))
+    },
+    { onConflict: 'setting_key' }
+  );
+
+  invalidateSecurityCache();
+
+  await recordSecurityAudit({
+    eventType: 'PHONE_BLOCKED',
+    severity: 'HIGH',
+    description: `Phone number ${phone} was blocked. Reason: ${reason}`,
+    metadata: { phone, reason }
+  });
+
+  return { success: true, phone, totalBlocked: currentPhones.size };
+}
+
+/**
+ * Unblocks a phone number
+ */
+export async function unblockPhoneNumber(phone) {
+  if (!phone) return { success: false, error: 'No phone provided' };
+  const admin = createAdminClient();
+  const settings = await getSecuritySettings();
+  const currentPhones = (settings.blockedPhones || []).filter((p) => p !== phone);
+
+  await admin.from('admin_settings').upsert(
+    {
+      setting_key: 'blocked_phones',
+      setting_value: JSON.stringify(currentPhones)
+    },
+    { onConflict: 'setting_key' }
+  );
+
+  invalidateSecurityCache();
+  return { success: true, phone };
 }
 
 /**

@@ -244,7 +244,10 @@ export async function verifyAndActivate(txRef, { userId = null } = {}) {
     }
 
     if (fw.data?.status === 'failed') {
-      await admin.from('transactions').update({ status: 'failed' }).eq('id', transaction.id).eq('status', 'pending');
+      await admin.from('transactions').update({
+        status: 'failed',
+        flw_transaction_id: fw.data?.id ? String(fw.data.id) : null
+      }).eq('id', transaction.id).eq('status', 'pending');
       return { status: 'failed', message: 'Transaction failed or was cancelled.' };
     }
   } catch (err) {

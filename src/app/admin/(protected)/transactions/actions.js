@@ -144,6 +144,19 @@ export async function diagnoseTransaction(transactionId) {
       }
     }
 
+    // Direct lookup by Flutterwave ID if available
+    if (data.status === 'error' && tx.flw_transaction_id) {
+      const byIdRes = await fetch(`https://api.flutterwave.com/v3/transactions/${tx.flw_transaction_id}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${flwSecret}`, 'Content-Type': 'application/json' },
+        cache: 'no-store'
+      });
+      const byIdData = await byIdRes.json();
+      if (byIdData.status === 'success' && byIdData.data) {
+        data = byIdData;
+      }
+    }
+
     if (data.status === 'error') {
       return { 
         diagnostics: {

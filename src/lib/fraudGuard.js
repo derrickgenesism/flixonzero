@@ -1,5 +1,14 @@
 import { createAdminClient } from '../utils/supabase/admin.js';
-import { isIpBlocked, isFingerprintBlocked, checkVpnOrProxy, getSecuritySettings, recordSecurityAudit } from './ipShield.js';
+import {
+  isIpBlocked,
+  isFingerprintBlocked,
+  isPhoneBlocked,
+  blockFingerprint,
+  blockPhoneNumber,
+  checkVpnOrProxy,
+  getSecuritySettings,
+  recordSecurityAudit
+} from './ipShield.js';
 
 // In-memory sliding security cache
 // Tracks rapid IP lockouts, Phone lockouts, rate cooldowns, and Telegram alert throttling
@@ -15,6 +24,81 @@ const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const AUTO_FREEZE_THRESHOLD = 10; // Auto-freeze account if >= 10 failed attempts
 const TELEGRAM_ALERT_COOLDOWN_MS = 20 * 60 * 1000; // Max 1 Telegram alert per offender every 20m
 const MIN_REQUEST_INTERVAL_MS = 12 * 1000; // 12 seconds cooldown between checkout attempts
+
+// Phone enumeration & brute-force tracking per actor (userId | fingerprint | ip)
+const phoneHistoryByActor = new Map();
+const PHONE_HISTORY_WINDOW_MS = 20 * 60 * 1000; // 20 minutes
+const MAX_DISTINCT_PHONES_ALLOWED = 2; // Normal human beings have 1 or 2 mobile money SIMs
+
+const DISPOSABLE_EMAIL_DOMAINS = [
+  'effem.com', 'mailinator.com', 'tempmail.com', '10minutemail.com',
+  'guerrillamail.com', 'throwawaymail.com', 'yopmail.com', 'sharklasers.com',
+  'getairmail.com', 'mohmal.com', 'dispostable.com', 'trashmail.com'
+];
+
+/**
+ * Checks whether an email address uses a known disposable/burner domain
+ */
+export function isDisposableEmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  const parts = email.split('@');
+  if (parts.length !== 2) return false;
+  const domain = parts[1].toLowerCase().trim();
+  return DISPOSABLE_EMAIL_DOMAINS.includes(domain);
+}
+
+/**
+ * Checks for rapid phone switching or sequential number enumeration (e.g. 8054 -> 8055)
+ */
+export function checkPhoneVelocity(actorKey, normPhone) {
+  if (!normPhone) return { attackDetected: false };
+  const now = Date.now();
+  const history = phoneHistoryByActor.get(actorKey) || [];
+  const activeHistory = history.filter((h) => now - h.timestamp < PHONE_HISTORY_WINDOW_MS);
+
+  // 1. Sequential enumeration detection (last digits incremented/decremented by 1-3)
+  if (normPhone.length === 12) {
+    for (const prev of activeHistory) {
+      if (prev.phone && prev.phone.length === 12 && prev.phone !== normPhone) {
+        // Compare same prefix (first 8 digits, e.g. 25676454)
+        if (prev.phone.substring(0, 8) === normPhone.substring(0, 8)) {
+          const prevSuffix = parseInt(prev.phone.substring(8), 10);
+          const currSuffix = parseInt(normPhone.substring(8), 10);
+          const diff = Math.abs(currSuffix - prevSuffix);
+          if (diff >= 1 && diff <= 3) {
+            return {
+              attackDetected: true,
+              reason: 'sequential_phone_scan',
+              previousPhone: prev.phone,
+              currentPhone: normPhone,
+              details: `Sequential phone scan detected: ${prev.phone} -> ${normPhone} (diff: ${diff})`
+            };
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Excessive phone cycling detection (> 2 distinct phones in 20 minutes)
+  const distinctPhones = new Set(activeHistory.map((h) => h.phone));
+  distinctPhones.add(normPhone);
+
+  if (distinctPhones.size > MAX_DISTINCT_PHONES_ALLOWED) {
+    return {
+      attackDetected: true,
+      reason: 'excessive_phone_cycling',
+      distinctCount: distinctPhones.size,
+      phoneList: Array.from(distinctPhones),
+      details: `Actor attempted ${distinctPhones.size} distinct phone numbers in 20m: ${Array.from(distinctPhones).join(', ')}`
+    };
+  }
+
+  // Record valid attempt into history
+  activeHistory.push({ phone: normPhone, timestamp: now });
+  phoneHistoryByActor.set(actorKey, activeHistory);
+
+  return { attackDetected: false };
+}
 
 /**
  * Normalizes a phone number into canonical Ugandan format: 256XXXXXXXXX (12 digits)
@@ -241,7 +325,120 @@ export async function checkPaymentSecurity({
     }
   }
 
-  // 0.2 VPN & Proxy Check
+  // 0.2 Hard Block: Check Blocked Phone Number
+  if (normPhone) {
+    const phoneBlocked = await isPhoneBlocked(normPhone);
+    if (phoneBlocked) {
+      if (userEmail) {
+        await admin.from('user_profiles').update({ role: 'banned' }).eq('email', userEmail);
+        try {
+          if (userId) await admin.auth.admin.updateUserById(userId, { ban_duration: '876000h' });
+        } catch {}
+      }
+      if (fingerprint) {
+        await blockFingerprint(fingerprint, `Associated with blocked phone number ${normPhone}`);
+      }
+      await sendFraudTelegramAlert({
+        userId,
+        userEmail,
+        username,
+        clientIp,
+        phoneNumber: normPhone,
+        network,
+        failedCount: 1,
+        actionTaken: 'PHONE BLOCKED & USER AUTO-BANNED',
+        reason: `Blocked phone number (${normPhone}) attempted checkout.`
+      });
+      return {
+        allowed: false,
+        blocked: true,
+        reason: 'blocked_phone',
+        ip: clientIp,
+        message: 'Payment Restricted: The provided mobile money number is restricted due to previous violations.'
+      };
+    }
+  }
+
+  // 0.3 Disposable / Burner Email Detection
+  if (userEmail && isDisposableEmail(userEmail)) {
+    await admin.from('user_profiles').update({ role: 'banned' }).eq('email', userEmail);
+    try {
+      if (userId) await admin.auth.admin.updateUserById(userId, { ban_duration: '876000h' });
+    } catch {}
+    if (fingerprint) {
+      await blockFingerprint(fingerprint, `Disposable burner email: ${userEmail}`);
+    }
+    await sendFraudTelegramAlert({
+      userId,
+      userEmail,
+      username,
+      clientIp,
+      phoneNumber: normPhone,
+      network,
+      failedCount: 1,
+      actionTaken: 'USER AUTO-BANNED & FINGERPRINT BLOCKED',
+      reason: `User attempted checkout with disposable email domain (${userEmail}).`
+    });
+    return {
+      allowed: false,
+      blocked: true,
+      reason: 'disposable_email',
+      ip: clientIp,
+      message: 'Account Suspended: Disposable or temporary email addresses are not permitted on this platform.'
+    };
+  }
+
+  // 0.4 Phone Enumeration & Cycling Attack Detection (Pre-Payment Intercept)
+  if (normPhone) {
+    const actorKey = `${userId || 'anon'}_${fingerprint || ''}_${clientIp}`;
+    const velocityResult = checkPhoneVelocity(actorKey, normPhone);
+    if (velocityResult.attackDetected) {
+      // Auto-ban user account
+      if (userEmail) {
+        await admin.from('user_profiles').update({ role: 'banned' }).eq('email', userEmail);
+        try {
+          if (userId) await admin.auth.admin.updateUserById(userId, { ban_duration: '876000h' });
+        } catch {}
+      }
+      // Block device fingerprint
+      if (fingerprint) {
+        await blockFingerprint(fingerprint, velocityResult.details);
+      }
+      // Block phones involved
+      await blockPhoneNumber(normPhone, velocityResult.details);
+      if (velocityResult.previousPhone) {
+        await blockPhoneNumber(velocityResult.previousPhone, velocityResult.details);
+      }
+      // Lock IP
+      ipLockouts.set(clientIp, {
+        blockedUntil: Date.now() + TWO_HOURS_MS,
+        count: 99
+      });
+
+      // Send high-priority alert
+      await sendFraudTelegramAlert({
+        userId,
+        userEmail,
+        username,
+        clientIp,
+        phoneNumber: normPhone,
+        network,
+        failedCount: velocityResult.distinctCount || 2,
+        actionTaken: 'ATTACK INTERCEPTED: USER BANNED, DEVICE & PHONES BLOCKED',
+        reason: velocityResult.details
+      });
+
+      return {
+        allowed: false,
+        blocked: true,
+        reason: velocityResult.reason,
+        ip: clientIp,
+        message: 'Security Alert: Automated payment scanning activity detected. Your access has been permanently restricted.'
+      };
+    }
+  }
+
+  // 0.5 VPN & Proxy Check
   const secSettings = await getSecuritySettings();
   if (secSettings.vpnBlockingEnabled) {
     const vpnInfo = await checkVpnOrProxy(clientIp);

@@ -112,6 +112,14 @@ export default function TransactionsClient({ initialTransactions }) {
                 <strong style={{ display: 'block', marginBottom: '10px', color: 'var(--text3)', fontSize: '12px', textTransform: 'uppercase' }}>Flutterwave Raw Data (Telecom Response)</strong>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
+                    <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Flutterwave ID</span>
+                    <span style={{ fontSize: '13px', color: '#60a5fa', fontWeight: 'bold' }}>{diagnosticData.flwData.id || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Payment Phone</span>
+                    <span style={{ fontSize: '13px', color: '#4ade80', fontWeight: 'bold' }}>{diagnosticData.flwData.customer?.phone_number || diagnosticData.flwData.phone_number || 'N/A'}</span>
+                  </div>
+                  <div>
                     <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block' }}>Processor Response</span>
                     <span style={{ fontSize: '13px', color: '#fff', wordBreak: 'break-word' }}>{diagnosticData.flwData.processor_response || 'N/A'}</span>
                   </div>
@@ -177,8 +185,17 @@ export default function TransactionsClient({ initialTransactions }) {
                   <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
                     {tx.plan_id ? `Plan #${tx.plan_id}` : (tx.movie_id ? `Movie #${tx.movie_id}` : (tx.series_id ? `Series #${tx.series_id}` : 'Profile Slot'))}
                   </td>
-                  <td style={{ padding: '12px', fontSize: '12px', color: 'var(--text3)', wordBreak: 'break-all', maxWidth: '150px' }}>
-                    {tx.tx_ref}
+                  <td style={{ padding: '12px', fontSize: '12px', wordBreak: 'break-all', maxWidth: '170px' }}>
+                    <div style={{ color: '#fff', fontFamily: 'monospace' }}>{tx.tx_ref}</div>
+                    {tx.flw_transaction_id ? (
+                      <div style={{ marginTop: '4px', fontSize: '11px', color: '#60a5fa', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                        FLW ID: {tx.flw_transaction_id}
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: '4px', fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>
+                        No FLW ID
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '12px' }}>
                     <span style={{ 
