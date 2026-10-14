@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { updateSettings, adjustBalance, approveAffiliate, rejectAffiliate } from './actions'
 
 export default function AffiliatesClient({ data }) {
-  const { config, affiliates } = data
+  const { config, affiliates, plans = [] } = data
   const router = useRouter()
   const [affiliatesList, setAffiliatesList] = useState(affiliates || [])
   const [activeFilter, setActiveFilter] = useState('all')
@@ -25,7 +25,7 @@ export default function AffiliatesClient({ data }) {
     const res = await updateSettings(formData)
     setLoading(false)
     if (res?.success) {
-      setMessage('Settings saved successfully!')
+      setMessage('✅ Affiliate & CPA settings saved successfully!')
     } else {
       setMessage(res?.error || 'Failed to save settings')
     }
@@ -64,7 +64,7 @@ export default function AffiliatesClient({ data }) {
     setActionLoadingId(null)
     if (res?.success) {
       setAffiliatesList(prev => prev.map(a => a.id === aff.id ? { ...a, status: 'approved' } : a))
-      setMessage(`✅ Approved affiliate @${aff.user_profiles?.username || aff.referral_code}! Notification sent to user.`)
+      setMessage(`✅ Approved affiliate @${aff.user_profiles?.username || aff.referral_code}! Welcome notification sent.`)
       router.refresh()
     } else {
       alert(res?.error || 'Failed to approve affiliate')
@@ -99,32 +99,32 @@ export default function AffiliatesClient({ data }) {
 
   return (
     <div>
-      <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>Affiliate & Referral Settings</h1>
+      <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '20px' }}>Affiliate & Referral Settings</h1>
 
       {message && (
-        <div style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontWeight: '500' }}>
+        <div style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)', padding: '12px 16px', borderRadius: '8px', marginBottom: '24px', fontWeight: '500' }}>
           {message}
         </div>
       )}
 
       {/* Settings Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '40px' }}>
         {/* PPC Settings */}
-        <div style={{ background: 'var(--bg2)', padding: '24px', borderRadius: '12px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Pay-Per-Click (PPC) Settings</h2>
-          <p style={{ color: 'var(--text3)', fontSize: '13px', marginBottom: '20px' }}>
-            Rewards users for bringing unique visitors to the site using their referral link.
+        <div style={{ background: 'var(--bg2)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '12px' }}>Pay-Per-Click (PPC) Settings</h2>
+          <p style={{ color: 'var(--text3)', fontSize: '13px', marginBottom: '20px', lineHeight: '1.5' }}>
+            Rewards partners for sending unique human visitors to FlixOn through their link.
           </p>
           <form action={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', cursor: 'pointer' }}>
                 <input type="checkbox" name="affiliate_ppc_enabled" value="true" defaultChecked={config.affiliate_ppc_enabled === 'true'} />
-                Enable PPC Tracking
+                <strong style={{ color: '#fff' }}>Enable Pay-Per-Click Tracking</strong>
               </label>
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>
-                CPM Rate (UGX per 1000 unique clicks)
+                CPM Rate (UGX per 1,000 unique human clicks)
               </label>
               <input 
                 type="number" 
@@ -133,74 +133,82 @@ export default function AffiliatesClient({ data }) {
                 className="flx-form-input" 
               />
               <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
-                Affiliates will instantly earn {(Number(config.affiliate_cpm_rate || 5000) / 1000).toFixed(2)} UGX per unique click.
+                Affiliates will earn {(Number(config.affiliate_cpm_rate || 5000) / 1000).toFixed(2)} UGX per unique verified visit.
               </p>
             </div>
-            {/* hidden inputs to preserve other settings */}
-            <input type="hidden" name="affiliate_cpa_enabled" value={config.affiliate_cpa_enabled || 'false'} />
-            <input type="hidden" name="affiliate_plan_1_reward" value={config.affiliate_plan_1_reward || 0} />
-            <input type="hidden" name="affiliate_plan_2_reward" value={config.affiliate_plan_2_reward || 0} />
             <button type="submit" className="gms-btn gms-btn--primary" disabled={loading}>
-              Save PPC Settings
+              {loading ? 'Saving...' : 'Save PPC Settings'}
             </button>
           </form>
         </div>
 
         {/* CPA Settings */}
-        <div style={{ background: 'var(--bg2)', padding: '24px', borderRadius: '12px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Subscription (CPA) Settings</h2>
-          <p style={{ color: 'var(--text3)', fontSize: '13px', marginBottom: '20px' }}>
-            Rewards affiliates a fixed commission when their referred user purchases a specific plan.
+        <div style={{ background: 'var(--bg2)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '12px' }}>Subscription (CPA) Settings</h2>
+          <p style={{ color: 'var(--text3)', fontSize: '13px', marginBottom: '20px', lineHeight: '1.5' }}>
+            Fixed commissions paid to partners when referred users purchase specific VIP passes.
           </p>
           <form action={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', cursor: 'pointer' }}>
                 <input type="checkbox" name="affiliate_cpa_enabled" value="true" defaultChecked={config.affiliate_cpa_enabled === 'true'} />
-                Enable CPA Commissions
+                <strong style={{ color: '#fff' }}>Enable Subscription Commissions</strong>
               </label>
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>
-                Reward for Plan 1 (Daily Pass) - UGX
-              </label>
-              <input 
-                type="number" 
-                name="affiliate_plan_1_reward" 
-                defaultValue={config.affiliate_plan_1_reward || 200}
-                className="flx-form-input" 
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>
-                Reward for Plan 2 (Monthly Pass) - UGX
-              </label>
-              <input 
-                type="number" 
-                name="affiliate_plan_2_reward" 
-                defaultValue={config.affiliate_plan_2_reward || 3000}
-                className="flx-form-input" 
-              />
-            </div>
-            {/* hidden inputs to preserve other settings */}
-            <input type="hidden" name="affiliate_ppc_enabled" value={config.affiliate_ppc_enabled || 'false'} />
-            <input type="hidden" name="affiliate_cpm_rate" value={config.affiliate_cpm_rate || 5000} />
+
+            {plans.length > 0 ? (
+              plans.map(p => {
+                const planKey = `affiliate_plan_${p.id}_reward`
+                const defaultVal = config[planKey] || (p.price >= 9000 ? 3000 : (p.price >= 5000 ? 1500 : 200))
+
+                return (
+                  <div key={p.id}>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                      Commission for <strong>{p.name}</strong> ({Number(p.price).toLocaleString()} UGX)
+                    </label>
+                    <input 
+                      type="number" 
+                      name={planKey}
+                      defaultValue={defaultVal}
+                      className="flx-form-input" 
+                    />
+                  </div>
+                )
+              })
+            ) : (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                    Daily Pass Commission (UGX)
+                  </label>
+                  <input type="number" name="affiliate_plan_1_reward" defaultValue={config.affiliate_plan_1_reward || 200} className="flx-form-input" />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                    Monthly Pass Commission (UGX)
+                  </label>
+                  <input type="number" name="affiliate_plan_3_reward" defaultValue={config.affiliate_plan_3_reward || config.affiliate_plan_2_reward || 3000} className="flx-form-input" />
+                </div>
+              </>
+            )}
+
             <button type="submit" className="gms-btn gms-btn--primary" disabled={loading}>
-              Save CPA Settings
+              {loading ? 'Saving...' : 'Save CPA Settings'}
             </button>
           </form>
         </div>
       </div>
 
       {/* Affiliates List */}
-      <div style={{ background: 'var(--bg2)', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ background: 'var(--bg2)', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', border: '1px solid var(--border)' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 4px' }}>Affiliate Management</h2>
-            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text3)' }}>Review applications, approve partners, and manage balances</p>
+            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px' }}>Partner Accounts Management</h2>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text3)' }}>Review applications, approve partners, and adjust balances</p>
           </div>
 
           {/* Filter Tabs */}
-          <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.04)', padding: '4px', borderRadius: '8px' }}>
+          <div style={{ display: 'flex', gap: '6px', background: 'rgba(255,255,255,0.04)', padding: '4px', borderRadius: '8px' }}>
             <button
               onClick={() => setActiveFilter('all')}
               style={{
@@ -267,9 +275,9 @@ export default function AffiliatesClient({ data }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--text3)' }}>
-              <th style={{ padding: '16px 24px', fontWeight: '500' }}>User</th>
+              <th style={{ padding: '16px 24px', fontWeight: '500' }}>Partner User</th>
               <th style={{ padding: '16px 24px', fontWeight: '500' }}>Status</th>
-              <th style={{ padding: '16px 24px', fontWeight: '500' }}>Code</th>
+              <th style={{ padding: '16px 24px', fontWeight: '500' }}>Tracking Code</th>
               <th style={{ padding: '16px 24px', fontWeight: '500' }}>Balance</th>
               <th style={{ padding: '16px 24px', fontWeight: '500' }}>Total Earned</th>
               <th style={{ padding: '16px 24px', fontWeight: '500', textAlign: 'right' }}>Actions</th>
@@ -279,7 +287,7 @@ export default function AffiliatesClient({ data }) {
             {filteredAffiliates.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--text3)' }}>
-                  No affiliates found for filter: <strong style={{ color: 'var(--text1)' }}>{activeFilter}</strong>
+                  No partners found for filter: <strong style={{ color: 'var(--text1)' }}>{activeFilter}</strong>
                 </td>
               </tr>
             ) : filteredAffiliates.map(aff => {
@@ -291,7 +299,7 @@ export default function AffiliatesClient({ data }) {
               return (
                 <tr key={aff.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                   <td style={{ padding: '16px 24px' }}>
-                    <div style={{ fontWeight: '600' }}>{aff.user_profiles?.username || 'User #' + aff.user_id}</div>
+                    <div style={{ fontWeight: '600', color: '#fff' }}>@{aff.user_profiles?.username || 'User #' + aff.user_id}</div>
                     <div style={{ color: 'var(--text3)', fontSize: '12px' }}>{aff.user_profiles?.email || 'No email'}</div>
                   </td>
                   <td style={{ padding: '16px 24px' }}>
@@ -332,7 +340,7 @@ export default function AffiliatesClient({ data }) {
                             fontSize: '12px', 
                             background: '#22c55e', 
                             color: '#000', 
-                            fontWeight: '600',
+                            fontWeight: '700',
                             cursor: isBusy ? 'wait' : 'pointer'
                           }}
                           disabled={isBusy || loading}

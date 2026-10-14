@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 
 // GET /api/v1/me/referrals
 export async function GET() {
@@ -9,40 +10,50 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
 
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('ref_code')
-      .eq('email', user.email)
-      .single();
+    const admin = createAdminClient();
 
-    const { data: earnings } = await supabase
-      .from('referral_earnings')
-      .select('*')
-      .eq('user_id', user.id)
+    const { data: profile } = await admin
+      .from('user_profiles')
+      .select('id, ref_code, email')
+      .eq('email', user.email)
       .maybeSingle();
 
-    const { count: totalReferrals } = await supabase
-      .from('referrals')
-      .select('*', { count: 'exact', head: true })
-      .eq('referrer_id', user.id);
+    if (!profile) {
+      return NextResponse.json({ data: null, error: 'Profile not found' }, { status: 404 });
+    }
 
-    const { count: paidReferrals } = await supabase
-      .from('referrals')
-      .select('*', { count: 'exact', head: true })
-      .eq('referrer_id', user.id)
-      .eq('status', 'converted');
-
-    const { data: payouts } = await supabase
-      .from('payout_requests')
+    const { data: affiliate } = await admin
+      .from('affiliates')
       .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
+      .eq('user_id', profile.id)
+      .maybeSingle();
 
-    const totalEarned     = Number(earnings?.amount_earned || 0);
-    const totalWithdrawn  = Number(earnings?.amount_withdrawn || 0);
-    const totalConverted  = Number(earnings?.amount_converted || 0);
-    const available       = totalEarned - totalWithdrawn - totalConverted;
+    const refCode = affiliate?.referral_code || profile.ref_code || null;
+
+    // Count direct signups attributed to this user
+    const { count: totalSignups } = await admin
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('referred_by', profile.id);
+
+    let ledger = [];
+    let paidConversionsCount = 0;
+
+    if (affiliate) {
+      const { data: comms } = await admin
+        .from('affiliate_commissions')
+        .select('*')
+        .eq('affiliate_id', affiliate.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      ledger = comms || [];
+      paidConversionsCount = comms?.filter(c => (c.type === 'commission' || !c.type) && Number(c.amount) > 0).length || 0;
+    }
+
+    const totalEarned    = Number(affiliate?.total_earned || 0);
+    const totalWithdrawn = Number(affiliate?.total_withdrawn || 0);
+    const balance        = Number(affiliate?.balance || 0);
 
     const headersList = await headers();
     const host = headersList.get('host') || 'flixon.com';
@@ -51,19 +62,21 @@ export async function GET() {
 
     return NextResponse.json({
       data: {
-        ref_code: profile?.ref_code,
-        referral_link: `${siteUrl}/login?ref=${profile?.ref_code}`,
+        ref_code: refCode,
+        referral_link: refCode ? `${siteUrl}/login?ref=${refCode}` : null,
+        affiliate_status: affiliate?.status || 'none',
         stats: {
-          total_referrals: totalReferrals || 0,
-          paid_referrals: paidReferrals || 0,
+          total_referrals: totalSignups || 0,
+          paid_referrals: paidConversionsCount,
           total_earned: totalEarned,
           total_withdrawn: totalWithdrawn,
-          total_converted: totalConverted,
-          available_balance: available
+          total_converted: totalWithdrawn, // for backward-compatibility
+          available_balance: balance
         },
-        payouts: payouts || []
+        payouts: ledger
       },
-      error: null, meta: null
+      error: null,
+      meta: null
     });
   } catch (err) {
     return NextResponse.json({ data: null, error: err.message }, { status: 500 });

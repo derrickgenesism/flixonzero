@@ -68,12 +68,16 @@ export default async function AccountPage() {
     .eq('status', 'successful')
     .order('created_at', { ascending: false });
 
-  // Referral earnings
-  const { data: earnings } = await supabase.from('referral_earnings').select('*').eq('user_id', user.id).maybeSingle();
-  const totalEarned    = Number(earnings?.amount_earned || 0);
-  const totalWithdrawn = Number(earnings?.amount_withdrawn || 0);
-  const totalConverted = Number(earnings?.amount_converted || 0);
-  const availableBalance = Math.max(0, totalEarned - totalWithdrawn - totalConverted);
+  // Referral earnings / Affiliate balance
+  let availableBalance = 0;
+  if (profile?.id) {
+    const { data: aff } = await _injectedAdminClient()
+      .from('affiliates')
+      .select('balance')
+      .eq('user_id', profile.id)
+      .maybeSingle();
+    availableBalance = Math.max(0, Number(aff?.balance || 0));
+  }
 
   const isSubscribed = profile?.subscription_end_date && new Date(profile.subscription_end_date) > new Date();
   

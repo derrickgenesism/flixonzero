@@ -1,20 +1,36 @@
-const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/utils/supabase/admin';
 import crypto from 'crypto';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// In-memory sliding hour tracker to prevent click-farm spam
+// affiliateId -> { count: number, resetAt: number }
+const hourlyClickTracker = new Map();
+const MAX_CLICKS_PER_HOUR = 60;
+
+function isBot(ua) {
+  if (!ua) return true;
+  const botKeywords = [
+    'bot', 'spider', 'crawl', 'slurp', 'mediapartners', 'googlebot',
+    'bingbot', 'yandex', 'baidu', 'duckduckbot', 'ahrefs', 'semrush',
+    'curl', 'wget', 'python', 'headless', 'phantomjs', 'node-fetch',
+    'axios', 'got', 'httpclient', 'postman'
+  ];
+  const lower = ua.toLowerCase();
+  return botKeywords.some(b => lower.includes(b));
+}
 
 export async function POST(request) {
   try {
     const { ref } = await request.json();
-    if (!ref) return NextResponse.json({ error: 'Missing ref' }, { status: 400 });
+    if (!ref || typeof ref !== 'string') {
+      return NextResponse.json({ error: 'Missing ref' }, { status: 400 });
+    }
 
-    // Check if PPC is enabled
-    const { data: ppcSetting } = await supabaseAdmin
+    const cleanRef = ref.trim().toLowerCase();
+    const admin = createAdminClient();
+
+    // 1. Check if PPC is globally enabled
+    const { data: ppcSetting } = await admin
       .from('admin_settings')
       .select('setting_value')
       .eq('setting_key', 'affiliate_ppc_enabled')
@@ -24,28 +40,38 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'PPC disabled' });
     }
 
-    // Get the affiliate by code
-    const { data: affiliate } = await supabaseAdmin
+    // 2. Look up the affiliate by referral code
+    const { data: affiliate } = await admin
       .from('affiliates')
-      .select('id, balance, total_earned')
-      .eq('referral_code', ref)
+      .select('id, user_id, balance, total_earned, status')
+      .ilike('referral_code', cleanRef)
       .maybeSingle();
 
     if (!affiliate) {
-      return NextResponse.json({ error: 'Invalid ref' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid ref' }, { status: 404 });
     }
 
-    // Hash IP + User-Agent to prevent duplicate spamming
-    // Vercel forwards real IP in 'x-forwarded-for' or 'x-real-ip'
-    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown-ip';
-    const ua = request.headers.get('user-agent') || 'unknown-ua';
-    
-    // Hash them to respect privacy but ensure uniqueness
+    // Must be approved to earn click rewards
+    if (affiliate.status !== 'approved' && affiliate.status !== null) {
+      return NextResponse.json({ success: false, message: 'Affiliate not active' });
+    }
+
+    // 3. Bot filter
+    const ua = request.headers.get('user-agent') || '';
+    if (isBot(ua)) {
+      return NextResponse.json({ success: true, message: 'Bot filtered' });
+    }
+
+    // 4. IP + UA uniqueness hashing
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+               request.headers.get('x-real-ip') || 
+               '127.0.0.1';
+
     const rawString = `${ip}-${ua}`;
     const hash = crypto.createHash('sha256').update(rawString).digest('hex');
 
-    // Check if this hash clicked THIS affiliate link before
-    const { data: existingClick } = await supabaseAdmin
+    // 5. Deduplicate: Has this visitor clicked THIS affiliate link before?
+    const { data: existingClick } = await admin
       .from('affiliate_clicks')
       .select('id')
       .eq('affiliate_id', affiliate.id)
@@ -56,33 +82,44 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: 'Already tracked' });
     }
 
-    // Not clicked before! Insert the click
-    await supabaseAdmin.from('affiliate_clicks').insert({
+    // 6. Anti-Click-Farm Hourly Throttle
+    const now = Date.now();
+    let tracker = hourlyClickTracker.get(affiliate.id);
+    if (!tracker || now > tracker.resetAt) {
+      tracker = { count: 0, resetAt: now + (60 * 60 * 1000) };
+      hourlyClickTracker.set(affiliate.id, tracker);
+    }
+
+    tracker.count++;
+    if (tracker.count > MAX_CLICKS_PER_HOUR) {
+      return NextResponse.json({ success: true, message: 'Hourly cap reached' });
+    }
+
+    // 7. Record unique click
+    await admin.from('affiliate_clicks').insert({
       affiliate_id: affiliate.id,
       ip_ua_hash: hash
     });
 
-    // Calculate fractional earnings (CPM / 1000)
-    const { data: cpmSetting } = await supabaseAdmin
+    // 8. Calculate reward (CPM / 1000)
+    const { data: cpmSetting } = await admin
       .from('admin_settings')
       .select('setting_value')
       .eq('setting_key', 'affiliate_cpm_rate')
       .maybeSingle();
-    
+
     const cpm = Number(cpmSetting?.setting_value || 5000);
-    const amountPerClick = cpm / 1000;
+    const amountPerClick = Math.round((cpm / 1000) * 100) / 100; // 2 decimal precision
 
     if (amountPerClick > 0) {
-      // Add balance to affiliate
-      await supabaseAdmin.from('affiliates')
+      await admin.from('affiliates')
         .update({
-          balance: Number(affiliate.balance) + amountPerClick,
-          total_earned: Number(affiliate.total_earned) + amountPerClick
+          balance: Number(affiliate.balance || 0) + amountPerClick,
+          total_earned: Number(affiliate.total_earned || 0) + amountPerClick
         })
         .eq('id', affiliate.id);
 
-      // Record commission ledger
-      await supabaseAdmin.from('affiliate_commissions').insert({
+      await admin.from('affiliate_commissions').insert({
         affiliate_id: affiliate.id,
         amount: amountPerClick,
         type: 'click',
@@ -92,7 +129,7 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, amountPerClick });
   } catch (err) {
-    console.error('[affiliate track]', err);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('[affiliate track error]', err);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

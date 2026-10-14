@@ -52,29 +52,44 @@ export async function signup(formData) {
   }
 
   // Handle referral tracking
-  const refCode = formData.get('refCode')
-  if (refCode && authData?.user) {
+  let refCode = formData.get('refCode')
+  if (!refCode) {
     try {
-      // Find the affiliate by their referral_code
-      const { data: affiliate } = await supabase
-        .from('affiliates')
-        .select('id, user_id')
-        .eq('referral_code', refCode)
-        .single()
+      const { cookies } = await import('next/headers')
+      const cookieStore = await cookies()
+      refCode = cookieStore.get('affiliate_ref')?.value
+    } catch {
+      // Cookie reading fallback
+    }
+  }
 
-      if (affiliate && affiliate.user_id !== authData.user.id) {
-        // Record the referral in user_profiles (so we know who brought them)
-        await supabase
-          .from('user_profiles')
-          .update({ referred_by: affiliate.id })
-          .eq('id', authData.user.id) // wait, authData.user.id is UUID. user_profiles ID is INT!
-          // We can't update user_profiles by auth UUID if we don't know how they are linked.
-          // Wait, user_profiles is linked by email!
-          .eq('email', authData.user.email)
+  if (refCode && authData?.user?.email) {
+    try {
+      const { createAdminClient } = await import('@/utils/supabase/admin')
+      const admin = createAdminClient()
+
+      const { data: affiliate } = await admin
+        .from('affiliates')
+        .select('id, user_id, status')
+        .ilike('referral_code', String(refCode).trim())
+        .maybeSingle()
+
+      if (affiliate && (affiliate.status === 'approved' || !affiliate.status)) {
+        const cleanEmail = authData.user.email.toLowerCase().trim()
+        // Retry loop to ensure profile created by trigger exists
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const { data: updated } = await admin
+            .from('user_profiles')
+            .update({ referred_by: affiliate.id })
+            .eq('email', cleanEmail)
+            .select('id')
+
+          if (updated && updated.length > 0) break
+          await new Promise(r => setTimeout(r, 350))
+        }
       }
     } catch (refErr) {
       console.error('Error recording referral:', refErr)
-      // Do not block signup for referral errors
     }
   }
 

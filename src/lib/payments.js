@@ -97,28 +97,33 @@ async function creditAffiliate(admin, userEmail, transaction) {
     .from('user_profiles')
     .select('id, referred_by')
     .eq('email', userEmail)
-    .single();
+    .maybeSingle();
   if (!profileWithRef?.referred_by) return;
 
   const planNumericId = Number(transaction.plan_type);
   if (isNaN(planNumericId) || planNumericId <= 0) return;
 
-  const rewardStr = allSettings?.find((s) => s.setting_key === `affiliate_plan_${planNumericId}_reward`)?.setting_value;
+  // Check specific plan reward, with fallback for Monthly Pass (Plan 3 -> Plan 2 setting)
+  let rewardStr = allSettings?.find((s) => s.setting_key === `affiliate_plan_${planNumericId}_reward`)?.setting_value;
+  if (!rewardStr && planNumericId === 3) {
+    rewardStr = allSettings?.find((s) => s.setting_key === 'affiliate_plan_2_reward')?.setting_value;
+  }
   const reward = Number(rewardStr || 0);
   if (reward <= 0) return;
 
   const { data: affiliate } = await admin
     .from('affiliates')
-    .select('id, balance, total_earned')
+    .select('id, user_id, balance, total_earned, status')
     .eq('id', profileWithRef.referred_by)
-    .single();
-  if (!affiliate) return;
+    .maybeSingle();
+
+  if (!affiliate || (affiliate.status !== 'approved' && affiliate.status !== null)) return;
 
   await admin
     .from('affiliates')
     .update({
-      balance: Number(affiliate.balance) + reward,
-      total_earned: Number(affiliate.total_earned) + reward,
+      balance: Number(affiliate.balance || 0) + reward,
+      total_earned: Number(affiliate.total_earned || 0) + reward,
     })
     .eq('id', affiliate.id);
 
@@ -126,7 +131,7 @@ async function creditAffiliate(admin, userEmail, transaction) {
     affiliate_id: affiliate.id,
     amount: reward,
     type: 'subscription',
-    description: `Commission for ${transaction.plan_type}`,
+    description: `Commission for subscription plan #${transaction.plan_type}`,
     referred_user_id: profileWithRef.id,
   });
 }

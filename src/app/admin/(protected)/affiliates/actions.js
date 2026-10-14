@@ -23,6 +23,15 @@ async function verifyAdmin() {
 export async function getAffiliateSettings() {
   const { admin } = await verifyAdmin()
 
+  // Fetch all active subscription plans
+  const { data: plans } = await admin
+    .from('subscription_plans')
+    .select('id, name, price, duration_days')
+    .eq('is_active', true)
+    .order('price', { ascending: true })
+
+  const planSettingKeys = (plans || []).map(p => `affiliate_plan_${p.id}_reward`)
+
   const { data: settings } = await admin
     .from('admin_settings')
     .select('*')
@@ -31,7 +40,9 @@ export async function getAffiliateSettings() {
       'affiliate_cpa_enabled',
       'affiliate_cpm_rate',
       'affiliate_plan_1_reward',
-      'affiliate_plan_2_reward'
+      'affiliate_plan_2_reward',
+      'affiliate_plan_3_reward',
+      ...planSettingKeys
     ])
 
   const config = {}
@@ -47,26 +58,28 @@ export async function getAffiliateSettings() {
 
   if (error) console.error('Error fetching affiliates:', error)
 
-  return { config, affiliates: affiliates || [] }
+  return { config, affiliates: affiliates || [], plans: plans || [] }
 }
 
 export async function updateSettings(formData) {
   const { admin } = await verifyAdmin()
 
-  const keys = [
-    'affiliate_ppc_enabled',
-    'affiliate_cpa_enabled',
-    'affiliate_cpm_rate',
-    'affiliate_plan_1_reward',
-    'affiliate_plan_2_reward'
-  ]
-
-  for (const key of keys) {
-    const val = formData.get(key)
-    if (val !== null) {
-      await admin.from('admin_settings')
-        .update({ setting_value: val })
+  for (const [key, val] of formData.entries()) {
+    if (key.startsWith('affiliate_')) {
+      const { data: existing } = await admin
+        .from('admin_settings')
+        .select('id')
         .eq('setting_key', key)
+        .maybeSingle()
+
+      if (existing) {
+        await admin.from('admin_settings')
+          .update({ setting_value: String(val) })
+          .eq('setting_key', key)
+      } else {
+        await admin.from('admin_settings')
+          .insert({ setting_key: key, setting_value: String(val) })
+      }
     }
   }
 

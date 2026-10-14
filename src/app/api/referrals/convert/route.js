@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/utils/supabase/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import { createAdminClient } from '@/utils/supabase/admin';
 
 // POST /api/referrals/convert
 // Convert referral earnings into subscription watch days
@@ -18,55 +13,68 @@ export async function POST(request) {
     const { days } = await request.json();
     if (!days || days < 1) return NextResponse.json({ error: 'Invalid days' }, { status: 400 });
 
-    // Get UGX rate per day from settings
-    const { data: setting } = await supabaseAdmin.from('admin_settings').select('setting_value').eq('setting_key', 'referral_ugx_per_day').maybeSingle();
-    const ugxPerDay = Number(setting?.setting_value || 500);
+    const admin = createAdminClient();
+
+    // Rate: 10,000 UGX = 30 days (~333.33 UGX per day)
+    const { data: setting } = await admin.from('admin_settings').select('setting_value').eq('setting_key', 'referral_ugx_per_day').maybeSingle();
+    const ugxPerDay = Number(setting?.setting_value || 333);
     const totalCost = days * ugxPerDay;
 
-    // Get current earnings
-    const { data: earnings } = await supabaseAdmin
-      .from('referral_earnings')
-      .select('*')
-      .eq('user_id', user.id)
+    // Get user profile
+    const { data: profile } = await admin
+      .from('user_profiles')
+      .select('id, email, subscription_end_date')
+      .eq('email', user.email)
       .maybeSingle();
 
-    const available = Number(earnings?.amount_earned || 0) - Number(earnings?.amount_withdrawn || 0) - Number(earnings?.amount_converted || 0);
+    if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
 
+    // Get affiliate balance
+    const { data: affiliate } = await admin
+      .from('affiliates')
+      .select('id, balance, total_withdrawn')
+      .eq('user_id', profile.id)
+      .maybeSingle();
+
+    if (!affiliate) return NextResponse.json({ error: 'Affiliate account not found' }, { status: 404 });
+
+    const available = Number(affiliate.balance || 0);
     if (available < totalCost) {
-      return NextResponse.json({ error: `Insufficient balance. You need ${totalCost.toLocaleString()} UGX but only have ${available.toLocaleString()} UGX.` }, { status: 400 });
+      return NextResponse.json({ 
+        error: `Insufficient balance. You need ${totalCost.toLocaleString()} UGX but only have ${available.toLocaleString()} UGX.` 
+      }, { status: 400 });
     }
 
-    // Update or extend subscription
-    const { data: profile } = await supabaseAdmin
-      .from('user_profiles')
-      .select('subscription_end_date')
-      .eq('id', user.id)
-      .single();
+    // 1. Deduct from affiliate balance
+    await admin
+      .from('affiliates')
+      .update({
+        balance: available - totalCost,
+        total_withdrawn: Number(affiliate.total_withdrawn || 0) + totalCost
+      })
+      .eq('id', affiliate.id);
 
-    const currentEnd = profile?.subscription_end_date && new Date(profile.subscription_end_date) > new Date()
+    // 2. Extend subscription
+    const currentEnd = profile.subscription_end_date && new Date(profile.subscription_end_date) > new Date()
       ? new Date(profile.subscription_end_date)
       : new Date();
 
     const newEnd = new Date(currentEnd.getTime() + days * 24 * 60 * 60 * 1000);
 
-    await supabaseAdmin
+    await admin
       .from('user_profiles')
-      .update({ subscription_end_date: newEnd.toISOString() })
-      .eq('id', user.id);
+      .update({ 
+        subscription_end_date: newEnd.toISOString(),
+        subscription_plan: 'affiliate_reward'
+      })
+      .eq('id', profile.id);
 
-    // Deduct from earnings
-    await supabaseAdmin
-      .from('referral_earnings')
-      .update({ amount_converted: Number(earnings?.amount_converted || 0) + totalCost })
-      .eq('user_id', user.id);
-
-    // Send notification
-    await supabaseAdmin.from('notifications').insert({
-      user_id: user.id,
-      type: 'referral_earned',
-      title: `${days} Watch Days Added!`,
-      body: `Your referral balance of ${totalCost.toLocaleString()} UGX was converted into ${days} days of streaming access.`,
-      link: '/account'
+    // 3. Record in affiliate_commissions
+    await admin.from('affiliate_commissions').insert({
+      affiliate_id: affiliate.id,
+      amount: -totalCost,
+      type: 'watch_days',
+      description: `Converted ${totalCost.toLocaleString()} UGX to ${days} Watch Days`
     });
 
     return NextResponse.json({
@@ -75,7 +83,7 @@ export async function POST(request) {
       newExpiry: newEnd.toISOString()
     });
   } catch (err) {
-    console.error('[convert]', err);
+    console.error('[convert error]', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
