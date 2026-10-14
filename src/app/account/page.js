@@ -70,13 +70,17 @@ export default async function AccountPage() {
 
   // Referral earnings / Affiliate balance
   let availableBalance = 0;
+  let affiliateCode = null;
+  let affiliateStatus = null;
   if (profile?.id) {
     const { data: aff } = await _injectedAdminClient()
       .from('affiliates')
-      .select('balance')
+      .select('referral_code, balance, status')
       .eq('user_id', profile.id)
       .maybeSingle();
     availableBalance = Math.max(0, Number(aff?.balance || 0));
+    affiliateCode = aff?.referral_code || null;
+    affiliateStatus = aff?.status || null;
   }
 
   const isSubscribed = profile?.subscription_end_date && new Date(profile.subscription_end_date) > new Date();
@@ -151,8 +155,8 @@ export default async function AccountPage() {
           </div>
         </div>
 
-        {/* Referral Balance — Convert to Watch Days */}
-        {availableBalance > 0 && (
+        {/* Referral Card */}
+        {availableBalance > 0 ? (
           <div style={{ background: 'rgba(251,191,36,0.06)', borderRadius: '16px', padding: '28px', marginBottom: '24px', border: '1px solid rgba(251,191,36,0.2)' }}>
             <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', color: 'var(--text2)' }}>💰 Referral Balance</h2>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
@@ -168,10 +172,25 @@ export default async function AccountPage() {
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <ConvertToWatchDaysButton availableBalance={availableBalance} ugxPerDay={ugxPerDay} convertibleDays={convertibleDays} />
                 <Link href="/account/referrals" className="gms-btn gms-btn--ghost" style={{ padding: '10px 18px', fontSize: '14px' }}>
-                  View Details
+                  Partner Dashboard →
                 </Link>
               </div>
             </div>
+          </div>
+        ) : (
+          <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '24px 28px', marginBottom: '24px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <span style={{ fontSize: '32px' }}>🤝</span>
+              <div>
+                <h3 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: '700', color: '#fff' }}>Partner & Referral Program</h3>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text3)' }}>
+                  Invite friends to FlixOn and earn cash for clicks plus high commissions on every subscription!
+                </p>
+              </div>
+            </div>
+            <Link href="/account/referrals" className="gms-btn gms-btn--primary" style={{ padding: '10px 20px', fontSize: '14px' }}>
+              {affiliateStatus === 'approved' ? 'Partner Dashboard →' : (affiliateStatus === 'pending' ? 'Application Under Review ⏳' : 'Join Partner Program →')}
+            </Link>
           </div>
         )}
 
@@ -237,8 +256,15 @@ export default async function AccountPage() {
                 : <span style={{ color: 'var(--text3)' }}>None set · <Link href="/onboarding" style={{ color: 'var(--text2)' }}>Set preferences</Link></span>
               }
             </div>
-            <div style={{ color: 'var(--text3)' }}>Ref Code</div>
-            <div style={{ color: '#fff', fontFamily: 'monospace', fontWeight: '700', letterSpacing: '2px' }}>{profile?.ref_code || '—'}</div>
+            <div style={{ color: 'var(--text3)' }}>Partner Code</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: '700', letterSpacing: '2px' }}>
+                {affiliateCode || '—'}
+              </span>
+              <Link href="/account/referrals" style={{ fontSize: '12px', color: 'var(--acc)', textDecoration: 'underline' }}>
+                {affiliateCode ? 'View Portal →' : 'Join Program →'}
+              </Link>
+            </div>
           </div>
         </div>
 

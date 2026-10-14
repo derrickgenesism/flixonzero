@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { updateSettings, adjustBalance, approveAffiliate, rejectAffiliate } from './actions'
+import { updateSettings, adjustBalance, approveAffiliate, rejectAffiliate, approveAllPending } from './actions'
 
 export default function AffiliatesClient({ data }) {
   const { config, affiliates, plans = [] } = data
@@ -12,6 +12,21 @@ export default function AffiliatesClient({ data }) {
   const [loading, setLoading] = useState(false)
   const [actionLoadingId, setActionLoadingId] = useState(null)
   const [message, setMessage] = useState(null)
+
+  async function handleApproveAll() {
+    if (!confirm(`Are you sure you want to approve all ${pendingCount} pending partner applications?`)) return
+    setLoading(true)
+    setMessage(null)
+    const res = await approveAllPending()
+    setLoading(false)
+    if (res?.success) {
+      setAffiliatesList(prev => prev.map(a => a.status === 'pending' ? { ...a, status: 'approved' } : a))
+      setMessage(`✅ Successfully approved ${res.count || pendingCount} pending partner applications!`)
+      router.refresh()
+    } else {
+      alert(res?.error || 'Failed to approve all pending applications')
+    }
+  }
 
   // Adjust Balance Modal State
   const [showModal, setShowModal] = useState(false)
@@ -207,86 +222,100 @@ export default function AffiliatesClient({ data }) {
             <p style={{ margin: 0, fontSize: '13px', color: 'var(--text3)' }}>Review applications, approve partners, and adjust balances</p>
           </div>
 
-          {/* Filter Tabs */}
-          <div style={{ display: 'flex', gap: '6px', background: 'rgba(255,255,255,0.04)', padding: '4px', borderRadius: '8px' }}>
-            <button
-              onClick={() => setActiveFilter('all')}
-              style={{
-                background: activeFilter === 'all' ? 'var(--acc)' : 'transparent',
-                color: activeFilter === 'all' ? '#000' : 'var(--text2)',
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              All ({affiliatesList.length})
-            </button>
-            <button
-              onClick={() => setActiveFilter('pending')}
-              style={{
-                background: activeFilter === 'pending' ? '#fbbf24' : 'transparent',
-                color: activeFilter === 'pending' ? '#000' : (pendingCount > 0 ? '#fbbf24' : 'var(--text2)'),
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              Pending ({pendingCount})
-            </button>
-            <button
-              onClick={() => setActiveFilter('approved')}
-              style={{
-                background: activeFilter === 'approved' ? '#4ade80' : 'transparent',
-                color: activeFilter === 'approved' ? '#000' : 'var(--text2)',
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              Approved ({approvedCount})
-            </button>
-            <button
-              onClick={() => setActiveFilter('rejected')}
-              style={{
-                background: activeFilter === 'rejected' ? '#f87171' : 'transparent',
-                color: activeFilter === 'rejected' ? '#000' : 'var(--text2)',
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              Rejected ({rejectedCount})
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            {pendingCount > 0 && (
+              <button
+                onClick={handleApproveAll}
+                disabled={loading}
+                className="gms-btn gms-btn--primary"
+                style={{ background: '#16a34a', borderColor: '#16a34a', padding: '6px 14px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+              >
+                ✓ Approve All Pending ({pendingCount})
+              </button>
+            )}
+
+            {/* Filter Tabs */}
+            <div style={{ display: 'flex', gap: '6px', background: 'rgba(255,255,255,0.04)', padding: '4px', borderRadius: '8px' }}>
+              <button
+                onClick={() => setActiveFilter('all')}
+                style={{
+                  background: activeFilter === 'all' ? 'var(--acc)' : 'transparent',
+                  color: activeFilter === 'all' ? '#000' : 'var(--text2)',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                All ({affiliatesList.length})
+              </button>
+              <button
+                onClick={() => setActiveFilter('pending')}
+                style={{
+                  background: activeFilter === 'pending' ? '#fbbf24' : 'transparent',
+                  color: activeFilter === 'pending' ? '#000' : (pendingCount > 0 ? '#fbbf24' : 'var(--text2)'),
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Pending ({pendingCount})
+              </button>
+              <button
+                onClick={() => setActiveFilter('approved')}
+                style={{
+                  background: activeFilter === 'approved' ? '#4ade80' : 'transparent',
+                  color: activeFilter === 'approved' ? '#000' : 'var(--text2)',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Approved ({approvedCount})
+              </button>
+              <button
+                onClick={() => setActiveFilter('rejected')}
+                style={{
+                  background: activeFilter === 'rejected' ? '#f87171' : 'transparent',
+                  color: activeFilter === 'rejected' ? '#000' : 'var(--text2)',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Rejected ({rejectedCount})
+              </button>
+            </div>
           </div>
         </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--text3)' }}>
-              <th style={{ padding: '16px 24px', fontWeight: '500' }}>Partner User</th>
-              <th style={{ padding: '16px 24px', fontWeight: '500' }}>Status</th>
-              <th style={{ padding: '16px 24px', fontWeight: '500' }}>Tracking Code</th>
-              <th style={{ padding: '16px 24px', fontWeight: '500' }}>Balance</th>
-              <th style={{ padding: '16px 24px', fontWeight: '500' }}>Total Earned</th>
-              <th style={{ padding: '16px 24px', fontWeight: '500', textAlign: 'right' }}>Actions</th>
+              <th style={{ padding: '16px 20px', fontWeight: '500' }}>Partner User</th>
+              <th style={{ padding: '16px 20px', fontWeight: '500' }}>Date Submitted</th>
+              <th style={{ padding: '16px 20px', fontWeight: '500' }}>Status</th>
+              <th style={{ padding: '16px 20px', fontWeight: '500' }}>Tracking Code</th>
+              <th style={{ padding: '16px 20px', fontWeight: '500' }}>Balance</th>
+              <th style={{ padding: '16px 20px', fontWeight: '500' }}>Total Earned</th>
+              <th style={{ padding: '16px 20px', fontWeight: '500', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredAffiliates.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--text3)' }}>
+                <td colSpan={7} style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--text3)' }}>
                   No partners found for filter: <strong style={{ color: 'var(--text1)' }}>{activeFilter}</strong>
                 </td>
               </tr>
@@ -298,9 +327,17 @@ export default function AffiliatesClient({ data }) {
 
               return (
                 <tr key={aff.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '16px 24px' }}>
+                  <td style={{ padding: '16px 20px' }}>
                     <div style={{ fontWeight: '600', color: '#fff' }}>@{aff.user_profiles?.username || 'User #' + aff.user_id}</div>
                     <div style={{ color: 'var(--text3)', fontSize: '12px' }}>{aff.user_profiles?.email || 'No email'}</div>
+                  </td>
+                  <td style={{ padding: '16px 20px', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontWeight: '600', color: '#fff', fontSize: '13px' }}>
+                      {aff.created_at ? new Date(aff.created_at).toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                    </div>
+                    <div style={{ color: 'var(--text3)', fontSize: '12px' }}>
+                      {aff.created_at ? new Date(aff.created_at).toLocaleTimeString('en-UG', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Kampala' }) + ' EAT' : ''}
+                    </div>
                   </td>
                   <td style={{ padding: '16px 24px' }}>
                     {isApproved && (

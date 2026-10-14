@@ -12,11 +12,12 @@ async function verifyAdmin() {
   const admin = createAdminClient()
   const { data: adminCheck } = await admin
     .from('user_profiles')
-    .select('role')
+    .select('role, is_admin')
     .eq('email', user.email)
     .maybeSingle()
 
-  if (adminCheck?.role !== 'administrator') throw new Error("Forbidden")
+  const isAdmin = adminCheck?.role === 'administrator' || adminCheck?.is_admin === true
+  if (!isAdmin) throw new Error("Forbidden")
   return { user, admin }
 }
 
@@ -187,10 +188,78 @@ export async function approveAffiliate(affiliateId) {
     }
 
     revalidatePath('/admin/affiliates')
+    revalidatePath('/account/referrals')
     return { success: true }
   } catch (err) {
     console.error('[approveAffiliate] error:', err)
     return { error: err.message || 'Server error approving affiliate' }
+  }
+}
+
+export async function approveAllPending() {
+  try {
+    const { admin } = await verifyAdmin()
+
+    const { data: pendingAffs, error: fetchErr } = await admin
+      .from('affiliates')
+      .select('id, user_id, referral_code, user_profiles!affiliates_user_id_fkey(username, email)')
+      .eq('status', 'pending')
+
+    if (fetchErr || !pendingAffs || pendingAffs.length === 0) {
+      return { success: true, count: 0, message: 'No pending partner applications found.' }
+    }
+
+    const ids = pendingAffs.map(a => a.id)
+    const { error: updateErr } = await admin
+      .from('affiliates')
+      .update({ status: 'approved' })
+      .in('id', ids)
+
+    if (updateErr) {
+      console.error('[approveAllPending] update error:', updateErr)
+      return { error: 'Failed to approve all pending applications' }
+    }
+
+    // Send support message notification to each approved partner
+    for (const aff of pendingAffs) {
+      try {
+        let { data: thread } = await admin
+          .from('support_threads')
+          .select('id')
+          .eq('user_id', aff.user_id)
+          .maybeSingle()
+
+        if (!thread) {
+          const { data: newThread } = await admin
+            .from('support_threads')
+            .insert({ 
+              user_id: aff.user_id, 
+              subject: `Partner Program - @${aff.user_profiles?.username || 'User'}` 
+            })
+            .select('id')
+            .single()
+          thread = newThread
+        }
+
+        if (thread) {
+          await admin.from('support_messages').insert({
+            thread_id: thread.id,
+            sender_role: 'admin',
+            content: '🎉 Congratulations! Your partner application has been approved. Your custom referral link and dashboard are now live in your account under Referrals!',
+            is_read: false
+          })
+        }
+      } catch (e) {
+        // Non-fatal
+      }
+    }
+
+    revalidatePath('/admin/affiliates')
+    revalidatePath('/account/referrals')
+    return { success: true, count: pendingAffs.length }
+  } catch (err) {
+    console.error('[approveAllPending] error:', err)
+    return { error: err.message || 'Server error approving all pending applications' }
   }
 }
 
@@ -209,6 +278,7 @@ export async function rejectAffiliate(affiliateId) {
     }
 
     revalidatePath('/admin/affiliates')
+    revalidatePath('/account/referrals')
     return { success: true }
   } catch (err) {
     console.error('[rejectAffiliate] error:', err)

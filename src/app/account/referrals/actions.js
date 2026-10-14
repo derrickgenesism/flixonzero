@@ -17,15 +17,25 @@ async function sendTelegramNotice(text) {
     const botToken = settings?.find(s => s.setting_key === 'telegram_bot_token')?.setting_value?.trim();
     const chatId = settings?.find(s => s.setting_key === 'telegram_chat_id')?.setting_value?.trim();
 
-    if (!botToken || !chatId) return;
+    if (!botToken || !chatId) {
+      console.warn('[TelegramNotice] missing botToken or chatId in admin_settings');
+      return false;
+    }
 
-    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
-    }).catch(err => console.error('[TelegramNotice] send error:', err));
+    });
+    const result = await res.json();
+    if (!result.ok) {
+      console.error('[TelegramNotice] Telegram API error:', result);
+      return false;
+    }
+    return true;
   } catch (e) {
-    // Non-fatal
+    console.error('[TelegramNotice] send error:', e);
+    return false;
   }
 }
 
@@ -58,6 +68,7 @@ export async function applyForAffiliate() {
 
   const code = crypto.randomBytes(4).toString('hex').toLowerCase();
   const referralCode = `ref_${code}`;
+  const now = new Date();
   
   const { error } = await admin
     .from('affiliates')
@@ -67,6 +78,7 @@ export async function applyForAffiliate() {
       balance: 0,
       total_earned: 0,
       total_withdrawn: 0,
+      created_at: now.toISOString(),
       status: 'pending'
     });
 
@@ -75,17 +87,34 @@ export async function applyForAffiliate() {
     throw new Error('Failed to join affiliate program. Please try again.');
   }
 
-  // Notify admin on Telegram
-  const eatTime = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Kampala' }) + ' EAT';
-  sendTelegramNotice(
-    `🤝 <b>NEW AFFILIATE PARTNER APPLICATION</b>\n\n` +
-    `• <b>User:</b> @${profile.username || 'User'} (<code>${profile.email}</code>)\n` +
+  // Format exact submission date & time in Kampala EAT timezone
+  const dateFormatted = now.toLocaleDateString('en-UG', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'Africa/Kampala'
+  });
+  const timeFormatted = now.toLocaleTimeString('en-UG', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+    timeZone: 'Africa/Kampala'
+  });
+
+  // Await Telegram notification so it's guaranteed to be delivered
+  await sendTelegramNotice(
+    `🤝 <b>NEW PARTNER PROGRAM APPLICATION</b>\n\n` +
+    `• <b>Applicant:</b> @${profile.username || 'User'} (ID #${profile.id})\n` +
+    `• <b>Email:</b> <code>${profile.email}</code>\n` +
     `• <b>Generated Code:</b> <code>${referralCode}</code>\n` +
-    `• <b>Time:</b> ${eatTime}\n\n` +
-    `<i>Review and approve under Admin Panel → Affiliates.</i>`
+    `• <b>Date Submitted:</b> ${dateFormatted} at ${timeFormatted} EAT\n\n` +
+    `⚡ <i>Review & approve in Admin Panel → Affiliates.</i>`
   );
 
   revalidatePath('/account/referrals');
+  revalidatePath('/admin/affiliates');
   return { success: true };
 }
 
@@ -272,15 +301,30 @@ export async function requestPayout(formData) {
     console.warn('[requestPayout] support notification error:', supErr);
   }
 
-  // 4. Send Instant Telegram Alert to admin
-  const eatTime = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Kampala' }) + ' EAT';
-  sendTelegramNotice(
+  // 4. Send Instant Telegram Alert to admin (Awaited)
+  const now = new Date();
+  const dateFormatted = now.toLocaleDateString('en-UG', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'Africa/Kampala'
+  });
+  const timeFormatted = now.toLocaleTimeString('en-UG', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+    timeZone: 'Africa/Kampala'
+  });
+
+  await sendTelegramNotice(
     `💰 <b>NEW AFFILIATE CASH WITHDRAWAL REQUEST</b> 💰\n\n` +
     `• <b>Affiliate:</b> @${profile.username || 'User'} (<code>${profile.email}</code>)\n` +
     `• <b>Amount:</b> <b>${amount.toLocaleString()} UGX</b>\n` +
     `• <b>Phone (MM):</b> <code>0${normalizedPhone.slice(3)}</code>\n` +
     `• <b>Remaining Balance:</b> ${(available - amount).toLocaleString()} UGX\n` +
-    `• <b>Time:</b> ${eatTime}\n\n` +
+    `• <b>Date Submitted:</b> ${dateFormatted} at ${timeFormatted} EAT\n\n` +
     `<i>Send mobile money to the user and mark completed in Admin Panel → Payouts.</i>`
   );
 

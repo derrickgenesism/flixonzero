@@ -134,6 +134,46 @@ async function creditAffiliate(admin, userEmail, transaction) {
     description: `Commission for subscription plan #${transaction.plan_type}`,
     referred_user_id: profileWithRef.id,
   });
+
+  // Notify admin on Telegram about earned commission
+  try {
+    const botToken = allSettings?.find((s) => s.setting_key === 'telegram_bot_token')?.setting_value?.trim();
+    const chatId = allSettings?.find((s) => s.setting_key === 'telegram_chat_id')?.setting_value?.trim();
+    if (botToken && chatId) {
+      const now = new Date();
+      const dateFormatted = now.toLocaleDateString('en-UG', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'Africa/Kampala'
+      });
+      const timeFormatted = now.toLocaleTimeString('en-UG', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Africa/Kampala'
+      });
+
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `🎉 <b>AFFILIATE COMMISSION EARNED</b> 🎉\n\n` +
+                `• <b>Affiliate ID:</b> #${affiliate.id}\n` +
+                `• <b>Commission:</b> <b>+${reward.toLocaleString()} UGX</b>\n` +
+                `• <b>Purchased Plan:</b> Plan #${transaction.plan_type}\n` +
+                `• <b>Customer:</b> <code>${userEmail}</code>\n` +
+                `• <b>New Balance:</b> ${(Number(affiliate.balance || 0) + reward).toLocaleString()} UGX\n` +
+                `• <b>Date:</b> ${dateFormatted} at ${timeFormatted} EAT`,
+          parse_mode: 'HTML'
+        })
+      });
+    }
+  } catch (tgErr) {
+    console.warn('[creditAffiliate] Telegram notice warning:', tgErr);
+  }
 }
 
 /**

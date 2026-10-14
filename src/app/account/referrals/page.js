@@ -88,14 +88,37 @@ export default async function ReferralsPage() {
 
   // STATE 2: Pending Approval
   if (affiliate.status === 'pending') {
+    const submittedDate = affiliate.created_at ? new Date(affiliate.created_at) : null;
+    const formattedDate = submittedDate ? (
+      submittedDate.toLocaleDateString('en-UG', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'Africa/Kampala'
+      }) + ' at ' + submittedDate.toLocaleTimeString('en-UG', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Africa/Kampala'
+      }) + ' EAT'
+    ) : 'Recently';
+
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
         <Navbar />
         <main style={{ maxWidth: '600px', margin: '0 auto', padding: '120px 24px 60px', textAlign: 'center' }}>
           <div style={{ fontSize: '64px', marginBottom: '20px' }}>⏳</div>
           <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '16px', color: '#fff' }}>Application Under Review</h1>
+
+          <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '12px', padding: '16px 20px', margin: '0 auto 24px', maxWidth: '380px', textAlign: 'center' }}>
+            <div style={{ color: 'var(--text3)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Date Submitted</div>
+            <div style={{ color: '#fbbf24', fontSize: '15px', fontWeight: '700' }}>📅 {formattedDate}</div>
+            <div style={{ color: 'var(--text3)', fontSize: '12px', marginTop: '4px' }}>Status: Pending Admin Review</div>
+          </div>
+
           <p style={{ color: 'var(--text2)', fontSize: '15px', marginBottom: '32px', lineHeight: '1.6' }}>
-            Thanks for applying! Our admin team reviews applications promptly. Once approved, your custom tracking link and payout controls will automatically unlock here.
+            Thanks for applying! Our team reviews partner applications promptly. Once approved by admin, your custom tracking link, social sharing, and payout controls will automatically unlock here.
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
             <Link href="/account" className="gms-btn" style={{ background: 'var(--bg2)' }}>
