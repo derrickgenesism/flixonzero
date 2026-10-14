@@ -20,12 +20,13 @@ export async function GET(request) {
     const tx_ref = searchParams.get('tx_ref');
     if (!tx_ref) return NextResponse.json({ status: 'not_found' });
 
-    // 1. Check local DB
+    // 1. Check local DB (scoped to authenticated user to prevent IDOR)
     const { data: purchase } = await supabaseAdmin
       .from('ppv_purchases')
       .select('*')
       .eq('tx_ref', tx_ref)
-      .single();
+      .eq('user_id', user.id)
+      .maybeSingle();
 
     if (!purchase) return NextResponse.json({ status: 'not_found' });
     if (purchase.status === 'success') return NextResponse.json({ status: 'success' });

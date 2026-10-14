@@ -16,6 +16,16 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Please log in to test payments.' }, { status: 401 });
     }
 
+    const { data: profile } = await supabaseAdmin
+      .from('user_profiles')
+      .select('role')
+      .eq('email', user.email)
+      .maybeSingle();
+
+    if (profile?.role !== 'administrator') {
+      return NextResponse.json({ error: 'Forbidden: Admin access required.' }, { status: 403 });
+    }
+
     const { amount, phoneNumber, network } = await request.json();
 
     if (!amount || !phoneNumber) {

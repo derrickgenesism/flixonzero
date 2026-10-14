@@ -61,8 +61,40 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
   }
 
   let amount = plan.price;
-  if (promoResult && promoResult.valid && promoResult.finalAmount !== undefined) {
-    amount = promoResult.finalAmount;
+  const codeToVerify = typeof promoResult === 'string' ? promoResult.trim() : promoResult?.code?.trim();
+  if (codeToVerify) {
+    const { data: promo } = await _injectedAdminClient()
+      .from('promo_codes')
+      .select('*')
+      .eq('code', codeToVerify.toUpperCase())
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (promo) {
+      const isExpired = promo.expires_at && new Date(promo.expires_at) < new Date();
+      const isLimitReached = promo.max_uses && promo.use_count >= promo.max_uses;
+
+      const { data: alreadyUsed } = await _injectedAdminClient()
+        .from('promo_code_uses')
+        .select('id')
+        .eq('code_id', promo.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!isExpired && !isLimitReached && !alreadyUsed) {
+        let discount = 0;
+        if (promo.discount_type === 'percentage') {
+          discount = Math.floor((plan.price * promo.discount_value) / 100);
+        } else {
+          discount = Math.min(plan.price, promo.discount_value);
+        }
+        amount = Math.max(100, plan.price - discount);
+      } else {
+        return { error: 'The applied promo code is expired, fully claimed, or already used.' };
+      }
+    } else {
+      return { error: 'Invalid promo code.' };
+    }
   }
   const tx_ref = `flixon_${user.id}_${Date.now()}`;
 

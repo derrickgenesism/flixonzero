@@ -4,28 +4,28 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
 export default async function UserAnalyticsPage({ params }) {
+  const { id } = await params;
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/admin/login')
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('email', user.email)
+    .maybeSingle()
+
+  if (profile?.role !== 'administrator') {
+    return (
+      <div>
+        <h1 style={{ fontSize: '32px', marginBottom: '20px' }}>Access Denied</h1>
+        <p style={{ color: 'var(--text2)' }}>Only Administrators can access User Analytics.</p>
+      </div>
+    )
+  }
+
   try {
-    const { id } = await params;
-    const supabase = await createClient()
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) redirect('/admin/login')
-
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('email', user.email)
-      .single()
-
-    if (profile?.role !== 'administrator') {
-      return (
-        <div>
-          <h1 style={{ fontSize: '32px', marginBottom: '20px' }}>Access Denied</h1>
-          <p style={{ color: 'var(--text2)' }}>Only Administrators can access User Analytics.</p>
-        </div>
-      )
-    }
-
     // Fetch target user profile directly
     const { data: userProfile } = await supabase
       .from('user_profiles')
@@ -193,11 +193,15 @@ export default async function UserAnalyticsPage({ params }) {
       </div>
     )
   } catch (error) {
+    if (error?.digest?.startsWith('NEXT_REDIRECT') || error?.message === 'NEXT_REDIRECT') {
+      throw error;
+    }
+    console.error('Error in /admin/users/[id]:', error);
     return (
-      <div style={{ color: 'red', padding: '20px', background: '#ffebee', borderRadius: '8px' }}>
-        <h2>Debug Error in /admin/users/[id]:</h2>
-        <pre>{error.message}</pre>
-        <pre>{error.stack}</pre>
+      <div style={{ color: '#ff6b6b', padding: '20px', background: 'rgba(255,107,107,0.1)', borderRadius: '8px', border: '1px solid rgba(255,107,107,0.2)' }}>
+        <h2 style={{ margin: '0 0 10px' }}>Error loading user analytics</h2>
+        <p style={{ color: 'var(--text2)', marginBottom: '15px' }}>{error.message || 'An unexpected error occurred.'}</p>
+        <Link href="/admin/users" style={{ color: 'var(--acc)', textDecoration: 'none' }}>&larr; Back to Users</Link>
       </div>
     )
   }

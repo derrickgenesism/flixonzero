@@ -15,19 +15,21 @@ export async function POST(request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Please log in first.' }, { status: 401 });
 
+    const { movieId, movieTitle, price, phoneNumber, network } = await request.json();
+
     // ── Fraud & Rate-Limiting Security Check ─────────────────────────────────
     const sec = await checkPaymentSecurity({
       userId: user.id,
       userEmail: user.email,
       username: user.email.split('@')[0],
+      phoneNumber,
+      network,
       reqHeaders: request.headers
     });
 
     if (!sec.allowed) {
       return NextResponse.json({ error: sec.message, blocked: true, ip: sec.ip }, { status: 429 });
     }
-
-    const { movieId, movieTitle, price, phoneNumber, network } = await request.json();
 
     const { data: settings } = await supabaseAdmin.from('admin_settings').select('*');
     const ppvEnabled = settings?.find(s => s.setting_key === 'ppv_enabled')?.setting_value === 'true';

@@ -22,6 +22,16 @@ export async function GET(request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const { data: profile } = await supabaseAdmin
+      .from('user_profiles')
+      .select('role')
+      .eq('email', user.email)
+      .maybeSingle();
+
+    if (profile?.role !== 'administrator') {
+      return NextResponse.json({ error: 'Forbidden: Admin access required.' }, { status: 403 });
+    }
+
     // Fetch Flutterwave Secret Key
     const { data: settings } = await supabaseAdmin.from('admin_settings').select('*');
     const flwSecret = settings?.find(s => s.setting_key === 'flutterwave_secret_key')?.setting_value;
