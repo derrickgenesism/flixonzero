@@ -16,6 +16,8 @@ export async function processExtraProfileCharge(phoneNumber, network) {
     userId: user.id,
     userEmail: user.email,
     username: user.email.split('@')[0],
+    phoneNumber,
+    network,
   });
 
   if (!sec.allowed) {
@@ -89,7 +91,7 @@ export async function processExtraProfileCharge(phoneNumber, network) {
       }
       return { success: true, message: data.message || 'Charge initiated successfully', tx_ref };
     } else {
-      recordImmediateFailedAttempt(sec.ip);
+      recordImmediateFailedAttempt(sec.ip, phoneNumber);
       return { error: data.message || 'Failed to initiate mobile money charge', ip: sec.ip };
     }
   } catch (error) {

@@ -1,15 +1,50 @@
 import { createAdminClient } from '../utils/supabase/admin.js';
 
 // In-memory sliding security cache
-// Tracks rapid IP lockouts and prevents Telegram alert spamming
+// Tracks rapid IP lockouts, Phone lockouts, rate cooldowns, and Telegram alert throttling
 const ipLockouts = new Map(); // ip -> { blockedUntil: number, count: number }
-const telegramCooldowns = new Map(); // key (userId or IP) -> timestamp of last alert
+const phoneLockouts = new Map(); // normalizedPhone -> { blockedUntil: number, count: number }
+const recentRequestTimestamps = new Map(); // key (userId | ip | phone) -> timestamp of last request
+const telegramCooldowns = new Map(); // key -> timestamp of last alert
 
 // Security thresholds
-const MAX_FAILED_ATTEMPTS = 5; // 5 uncompleted / failed attempts in 2 hours
+const MAX_FAILED_ATTEMPTS = 5; // 5 uncompleted / failed attempts in 2 hours triggers 2h lockout
+const PHONE_MAX_FAILURES = 3; // 3 failed attempts on the same phone across ANY account triggers phone lockout
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const AUTO_FREEZE_THRESHOLD = 10; // Auto-freeze account if >= 10 failed attempts
-const TELEGRAM_ALERT_COOLDOWN_MS = 30 * 60 * 1000; // Max 1 Telegram alert per offender every 30m
+const TELEGRAM_ALERT_COOLDOWN_MS = 20 * 60 * 1000; // Max 1 Telegram alert per offender every 20m
+const MIN_REQUEST_INTERVAL_MS = 12 * 1000; // 12 seconds cooldown between checkout attempts
+
+/**
+ * Normalizes a phone number into canonical Ugandan format: 256XXXXXXXXX (12 digits)
+ */
+export function normalizeUgandaPhone(phone) {
+  if (!phone || typeof phone !== 'string') return '';
+  const digits = phone.replace(/[^0-9]/g, '');
+  if (digits.startsWith('256') && digits.length === 12) {
+    return digits;
+  }
+  if (digits.startsWith('0') && digits.length === 10) {
+    return '256' + digits.substring(1);
+  }
+  if (digits.length === 9 && digits.startsWith('7')) {
+    return '256' + digits;
+  }
+  return digits;
+}
+
+/**
+ * Validates whether a phone number is a valid Ugandan Mobile Money line (MTN or Airtel)
+ * Ugandan prefixes: 70, 74, 75 (Airtel) | 76, 77, 78 (MTN)
+ */
+export function isValidUgandaPhone(normalizedPhone) {
+  if (!normalizedPhone || normalizedPhone.length !== 12) return false;
+  if (!normalizedPhone.startsWith('2567')) return false;
+  const prefix = normalizedPhone.substring(3, 5);
+  // Valid active mobile money prefixes in Uganda
+  const validPrefixes = ['70', '71', '72', '74', '75', '76', '77', '78', '79'];
+  return validPrefixes.includes(prefix);
+}
 
 /**
  * Safely extracts client IP address from Next.js headers or explicit request
@@ -35,6 +70,19 @@ export async function getClientIp(reqHeaders = null) {
 }
 
 /**
+ * Generates an opaque, authoritative security lockout notice.
+ * Never discloses internal attempt counts or thresholds to prevent reverse engineering.
+ */
+function getSecurityNoticeMessage({ clientIp, phone = '' }) {
+  const phoneNote = phone ? ` and payment phone number (${phone})` : ' and payment details';
+  return `Security Alert: Unusual payment activity detected. For security, your device IP address (${clientIp})${phoneNote} have been recorded and flagged for investigation. Transactions are temporarily locked for the next 2 hours while administrators review this activity. If you believe this is an error, please click below to contact Support immediately.`;
+}
+
+function getAccountFrozenMessage({ clientIp }) {
+  return `Account Suspended: This account has been locked due to suspicious or unauthorized activity. Your device IP (${clientIp}) has been logged and forwarded to system administration. Please click below to contact Support.`;
+}
+
+/**
  * Sends an urgent security alert to the admin's Telegram support group.
  * Non-blocking, fails gracefully without crashing payment requests.
  */
@@ -43,12 +91,15 @@ export async function sendFraudTelegramAlert({
   userEmail,
   username,
   clientIp,
+  phoneNumber,
+  network,
   failedCount,
   actionTaken,
   reason
 }) {
   try {
-    const cooldownKey = `${userId || 'anon'}_${clientIp}`;
+    const normPhone = normalizeUgandaPhone(phoneNumber);
+    const cooldownKey = `${userId || 'anon'}_${clientIp}_${normPhone}`;
     const lastAlert = telegramCooldowns.get(cooldownKey) || 0;
     if (Date.now() - lastAlert < TELEGRAM_ALERT_COOLDOWN_MS) {
       // Cooldown active, skip to prevent Telegram bot flooding
@@ -73,18 +124,21 @@ export async function sendFraudTelegramAlert({
     const safeName = (username || 'Unknown').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const safeEmail = (userEmail || 'Unknown').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const safeIp = (clientIp || 'Unknown').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const safePhone = (normPhone || 'Not provided').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const safeNet = (network || 'Unknown').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const eatTime = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Kampala' }) + ' EAT';
 
     const text =
-      `🚨 <b>PAYMENT ATTACK / ABUSE DETECTED</b> 🚨\n\n` +
+      `🚨 <b>PAYMENT ATTACK / ABUSE INTERCEPTED</b> 🚨\n\n` +
       `<b>Account:</b> ${safeName} (<code>${safeEmail}</code>)\n` +
       `<b>User ID:</b> <code>${userId || 'N/A'}</code>\n` +
       `<b>Client IP:</b> <code>${safeIp}</code>\n` +
+      `<b>Phone Number:</b> <code>${safePhone}</code> (${safeNet})\n` +
       `<b>Failed / Incomplete Attempts (2h):</b> <b>${failedCount}</b>\n` +
-      `<b>Reason:</b> ${reason || 'Excessive failed transactions'}\n` +
+      `<b>Reason:</b> ${reason || 'Excessive unverified transaction attempts'}\n` +
       `<b>Action Taken:</b> 🔒 <b>${actionTaken}</b>\n` +
-      `<b>Time:</b> ${eatTime}\n\n` +
-      `<i>Checkout access locked for this IP/account. View in Admin Dashboard → Users</i>`;
+      `<b>Timestamp:</b> ${eatTime}\n\n` +
+      `<i>Checkout has been locked. Check Admin Dashboard → Users to inspect or manage this user.</i>`;
 
     await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
@@ -100,13 +154,16 @@ export async function sendFraudTelegramAlert({
  * Checks whether an incoming transaction is safe to proceed or should be blocked.
  * 
  * Rules:
- * 1. If user account is FROZEN/SUSPENDED, block immediately.
- * 2. If client IP is locked out in memory, block immediately for 2 hours.
- * 3. If user has >= 5 failed/pending attempts in last 2 hours and 0 successful payments:
- *    - Block payment.
- *    - Lock IP for 2 hours.
- *    - If attempts >= 10, automatically freeze account (role = 'frozen').
- *    - Send instant Telegram alert to admin.
+ * 1. Validates Ugandan phone format.
+ * 2. Checks Account Frozen status.
+ * 3. Enforces 12-second anti-automation cooldown per user/device.
+ * 4. Checks In-memory IP Lockout (2 hours).
+ * 5. Checks In-memory Phone Number Lockout (2 hours).
+ * 6. Checks Database Failed Attempts in the last 2 hours.
+ *    - Threshold: 5 uncompleted attempts.
+ *    - Lockout: 2 hours for IP & Phone.
+ *    - Auto-freeze: >= 10 attempts.
+ *    - Sends Instant Telegram Alert.
  * 
  * @returns {Promise<{ allowed: boolean, blocked: boolean, reason?: string, ip: string, message?: string }>}
  */
@@ -114,12 +171,26 @@ export async function checkPaymentSecurity({
   userId,
   userEmail,
   username = '',
+  phoneNumber = '',
+  network = '',
   reqHeaders = null
 }) {
   const clientIp = await getClientIp(reqHeaders);
+  const normPhone = normalizeUgandaPhone(phoneNumber);
   const admin = createAdminClient();
 
-  // 1. Check if account is frozen
+  // 1. Strict Ugandan Phone Validation (if phone provided)
+  if (phoneNumber && !isValidUgandaPhone(normPhone)) {
+    return {
+      allowed: false,
+      blocked: false,
+      reason: 'invalid_phone',
+      ip: clientIp,
+      message: 'Please enter a valid Ugandan mobile money number (e.g. 077... or 075...).'
+    };
+  }
+
+  // 2. Check if account is frozen
   if (userEmail) {
     const { data: profile } = await admin
       .from('user_profiles')
@@ -133,25 +204,53 @@ export async function checkPaymentSecurity({
         blocked: true,
         reason: 'account_frozen',
         ip: clientIp,
-        message: `Account Suspended: Your account has been frozen due to suspicious activity. Your IP address (${clientIp}) has been recorded. Please contact Support to appeal or reactivate your account.`
+        message: getAccountFrozenMessage({ clientIp })
       };
     }
   }
 
-  // 2. Check in-memory IP lockout
+  // 3. Anti-Flooding Cooldown (Prevent rapid-fire script hammering)
+  const rateKey = `${userId || 'anon'}_${clientIp}_${normPhone}`;
+  const lastRequestTime = recentRequestTimestamps.get(rateKey) || 0;
+  const now = Date.now();
+  if (now - lastRequestTime < MIN_REQUEST_INTERVAL_MS) {
+    return {
+      allowed: false,
+      blocked: false,
+      reason: 'rate_cooldown',
+      ip: clientIp,
+      message: 'Please wait a moment. Your payment request is already in progress. Check your phone for the PIN prompt.'
+    };
+  }
+  recentRequestTimestamps.set(rateKey, now);
+
+  // 4. Check In-Memory Phone Number Lockout
+  if (normPhone) {
+    const phoneLock = phoneLockouts.get(normPhone);
+    if (phoneLock && phoneLock.blockedUntil > now) {
+      return {
+        allowed: false,
+        blocked: true,
+        reason: 'phone_locked',
+        ip: clientIp,
+        message: getSecurityNoticeMessage({ clientIp, phone: normPhone })
+      };
+    }
+  }
+
+  // 5. Check In-Memory IP Lockout
   const ipLock = ipLockouts.get(clientIp);
-  if (ipLock && ipLock.blockedUntil > Date.now()) {
-    const remainingMinutes = Math.max(1, Math.ceil((ipLock.blockedUntil - Date.now()) / (60 * 1000)));
+  if (ipLock && ipLock.blockedUntil > now) {
     return {
       allowed: false,
       blocked: true,
       reason: 'ip_rate_limited',
       ip: clientIp,
-      message: `Security Lockout: Too many failed payment attempts from this network. Transactions are restricted for the next ${remainingMinutes} minute(s). Your IP address (${clientIp}) has been recorded and flagged for security review. Please contact Support.`
+      message: getSecurityNoticeMessage({ clientIp, phone: normPhone })
     };
   }
 
-  // 3. Database verification of failed attempts in the last 2 hours
+  // 6. Database verification of failed attempts in the last 2 hours
   if (userId) {
     const twoHoursAgo = new Date(Date.now() - TWO_HOURS_MS).toISOString();
 
@@ -183,8 +282,16 @@ export async function checkPaymentSecurity({
           count: failedOrPending
         });
 
+        // Also lock this phone number for 2 hours if provided
+        if (normPhone) {
+          phoneLockouts.set(normPhone, {
+            blockedUntil: Date.now() + TWO_HOURS_MS,
+            count: failedOrPending
+          });
+        }
+
         const shouldAutoFreeze = failedOrPending >= AUTO_FREEZE_THRESHOLD;
-        let actionTaken = 'Blocked for 2 Hours';
+        let actionTaken = 'Blocked for 2 Hours (IP & Phone)';
 
         if (shouldAutoFreeze && userEmail) {
           actionTaken = 'Blocked 2h & ACCOUNT AUTO-FROZEN';
@@ -200,9 +307,11 @@ export async function checkPaymentSecurity({
           userEmail,
           username,
           clientIp,
+          phoneNumber: normPhone,
+          network,
           failedCount: failedOrPending,
           actionTaken,
-          reason: `User generated ${failedOrPending} failed/incomplete payment requests within 2 hours.`
+          reason: `Detected ${failedOrPending} uncompleted payment attempts within 2 hours.`
         });
 
         return {
@@ -211,7 +320,7 @@ export async function checkPaymentSecurity({
           reason: 'too_many_failures',
           ip: clientIp,
           failedCount: failedOrPending,
-          message: `Security Alert: You have reached the limit of 5 unsuccessful payment attempts. For your security and to prevent payment abuse, transactions are restricted for the next 2 hours. Your IP address (${clientIp}) has been recorded and flagged. Please contact Support or try again later.`
+          message: getSecurityNoticeMessage({ clientIp, phone: normPhone })
         };
       }
     }
@@ -227,12 +336,24 @@ export async function checkPaymentSecurity({
 /**
  * Records an immediate failed transaction attempt in memory to stop rapid script loops.
  */
-export function recordImmediateFailedAttempt(clientIp) {
-  if (!clientIp) return;
-  const current = ipLockouts.get(clientIp) || { count: 0, blockedUntil: 0 };
-  current.count = (current.count || 0) + 1;
-  if (current.count >= MAX_FAILED_ATTEMPTS) {
-    current.blockedUntil = Date.now() + TWO_HOURS_MS;
+export function recordImmediateFailedAttempt(clientIp, phoneNumber = '') {
+  const now = Date.now();
+  if (clientIp) {
+    const current = ipLockouts.get(clientIp) || { count: 0, blockedUntil: 0 };
+    current.count = (current.count || 0) + 1;
+    if (current.count >= MAX_FAILED_ATTEMPTS) {
+      current.blockedUntil = now + TWO_HOURS_MS;
+    }
+    ipLockouts.set(clientIp, current);
   }
-  ipLockouts.set(clientIp, current);
+
+  const norm = normalizeUgandaPhone(phoneNumber);
+  if (norm) {
+    const curP = phoneLockouts.get(norm) || { count: 0, blockedUntil: 0 };
+    curP.count = (curP.count || 0) + 1;
+    if (curP.count >= PHONE_MAX_FAILURES) {
+      curP.blockedUntil = now + TWO_HOURS_MS;
+    }
+    phoneLockouts.set(norm, curP);
+  }
 }

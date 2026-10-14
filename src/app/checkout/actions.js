@@ -25,6 +25,8 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
     userId: user.id,
     userEmail: user.email,
     username: profile?.username,
+    phoneNumber,
+    network,
   });
 
   if (!sec.allowed) {
@@ -117,7 +119,7 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
       return { success: true, message: data.message || 'Charge initiated successfully', tx_ref };
     } else {
       console.error("Flutterwave API Error:", data);
-      recordImmediateFailedAttempt(sec.ip);
+      recordImmediateFailedAttempt(sec.ip, phoneNumber);
       return { error: data.message || 'Failed to initiate mobile money charge', ip: sec.ip };
     }
   } catch (error) {
