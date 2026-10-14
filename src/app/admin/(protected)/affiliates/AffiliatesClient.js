@@ -1,11 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { updateSettings, adjustBalance } from './actions'
+import { useRouter } from 'next/navigation'
+import { updateSettings, adjustBalance, approveAffiliate, rejectAffiliate } from './actions'
 
 export default function AffiliatesClient({ data }) {
   const { config, affiliates } = data
+  const router = useRouter()
+  const [affiliatesList, setAffiliatesList] = useState(affiliates || [])
+  const [activeFilter, setActiveFilter] = useState('all')
   const [loading, setLoading] = useState(false)
+  const [actionLoadingId, setActionLoadingId] = useState(null)
   const [message, setMessage] = useState(null)
 
   // Adjust Balance Modal State
@@ -19,8 +24,11 @@ export default function AffiliatesClient({ data }) {
     setMessage(null)
     const res = await updateSettings(formData)
     setLoading(false)
-    if (res.success) setMessage('Settings saved successfully!')
-    else setMessage(res.error || 'Failed to save settings')
+    if (res?.success) {
+      setMessage('Settings saved successfully!')
+    } else {
+      setMessage(res?.error || 'Failed to save settings')
+    }
   }
 
   async function handleAdjustSubmit(e) {
@@ -29,21 +37,72 @@ export default function AffiliatesClient({ data }) {
     setLoading(true)
     const res = await adjustBalance(selectedUser.id, adjustAmount, adjustReason)
     setLoading(false)
-    if (res.success) {
+    if (res?.success) {
+      const delta = Number(adjustAmount)
+      setAffiliatesList(prev => prev.map(a => {
+        if (a.id === selectedUser.id) {
+          const newBal = Number(a.balance || 0) + delta
+          const newEarned = delta > 0 ? Number(a.total_earned || 0) + delta : Number(a.total_earned || 0)
+          return { ...a, balance: newBal, total_earned: newEarned }
+        }
+        return a
+      }))
       setShowModal(false)
       setAdjustAmount('')
       setAdjustReason('')
+      setMessage(`✅ Balance updated for @${selectedUser.user_profiles?.username || selectedUser.referral_code}`)
+      router.refresh()
     } else {
-      alert(res.error || 'Failed to adjust balance')
+      alert(res?.error || 'Failed to adjust balance')
     }
   }
+
+  async function handleApprove(aff) {
+    setActionLoadingId(aff.id)
+    setMessage(null)
+    const res = await approveAffiliate(aff.id)
+    setActionLoadingId(null)
+    if (res?.success) {
+      setAffiliatesList(prev => prev.map(a => a.id === aff.id ? { ...a, status: 'approved' } : a))
+      setMessage(`✅ Approved affiliate @${aff.user_profiles?.username || aff.referral_code}! Notification sent to user.`)
+      router.refresh()
+    } else {
+      alert(res?.error || 'Failed to approve affiliate')
+    }
+  }
+
+  async function handleReject(aff) {
+    if (!confirm(`Are you sure you want to reject/suspend @${aff.user_profiles?.username || aff.referral_code}?`)) return
+    setActionLoadingId(aff.id)
+    setMessage(null)
+    const res = await rejectAffiliate(aff.id)
+    setActionLoadingId(null)
+    if (res?.success) {
+      setAffiliatesList(prev => prev.map(a => a.id === aff.id ? { ...a, status: 'rejected' } : a))
+      setMessage(`Affiliate @${aff.user_profiles?.username || aff.referral_code} marked as rejected.`)
+      router.refresh()
+    } else {
+      alert(res?.error || 'Failed to reject affiliate')
+    }
+  }
+
+  const pendingCount = affiliatesList.filter(a => a.status === 'pending').length
+  const approvedCount = affiliatesList.filter(a => a.status === 'approved' || (!a.status)).length
+  const rejectedCount = affiliatesList.filter(a => a.status === 'rejected').length
+
+  const filteredAffiliates = affiliatesList.filter(a => {
+    if (activeFilter === 'pending') return a.status === 'pending'
+    if (activeFilter === 'approved') return a.status === 'approved' || (!a.status)
+    if (activeFilter === 'rejected') return a.status === 'rejected'
+    return true
+  })
 
   return (
     <div>
       <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>Affiliate & Referral Settings</h1>
 
       {message && (
-        <div style={{ background: 'rgba(0,255,0,0.1)', color: '#4ade80', padding: '12px', borderRadius: '8px', marginBottom: '20px' }}>
+        <div style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontWeight: '500' }}>
           {message}
         </div>
       )}
@@ -134,9 +193,77 @@ export default function AffiliatesClient({ data }) {
 
       {/* Affiliates List */}
       <div style={{ background: 'var(--bg2)', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Active Affiliates</h2>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 4px' }}>Affiliate Management</h2>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text3)' }}>Review applications, approve partners, and manage balances</p>
+          </div>
+
+          {/* Filter Tabs */}
+          <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.04)', padding: '4px', borderRadius: '8px' }}>
+            <button
+              onClick={() => setActiveFilter('all')}
+              style={{
+                background: activeFilter === 'all' ? 'var(--acc)' : 'transparent',
+                color: activeFilter === 'all' ? '#000' : 'var(--text2)',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              All ({affiliatesList.length})
+            </button>
+            <button
+              onClick={() => setActiveFilter('pending')}
+              style={{
+                background: activeFilter === 'pending' ? '#fbbf24' : 'transparent',
+                color: activeFilter === 'pending' ? '#000' : (pendingCount > 0 ? '#fbbf24' : 'var(--text2)'),
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              Pending ({pendingCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('approved')}
+              style={{
+                background: activeFilter === 'approved' ? '#4ade80' : 'transparent',
+                color: activeFilter === 'approved' ? '#000' : 'var(--text2)',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              Approved ({approvedCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('rejected')}
+              style={{
+                background: activeFilter === 'rejected' ? '#f87171' : 'transparent',
+                color: activeFilter === 'rejected' ? '#000' : 'var(--text2)',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              Rejected ({rejectedCount})
+            </button>
+          </div>
         </div>
+
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--text3)' }}>
@@ -149,75 +276,103 @@ export default function AffiliatesClient({ data }) {
             </tr>
           </thead>
           <tbody>
-            {affiliates.length === 0 ? (
+            {filteredAffiliates.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--text3)' }}>No affiliates found.</td>
+                <td colSpan={6} style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--text3)' }}>
+                  No affiliates found for filter: <strong style={{ color: 'var(--text1)' }}>{activeFilter}</strong>
+                </td>
               </tr>
-            ) : affiliates.map(aff => (
-              <tr key={aff.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <td style={{ padding: '16px 24px' }}>
-                  <div style={{ fontWeight: '500' }}>{aff.user_profiles?.username}</div>
-                  <div style={{ color: 'var(--text3)', fontSize: '12px' }}>{aff.user_profiles?.email}</div>
-                </td>
-                <td style={{ padding: '16px 24px' }}>
-                  {aff.status === 'approved' && <span style={{ color: '#4ade80', background: 'rgba(74,222,128,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Approved</span>}
-                  {aff.status === 'pending' && <span style={{ color: '#fbbf24', background: 'rgba(251,191,36,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Pending</span>}
-                  {aff.status === 'rejected' && <span style={{ color: '#f87171', background: 'rgba(248,113,113,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Rejected</span>}
-                  {!aff.status && <span style={{ color: '#4ade80', background: 'rgba(74,222,128,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>Approved (Legacy)</span>}
-                </td>
-                <td style={{ padding: '16px 24px', fontFamily: 'monospace', color: 'var(--acc)' }}>
-                  {aff.referral_code}
-                </td>
-                <td style={{ padding: '16px 24px', fontWeight: 'bold', color: '#4ade80' }}>
-                  {Number(aff.balance).toLocaleString()} UGX
-                </td>
-                <td style={{ padding: '16px 24px', color: 'var(--text2)' }}>
-                  {Number(aff.total_earned).toLocaleString()} UGX
-                </td>
-                <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    {aff.status === 'pending' && (
-                      <>
-                        <button 
-                          onClick={async () => {
-                            setLoading(true);
-                            const { approveAffiliate } = await import('./actions');
-                            await approveAffiliate(aff.id);
-                            setLoading(false);
-                          }}
-                          className="gms-btn" 
-                          style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(74,222,128,0.1)', color: '#4ade80' }}
-                          disabled={loading}
-                        >
-                          Approve
-                        </button>
-                        <button 
-                          onClick={async () => {
-                            setLoading(true);
-                            const { rejectAffiliate } = await import('./actions');
-                            await rejectAffiliate(aff.id);
-                            setLoading(false);
-                          }}
-                          className="gms-btn" 
-                          style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(248,113,113,0.1)', color: '#f87171' }}
-                          disabled={loading}
-                        >
-                          Reject
-                        </button>
-                      </>
+            ) : filteredAffiliates.map(aff => {
+              const isBusy = actionLoadingId === aff.id
+              const isApproved = aff.status === 'approved' || !aff.status
+              const isPending = aff.status === 'pending'
+              const isRejected = aff.status === 'rejected'
+
+              return (
+                <tr key={aff.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ fontWeight: '600' }}>{aff.user_profiles?.username || 'User #' + aff.user_id}</div>
+                    <div style={{ color: 'var(--text3)', fontSize: '12px' }}>{aff.user_profiles?.email || 'No email'}</div>
+                  </td>
+                  <td style={{ padding: '16px 24px' }}>
+                    {isApproved && (
+                      <span style={{ color: '#4ade80', background: 'rgba(74,222,128,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
+                        Approved
+                      </span>
                     )}
-                    <button 
-                      onClick={() => { setSelectedUser(aff); setShowModal(true); }}
-                      className="gms-btn" 
-                      style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(255,255,255,0.1)' }}
-                      disabled={loading}
-                    >
-                      Adjust Balance
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    {isPending && (
+                      <span style={{ color: '#fbbf24', background: 'rgba(251,191,36,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
+                        Pending Approval
+                      </span>
+                    )}
+                    {isRejected && (
+                      <span style={{ color: '#f87171', background: 'rgba(248,113,113,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
+                        Rejected
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '16px 24px', fontFamily: 'monospace', color: 'var(--acc)', fontWeight: '600' }}>
+                    {aff.referral_code}
+                  </td>
+                  <td style={{ padding: '16px 24px', fontWeight: 'bold', color: '#4ade80' }}>
+                    {Number(aff.balance || 0).toLocaleString()} UGX
+                  </td>
+                  <td style={{ padding: '16px 24px', color: 'var(--text2)' }}>
+                    {Number(aff.total_earned || 0).toLocaleString()} UGX
+                  </td>
+                  <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                      {/* Approve Button */}
+                      {(isPending || isRejected) && (
+                        <button 
+                          onClick={() => handleApprove(aff)}
+                          className="gms-btn" 
+                          style={{ 
+                            padding: '6px 14px', 
+                            fontSize: '12px', 
+                            background: '#22c55e', 
+                            color: '#000', 
+                            fontWeight: '600',
+                            cursor: isBusy ? 'wait' : 'pointer'
+                          }}
+                          disabled={isBusy || loading}
+                        >
+                          {isBusy ? 'Processing...' : (isRejected ? 'Re-Approve' : 'Approve')}
+                        </button>
+                      )}
+
+                      {/* Reject / Suspend Button */}
+                      {(isPending || isApproved) && (
+                        <button 
+                          onClick={() => handleReject(aff)}
+                          className="gms-btn" 
+                          style={{ 
+                            padding: '6px 12px', 
+                            fontSize: '12px', 
+                            background: isApproved ? 'rgba(248,113,113,0.15)' : 'rgba(248,113,113,0.2)', 
+                            color: '#f87171',
+                            cursor: isBusy ? 'wait' : 'pointer'
+                          }}
+                          disabled={isBusy || loading}
+                        >
+                          {isBusy ? '...' : (isApproved ? 'Suspend' : 'Reject')}
+                        </button>
+                      )}
+
+                      {/* Adjust Balance Button */}
+                      <button 
+                        onClick={() => { setSelectedUser(aff); setShowModal(true); }}
+                        className="gms-btn" 
+                        style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(255,255,255,0.08)', color: 'var(--text2)' }}
+                        disabled={isBusy || loading}
+                      >
+                        Adjust Balance
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -228,14 +383,17 @@ export default function AffiliatesClient({ data }) {
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
-          <div style={{ background: 'var(--bg2)', width: '100%', maxWidth: '400px', borderRadius: '12px', padding: '24px' }}>
+          <div style={{ background: 'var(--bg2)', width: '100%', maxWidth: '400px', borderRadius: '12px', padding: '24px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>
-              Adjust Balance for {selectedUser?.user_profiles?.username}
+              Adjust Balance for @{selectedUser?.user_profiles?.username || selectedUser?.referral_code}
             </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text3)', margin: '0 0 16px' }}>
+              Current balance: <strong style={{ color: '#4ade80' }}>{Number(selectedUser?.balance || 0).toLocaleString()} UGX</strong>
+            </p>
             <form onSubmit={handleAdjustSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>
-                  Amount Change (+ or -)
+                  Amount Change (+ or - in UGX)
                 </label>
                 <input 
                   type="number" 
@@ -254,7 +412,7 @@ export default function AffiliatesClient({ data }) {
                   type="text" 
                   value={adjustReason} 
                   onChange={e => setAdjustReason(e.target.value)} 
-                  placeholder="e.g. Bonus for good performance" 
+                  placeholder="e.g. Bonus for top referral performance" 
                   className="flx-form-input" 
                   required 
                 />
