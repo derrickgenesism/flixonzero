@@ -1,7 +1,7 @@
 'use server'
 const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');;
 
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -20,6 +20,9 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
     .from('user_profiles').select('email, username').eq('email', user.email)
     .single();
 
+  const cookieStore = await cookies();
+  const visitorId = cookieStore.get('flx_vid')?.value || '';
+
   // ── Fraud & Rate-Limiting Security Check ─────────────────────────────────
   const sec = await checkPaymentSecurity({
     userId: user.id,
@@ -27,6 +30,7 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
     username: profile?.username,
     phoneNumber,
     network,
+    fingerprint: visitorId,
   });
 
   if (!sec.allowed) {

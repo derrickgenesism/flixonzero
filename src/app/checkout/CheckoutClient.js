@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { processDirectCharge, checkTransactionStatus } from './actions';
 import OfferCountdown from '@/components/OfferCountdown';
 
-export default function CheckoutClient({ plans, promoEnabled = true, offer = null }) {
+export default function CheckoutClient({ plans, promoEnabled = true, offer = null, vpnDetected = false, clientIp = '' }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [network, setNetwork] = useState('');
@@ -241,6 +241,31 @@ export default function CheckoutClient({ plans, promoEnabled = true, offer = nul
                 {promoResult.valid ? promoResult.message : promoResult.error}
               </p>
             )}
+          </div>
+        )}
+
+        {vpnDetected && !error && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.5)',
+            color: '#ff6b6b',
+            padding: '16px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            fontSize: '14px',
+            lineHeight: '1.5'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <span style={{ fontSize: '24px', flexShrink: 0 }}>🛡️</span>
+              <div style={{ flex: 1 }}>
+                <strong style={{ display: 'block', color: '#fff', marginBottom: '4px', fontSize: '15px' }}>
+                  VPN or Proxy Detected ({clientIp || 'Active'})
+                </strong>
+                <span style={{ color: '#fca5a5' }}>
+                  FlixOn mobile money payments require a direct connection. Please disconnect your VPN before submitting payment to ensure MTN / Airtel prompts reach your phone.
+                </span>
+              </div>
+            </div>
           </div>
         )}
 

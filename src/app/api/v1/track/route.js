@@ -171,6 +171,39 @@ export async function POST(request) {
         if (error) {
           console.error('[Track Ingestion Error]:', error.message);
         }
+
+        // Auto-ban any account detected on a blocked device fingerprint
+        if (sanitizedUserId) {
+          try {
+            const { isFingerprintBlocked, sendSecurityTelegramAlert } = await import('@/lib/ipShield');
+            const isBlocked = await isFingerprintBlocked(visitor_id);
+            if (isBlocked) {
+              const { data: userProfile } = await supabase
+                .from('user_profiles')
+                .select('role, email')
+                .eq('id', sanitizedUserId)
+                .maybeSingle();
+
+              if (userProfile && userProfile.role !== 'banned') {
+                await supabase.from('user_profiles').update({ role: 'banned' }).eq('id', sanitizedUserId);
+                try {
+                  await supabase.auth.admin.updateUserById(sanitizedUserId, { ban_duration: '876000h' });
+                } catch {}
+                await sendSecurityTelegramAlert({
+                  title: '🚨 BLOCKED DEVICE DETECTED: AUTO-BANNED NEW ACCOUNT',
+                  details: [
+                    { label: 'Account Email', value: userProfile.email },
+                    { label: 'User ID', value: sanitizedUserId },
+                    { label: 'Device Fingerprint', value: visitor_id },
+                    { label: 'Path Visited', value: sanitizedPath }
+                  ]
+                });
+              }
+            }
+          } catch (guardErr) {
+            console.warn('[Track Ingestion Guard Error]:', guardErr.message);
+          }
+        }
       } catch (insertErr) {
         console.error('[Track Ingestion Exception]:', insertErr.message);
       }

@@ -384,6 +384,75 @@ export default async function AdminSettingsPage() {
           />
         </div>
 
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '30px 0' }} />
+
+        <h3 style={{ margin: '0 0 6px', color: 'var(--acc)' }}>🛡️ Security & VPN Shield</h3>
+        <p style={{ margin: '0 0 15px', fontSize: '13px', color: 'var(--text3)' }}>
+          Protect FlixOn against automated bots, VPNs, hosting proxies, and payment abusers.
+        </p>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              name="vpn_blocking_enabled"
+              defaultChecked={settings?.find(s => s.setting_key === 'vpn_blocking_enabled')?.setting_value === 'true'}
+            />
+            <strong>Block VPN & Proxy Connections</strong>
+          </label>
+          <p style={{ margin: '4px 0 0 24px', fontSize: '12px', color: 'var(--text3)' }}>
+            Detects datacenter hosting IPs, VPN tunnels, and anonymous proxies with fail-open safety for Ugandan mobile networks (MTN & Airtel).
+          </p>
+        </div>
+
+        <div style={{ marginBottom: '25px', marginLeft: '24px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: 'var(--text2)' }}>
+            VPN Blocking Scope
+          </label>
+          <select
+            name="vpn_blocking_mode"
+            defaultValue={settings?.find(s => s.setting_key === 'vpn_blocking_mode')?.setting_value || 'all'}
+            style={{
+              width: '100%',
+              padding: '10px',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: '#fff',
+              borderRadius: '4px'
+            }}
+          >
+            <option value="all" style={{ background: '#18181b', color: '#fff' }}>
+              Whole Platform (Block VPN everywhere across FlixOn)
+            </option>
+            <option value="checkout" style={{ background: '#18181b', color: '#fff' }}>
+              Checkout & Payments Only (Block VPN only when paying)
+            </option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '25px', padding: '14px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>Live Threat Defense & IP Blocklist</div>
+              <div style={{ fontSize: '12px', color: 'var(--text3)' }}>Manage banned IPs, blocked devices, and security logs in real-time.</div>
+            </div>
+            <a
+              href="/admin/security-logs"
+              style={{
+                background: 'var(--acc)',
+                color: '#fff',
+                padding: '6px 14px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                textDecoration: 'none'
+              }}
+            >
+              Open Security Center →
+            </a>
+          </div>
+        </div>
+
         <button type="submit" className="gms-btn gms-btn--primary">
           Save Settings
         </button>

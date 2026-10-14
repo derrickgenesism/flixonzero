@@ -26,7 +26,7 @@ export async function saveSettings(formData) {
     throw new Error("Forbidden");
   }
 
-  const checkboxKeys = ['free_mode_enabled', 'referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled', 'series_enabled', 'google_auth_enabled', 'offer_enabled']
+  const checkboxKeys = ['free_mode_enabled', 'referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled', 'series_enabled', 'google_auth_enabled', 'offer_enabled', 'vpn_blocking_enabled']
   const keys = [
     'free_mode_enabled',
     'tmdb_api_key',
@@ -52,7 +52,9 @@ export async function saveSettings(formData) {
     'series_enabled',
     'offer_enabled',
     'offer_duration_minutes',
-    'offer_discount_percent'
+    'offer_discount_percent',
+    'vpn_blocking_enabled',
+    'vpn_blocking_mode'
   ]
 
   for (const key of keys) {

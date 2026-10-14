@@ -1,4 +1,5 @@
 import { createAdminClient } from '../utils/supabase/admin.js';
+import { isIpBlocked, isFingerprintBlocked, checkVpnOrProxy, getSecuritySettings, recordSecurityAudit } from './ipShield.js';
 
 // In-memory sliding security cache
 // Tracks rapid IP lockouts, Phone lockouts, rate cooldowns, and Telegram alert throttling
@@ -173,11 +174,88 @@ export async function checkPaymentSecurity({
   username = '',
   phoneNumber = '',
   network = '',
-  reqHeaders = null
+  reqHeaders = null,
+  fingerprint = ''
 }) {
   const clientIp = await getClientIp(reqHeaders);
   const normPhone = normalizeUgandaPhone(phoneNumber);
   const admin = createAdminClient();
+
+  // 0. Hard Block: Check Blocked IP Address
+  const ipBlocked = await isIpBlocked(clientIp);
+  if (ipBlocked) {
+    if (userEmail) {
+      await admin.from('user_profiles').update({ role: 'banned' }).eq('email', userEmail);
+      try {
+        if (userId) await admin.auth.admin.updateUserById(userId, { ban_duration: '876000h' });
+      } catch {}
+    }
+    await sendFraudTelegramAlert({
+      userId,
+      userEmail,
+      username,
+      clientIp,
+      phoneNumber: normPhone,
+      network,
+      failedCount: 1,
+      actionTaken: 'BLOCKED & USER AUTO-BANNED',
+      reason: `Blocked IP address (${clientIp}) attempted checkout.`
+    });
+    return {
+      allowed: false,
+      blocked: true,
+      reason: 'ip_blocked',
+      ip: clientIp,
+      message: 'Access Restricted: Your network or IP address has been restricted due to violations of platform guidelines.'
+    };
+  }
+
+  // 0.1 Hard Block: Check Blocked Device Fingerprint
+  if (fingerprint) {
+    const fpBlocked = await isFingerprintBlocked(fingerprint);
+    if (fpBlocked) {
+      if (userEmail) {
+        await admin.from('user_profiles').update({ role: 'banned' }).eq('email', userEmail);
+        try {
+          if (userId) await admin.auth.admin.updateUserById(userId, { ban_duration: '876000h' });
+        } catch {}
+      }
+      await sendFraudTelegramAlert({
+        userId,
+        userEmail,
+        username,
+        clientIp,
+        phoneNumber: normPhone,
+        network,
+        failedCount: 1,
+        actionTaken: 'FINGERPRINT BLOCKED & AUTO-BANNED',
+        reason: `Blocked device fingerprint (${fingerprint}) attempted checkout with account ${userEmail}.`
+      });
+      return {
+        allowed: false,
+        blocked: true,
+        reason: 'device_blocked',
+        ip: clientIp,
+        message: 'Account Suspended: This device has been restricted due to violations of platform guidelines.'
+      };
+    }
+  }
+
+  // 0.2 VPN & Proxy Check
+  const secSettings = await getSecuritySettings();
+  if (secSettings.vpnBlockingEnabled) {
+    const vpnInfo = await checkVpnOrProxy(clientIp);
+    if (vpnInfo.isVpn) {
+      return {
+        allowed: false,
+        blocked: true,
+        isVpn: true,
+        reason: 'vpn_detected',
+        ip: clientIp,
+        message: '🛡️ VPN / Proxy Detected: Payment networks (MTN & Airtel) require a direct connection. Please turn off your VPN or proxy and try again.'
+      };
+    }
+  }
 
   // 1. Strict Ugandan Phone Validation (if phone provided)
   if (phoneNumber && !isValidUgandaPhone(normPhone)) {

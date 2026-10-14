@@ -1,7 +1,58 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
+import { getClientIpFromHeaders, isIpBlocked, checkVpnOrProxy, getSecuritySettings } from "@/lib/ipShield";
 
 export async function middleware(request) {
+  const { pathname } = request.nextUrl;
+
+  // 1. Bypass checks for internal and essential endpoints
+  const isExcluded =
+    pathname.startsWith('/vpn-blocked') ||
+    pathname.startsWith('/ip-blocked') ||
+    pathname.startsWith('/support') ||
+    pathname.startsWith('/api/support') ||
+    pathname.startsWith('/api/webhooks') ||
+    pathname.startsWith('/api/v1/track') ||
+    pathname.startsWith('/admin');
+
+  const clientIp = getClientIpFromHeaders(request.headers);
+
+  // 2. IP Blocklist Enforcement (Always active)
+  if (!isExcluded) {
+    try {
+      const blocked = await isIpBlocked(clientIp);
+      if (blocked) {
+        return NextResponse.redirect(new URL('/ip-blocked', request.url));
+      }
+    } catch (err) {
+      console.warn('[Middleware] IP block check fail-open:', err?.message);
+    }
+  }
+
+  // 3. VPN / Proxy Enforcement
+  if (!isExcluded) {
+    try {
+      const secSettings = await getSecuritySettings();
+      if (secSettings.vpnBlockingEnabled) {
+        const shouldCheckVpn =
+          secSettings.vpnBlockingMode === 'all' ||
+          (secSettings.vpnBlockingMode === 'checkout' && pathname.startsWith('/checkout'));
+
+        if (shouldCheckVpn) {
+          const vpnResult = await checkVpnOrProxy(clientIp);
+          if (vpnResult.isVpn) {
+            const redirectUrl = new URL('/vpn-blocked', request.url);
+            redirectUrl.searchParams.set('from', pathname);
+            return NextResponse.redirect(redirectUrl);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[Middleware] VPN check fail-open:', err?.message);
+    }
+  }
+
+  // 4. Supabase Session Refresh
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -27,7 +78,6 @@ export async function middleware(request) {
     }
   );
 
-  // refreshing the auth token
   await supabase.auth.getUser();
 
   return supabaseResponse;
@@ -40,7 +90,7 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
+     * - static media files
      */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],

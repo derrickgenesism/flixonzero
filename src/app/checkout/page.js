@@ -12,6 +12,9 @@ export const metadata = {
   description: 'Choose a Flixon plan and unlock unlimited premium movies and series.',
 };
 
+import { headers } from 'next/headers';
+import { getClientIpFromHeaders, getSecuritySettings, checkVpnOrProxy } from '@/lib/ipShield';
+
 export default async function CheckoutPage() {
   const supabase = await createClient();
 
@@ -29,13 +32,29 @@ export default async function CheckoutPage() {
   const promoEnabled = checkoutSettings?.find(s => s.setting_key === 'promo_enabled')?.setting_value === 'true';
   const offer = parseOfferSettings(checkoutSettings);
 
+  const h = await headers();
+  const clientIp = getClientIpFromHeaders(h);
+  const secSettings = await getSecuritySettings();
+  let vpnDetected = false;
+
+  if (secSettings.vpnBlockingEnabled) {
+    const vpnInfo = await checkVpnOrProxy(clientIp);
+    vpnDetected = vpnInfo.isVpn;
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <Navbar />
 
       <main style={{ paddingTop: '120px', paddingBottom: '80px' }}>
         <div style={{ padding: '0 24px' }}>
-          <CheckoutClient plans={plans || []} promoEnabled={promoEnabled} offer={offer} />
+          <CheckoutClient
+            plans={plans || []}
+            promoEnabled={promoEnabled}
+            offer={offer}
+            vpnDetected={vpnDetected}
+            clientIp={clientIp}
+          />
         </div>
       </main>
     </div>
