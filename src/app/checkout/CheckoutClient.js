@@ -245,8 +245,48 @@ export default function CheckoutClient({ plans, promoEnabled = true, offer = nul
         )}
 
         {error && (
-          <div style={{ background: 'rgba(229, 9, 20, 0.1)', color: '#e50914', padding: '15px', borderRadius: '6px', marginBottom: '20px' }}>
-            {error}
+          <div style={{
+            background: error.includes('Security') || error.includes('Suspended') || error.includes('Lockout') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(229, 9, 20, 0.1)',
+            border: error.includes('Security') || error.includes('Suspended') || error.includes('Lockout') ? '1px solid rgba(239, 68, 68, 0.5)' : 'none',
+            color: '#ff6b6b',
+            padding: '16px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            fontSize: '14px',
+            lineHeight: '1.5'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <span style={{ fontSize: '22px', flexShrink: 0 }}>
+                {error.includes('Security') || error.includes('Suspended') || error.includes('Lockout') ? '🛡️' : '⚠️'}
+              </span>
+              <div style={{ flex: 1 }}>
+                <strong style={{ display: 'block', color: '#fff', marginBottom: '4px', fontSize: '15px' }}>
+                  {error.includes('Suspended') ? 'Account Suspended' : error.includes('Security') || error.includes('Lockout') ? 'Security Lockout Notice' : 'Payment Error'}
+                </strong>
+                <span style={{ color: '#fca5a5' }}>{error}</span>
+                {(error.includes('Security') || error.includes('Suspended') || error.includes('Lockout')) && (
+                  <div style={{ marginTop: '14px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <a
+                      href="/support"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: '#e50914',
+                        color: '#fff',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        textDecoration: 'none',
+                        fontSize: '13px',
+                        fontWeight: '700'
+                      }}
+                    >
+                      Contact Support / Appeal →
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

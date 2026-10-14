@@ -43,6 +43,8 @@ export default async function AdminUsersPage({ searchParams }) {
       dbQuery = dbQuery.gt('subscription_end_date', new Date().toISOString());
     } else if (filter === 'expired') {
       dbQuery = dbQuery.lt('subscription_end_date', new Date().toISOString());
+    } else if (filter === 'frozen') {
+      dbQuery = dbQuery.eq('role', 'frozen');
     }
 
     const { data: users } = await dbQuery;

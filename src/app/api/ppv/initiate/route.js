@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkPaymentSecurity } from '@/lib/fraudGuard';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -15,6 +16,18 @@ export async function POST(request) {
     const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Please log in first.' }, { status: 401 });
+
+    // ── Fraud & Rate-Limiting Security Check ─────────────────────────────────
+    const sec = await checkPaymentSecurity({
+      userId: user.id,
+      userEmail: user.email,
+      username: user.email.split('@')[0],
+      reqHeaders: request.headers
+    });
+
+    if (!sec.allowed) {
+      return NextResponse.json({ error: sec.message, blocked: true, ip: sec.ip }, { status: 429 });
+    }
 
     const { movieId, movieTitle, price } = await request.json();
 

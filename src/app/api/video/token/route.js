@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 
@@ -44,7 +44,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No video available' }, { status: 404 });
     }
 
-    // 4. Check access rights
+    // 4. Check user status & frozen accounts
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('subscription_end_date, role')
+      .eq('email', user.email)
+      .maybeSingle();
+
+    if (userProfile?.role === 'frozen' || userProfile?.role === 'banned') {
+      return NextResponse.json({ error: 'Your account has been frozen due to suspicious activity. Please contact Support.' }, { status: 403 });
+    }
+
+    // 5. Check access rights
     const { data: settingsData } = await _injectedAdminClient().from('admin_settings')
       .select('setting_value')
       .eq('setting_key', 'free_mode_enabled')

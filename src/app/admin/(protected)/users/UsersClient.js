@@ -133,6 +133,7 @@ export default function UsersClient({ users, initialSearch, initialFilter }) {
           <option value="all">All Users</option>
           <option value="active">Active Subscriptions</option>
           <option value="expired">Expired Subscriptions</option>
+          <option value="frozen">⛔ Frozen Accounts</option>
         </select>
       </div>
 
@@ -154,19 +155,36 @@ export default function UsersClient({ users, initialSearch, initialFilter }) {
               const daysLeft = getDaysLeft(u.subscription_end_date);
               
               return (
-                <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '15px', fontSize: '14px' }}>{u.email}</td>
+                <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: u.role === 'frozen' ? 'rgba(239,68,68,0.06)' : 'transparent' }}>
+                  <td style={{ padding: '15px', fontSize: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span>{u.email}</span>
+                      {u.role === 'frozen' && (
+                        <span style={{ fontSize: '10px', background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                          FROZEN
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td style={{ padding: '15px', fontSize: '14px', color: 'var(--text2)' }}>{u.username || '-'}</td>
                   <td style={{ padding: '15px' }}>
                     <select 
                       value={u.role || 'user'} 
                       onChange={(e) => handleRoleChange(u.id, e.target.value)}
                       disabled={loading === u.id}
-                      style={{ padding: '6px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '4px' }}
+                      style={{
+                        padding: '6px',
+                        background: u.role === 'frozen' ? 'rgba(239,68,68,0.25)' : '#111',
+                        border: u.role === 'frozen' ? '1px solid #ef4444' : '1px solid #333',
+                        color: u.role === 'frozen' ? '#ff6b6b' : '#fff',
+                        borderRadius: '4px',
+                        fontWeight: u.role === 'frozen' ? '700' : 'normal'
+                      }}
                     >
                       <option value="user">User</option>
                       <option value="editor">Editor</option>
                       <option value="administrator">Administrator</option>
+                      <option value="frozen">⛔ Frozen (Blocked)</option>
                     </select>
                   </td>
                   <td style={{ padding: '15px', fontSize: '14px', color: hasSub ? '#4CAF50' : 'var(--text2)' }}>

@@ -3,12 +3,29 @@ const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/ad
 
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { checkPaymentSecurity, recordImmediateFailedAttempt } from '@/lib/fraudGuard';
 
 export async function processExtraProfileCharge(phoneNumber, network) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return { error: 'Not authenticated' };
+
+  // ── Fraud & Rate-Limiting Security Check ─────────────────────────────────
+  const sec = await checkPaymentSecurity({
+    userId: user.id,
+    userEmail: user.email,
+    username: user.email.split('@')[0],
+  });
+
+  if (!sec.allowed) {
+    return {
+      error: sec.message,
+      blocked: true,
+      ip: sec.ip,
+      reason: sec.reason
+    };
+  }
 
   // Get Flutterwave Secret Key
   const { data: settings } = await _injectedAdminClient().from('admin_settings')
@@ -72,7 +89,8 @@ export async function processExtraProfileCharge(phoneNumber, network) {
       }
       return { success: true, message: data.message || 'Charge initiated successfully', tx_ref };
     } else {
-      return { error: data.message || 'Failed to initiate mobile money charge' };
+      recordImmediateFailedAttempt(sec.ip);
+      return { error: data.message || 'Failed to initiate mobile money charge', ip: sec.ip };
     }
   } catch (error) {
     return { error: 'Internal server error during mobile money charge' };

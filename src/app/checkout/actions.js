@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { verifyAndActivate } from '@/lib/payments';
+import { checkPaymentSecurity, recordImmediateFailedAttempt } from '@/lib/fraudGuard';
 
 export async function processDirectCharge(planId, phoneNumber, network, promoResult = null) {
   const supabase = await createClient();
@@ -18,6 +19,22 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
   const { data: profile } = await supabase
     .from('user_profiles').select('email, username').eq('email', user.email)
     .single();
+
+  // ── Fraud & Rate-Limiting Security Check ─────────────────────────────────
+  const sec = await checkPaymentSecurity({
+    userId: user.id,
+    userEmail: user.email,
+    username: profile?.username,
+  });
+
+  if (!sec.allowed) {
+    return {
+      error: sec.message,
+      blocked: true,
+      ip: sec.ip,
+      reason: sec.reason
+    };
+  }
 
   // Get Flutterwave Secret Key
   const { data: settings } = await _injectedAdminClient().from('admin_settings')
@@ -100,7 +117,8 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
       return { success: true, message: data.message || 'Charge initiated successfully', tx_ref };
     } else {
       console.error("Flutterwave API Error:", data);
-      return { error: data.message || 'Failed to initiate mobile money charge' };
+      recordImmediateFailedAttempt(sec.ip);
+      return { error: data.message || 'Failed to initiate mobile money charge', ip: sec.ip };
     }
   } catch (error) {
     console.error("Checkout Fetch Error:", error);

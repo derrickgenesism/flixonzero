@@ -138,7 +138,8 @@ export default async function MoviePage({ params }) {
   const offer = parseOfferSettings(settings);
 
   if (user) {
-    const { data: userProfile } = await supabase.from('user_profiles').select('subscription_end_date').eq('email', user.email).single();
+    const { data: userProfile } = await supabase.from('user_profiles').select('subscription_end_date, role').eq('email', user.email).maybeSingle();
+    const isFrozen = userProfile?.role === 'frozen' || userProfile?.role === 'banned';
     if (userProfile?.subscription_end_date && new Date(userProfile.subscription_end_date) > new Date()) {
       isPremiumUser = true;
     }
