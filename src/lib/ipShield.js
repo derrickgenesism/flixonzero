@@ -15,16 +15,23 @@ const SETTINGS_CACHE_TTL_MS = 60 * 1000; // 60 seconds
 const UGANDA_RESIDENTIAL_ISPS = [
   'mtn',
   'airtel',
+  'uganda',
+  'kampala',
   'uganda telecom',
   'utl',
   'roke telkom',
   'liquid',
   'simbanet',
   'smile telecommunications',
+  'smile',
   'tangerine',
   'seacom',
   'renu',
-  'africell'
+  'africell',
+  'celtel',
+  'warid',
+  'csquared',
+  'banda'
 ];
 
 /**
@@ -363,12 +370,14 @@ export async function checkVpnOrProxy(ip) {
     const orgLower = (data.org || '').toLowerCase();
     const asLower = (data.as || '').toLowerCase();
 
-    // Check if it belongs to a known legitimate Ugandan mobile or residential provider
-    const isUgandanResidential = UGANDA_RESIDENTIAL_ISPS.some(
-      (known) => ispLower.includes(known) || orgLower.includes(known) || asLower.includes(known)
-    );
+    // Check if it belongs to a known legitimate Ugandan provider OR has countryCode === 'UG'
+    const isUgandanResidential =
+      data.countryCode === 'UG' ||
+      UGANDA_RESIDENTIAL_ISPS.some(
+        (known) => ispLower.includes(known) || orgLower.includes(known) || asLower.includes(known)
+      );
 
-    // If verified Ugandan mobile or residential, it's definitely NOT a VPN
+    // If verified Ugandan connection and not an explicit proxy, it is NEVER a VPN
     if (isUgandanResidential && !data.proxy) {
       const result = {
         isVpn: false,
@@ -385,12 +394,12 @@ export async function checkVpnOrProxy(ip) {
       return result;
     }
 
-    // A connection is flagged as VPN/proxy if:
-    // 1. ip-api explicitly flags proxy: true
-    // 2. OR hosting: true (datacenter/cloud provider ASN like AWS, DigitalOcean, Hetzner, Linode, M247) AND not mobile
+    // A connection is flagged as VPN/proxy ONLY if:
+    // 1. Explicitly flagged proxy: true
+    // 2. OR hosting: true (datacenter/cloud ASN like AWS, DigitalOcean, Hetzner, Linode, M247) AND located outside Uganda
     const isProxy = !!data.proxy;
     const isHosting = !!data.hosting;
-    const isVpn = isProxy || (isHosting && !data.mobile);
+    const isVpn = isProxy || (isHosting && !data.mobile && data.countryCode !== 'UG');
 
     const result = {
       isVpn,
