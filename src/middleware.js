@@ -1,13 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
-import { getClientIpFromHeaders, isIpBlocked, checkVpnOrProxy, getSecuritySettings } from "@/lib/ipShield";
+import { getClientIpFromHeaders, isIpBlocked } from "@/lib/ipShield";
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
   // 1. Bypass checks for internal and essential endpoints
   const isExcluded =
-    pathname.startsWith('/vpn-blocked') ||
     pathname.startsWith('/ip-blocked') ||
     pathname.startsWith('/support') ||
     pathname.startsWith('/api/support') ||
@@ -17,7 +16,7 @@ export async function middleware(request) {
 
   const clientIp = getClientIpFromHeaders(request.headers);
 
-  // 2. IP Blocklist Enforcement (Always active)
+  // 2. Blacklisted IP Enforcement (Only explicitly banned IPs are blocked — zero stress for normal users)
   if (!isExcluded) {
     try {
       const blocked = await isIpBlocked(clientIp);
@@ -26,29 +25,6 @@ export async function middleware(request) {
       }
     } catch (err) {
       console.warn('[Middleware] IP block check fail-open:', err?.message);
-    }
-  }
-
-  // 3. VPN / Proxy Enforcement
-  if (!isExcluded) {
-    try {
-      const secSettings = await getSecuritySettings();
-      if (secSettings.vpnBlockingEnabled) {
-        const shouldCheckVpn =
-          secSettings.vpnBlockingMode === 'all' ||
-          (secSettings.vpnBlockingMode === 'checkout' && pathname.startsWith('/checkout'));
-
-        if (shouldCheckVpn) {
-          const vpnResult = await checkVpnOrProxy(clientIp);
-          if (vpnResult.isVpn) {
-            const redirectUrl = new URL('/vpn-blocked', request.url);
-            redirectUrl.searchParams.set('from', pathname);
-            return NextResponse.redirect(redirectUrl);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('[Middleware] VPN check fail-open:', err?.message);
     }
   }
 

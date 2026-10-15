@@ -79,5 +79,9 @@ export async function saveSettings(formData) {
     .upsert({ setting_key: 'homepage_sections', setting_value: JSON.stringify(hpSections) }, { onConflict: 'setting_key' })
 
   await logSecurityEvent('SETTINGS_CHANGED', 'LOW', `Admin ${user.email} updated platform settings`, { email: user.email });
+  try {
+    const { invalidateSecurityCache } = await import('@/lib/ipShield');
+    invalidateSecurityCache();
+  } catch {}
   revalidatePath('/admin/settings')
 }
