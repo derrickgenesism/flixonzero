@@ -40,7 +40,7 @@ export default async function AccountPage() {
     );
   }
 
-  // Background Verification of Recent Pending Transactions
+  // Background Verification of Recent Pending Transactions (Skip manual transfers)
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
   const { data: pendingTxs } = await supabase
     .from('transactions')
@@ -51,7 +51,7 @@ export default async function AccountPage() {
     
   if (pendingTxs && pendingTxs.length > 0) {
     for (const tx of pendingTxs) {
-      if (!tx.tx_ref.includes('extra_profile') && !tx.tx_ref.includes('PPV')) {
+      if (!tx.tx_ref.includes('extra_profile') && !tx.tx_ref.includes('PPV') && !tx.tx_ref.startsWith('MAN_')) {
         await checkTransactionStatus(tx.tx_ref);
       }
     }
@@ -120,11 +120,27 @@ export default async function AccountPage() {
     name: boostMap.affiliate_boost_name || 'Special Multiplier Boost'
   } : null;
 
+  const hasPendingManual = transactions?.some(t => t.status === 'pending');
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <Navbar />
       <main style={{ paddingTop: '100px', paddingBottom: '60px', maxWidth: '900px', margin: '0 auto', padding: '100px 24px 60px' }}>
-        <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '32px' }}>My Account</h1>
+        <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '24px' }}>My Account</h1>
+
+        {hasPendingManual && (
+          <div style={{ background: 'rgba(2, 132, 199, 0.12)', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <span style={{ fontSize: '24px', flexShrink: 0 }}>⏳</span>
+            <div>
+              <strong style={{ color: '#fff', fontSize: '14px', display: 'block', marginBottom: '2px' }}>
+                Payment Verification in Progress
+              </strong>
+              <span style={{ color: '#bae6fd', fontSize: '13px', lineHeight: '1.5' }}>
+                We received your payment submission. An administrator will verify the transfer and activate your subscription shortly.
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Quick Links */}
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '32px' }}>
@@ -273,10 +289,21 @@ export default async function AccountPage() {
                   {transactions.map(tx => (
                     <tr key={tx.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <td style={{ padding: '14px 0', color: '#fff' }}>{new Date(tx.created_at).toLocaleDateString()}</td>
-                      <td style={{ padding: '14px 0', color: '#fff' }}>{Number(tx.amount).toLocaleString()} UGX</td>
+                      <td style={{ padding: '14px 0', color: '#fff' }}>{Number(tx.amount).toLocaleString()} {tx.currency || 'UGX'}</td>
                       <td style={{ padding: '14px 0' }}>
-                        <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: tx.status === 'successful' ? 'rgba(74,222,128,0.1)' : 'rgba(229,9,20,0.1)', color: tx.status === 'successful' ? '#4ade80' : '#ff6b6b' }}>
-                          {tx.status}
+                        <span style={{ 
+                          padding: '3px 8px', 
+                          borderRadius: '4px', 
+                          fontSize: '11px', 
+                          fontWeight: '700', 
+                          background: tx.status === 'successful' 
+                            ? 'rgba(74,222,128,0.15)' 
+                            : (tx.status === 'pending' ? 'rgba(234, 179, 8, 0.15)' : 'rgba(229,9,20,0.15)'), 
+                          color: tx.status === 'successful' 
+                            ? '#4ade80' 
+                            : (tx.status === 'pending' ? '#facc15' : '#ff6b6b') 
+                        }}>
+                          {tx.status === 'pending' ? 'Pending Approval' : tx.status}
                         </span>
                       </td>
                       <td style={{ padding: '14px 0', color: 'var(--text3)', fontFamily: 'monospace', fontSize: '12px' }}>{tx.tx_ref}</td>

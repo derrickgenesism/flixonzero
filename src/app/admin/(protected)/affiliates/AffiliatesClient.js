@@ -28,12 +28,29 @@ export default function AffiliatesClient({ data }) {
     }
   }
 
-  // Adjust Balance Modal State
   const [showModal, setShowModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
   const [adjustAmount, setAdjustAmount] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
-  const [commType, setCommType] = useState(config.affiliate_commission_type || 'fixed')
+  const [commType, setCommType] = useState(config.affiliate_commission_type || 'percentage')
+
+  const [planModes, setPlanModes] = useState(() => {
+    const initial = {}
+    plans.forEach(p => {
+      initial[p.id] = config[`affiliate_plan_${p.id}_mode`] || (config.affiliate_commission_type === 'fixed' ? 'fixed' : 'percentage')
+    })
+    return initial
+  })
+
+  const [planRewards, setPlanRewards] = useState(() => {
+    const initial = {}
+    plans.forEach(p => {
+      const mode = config[`affiliate_plan_${p.id}_mode`] || 'percentage'
+      const fallbackVal = mode === 'percentage' ? (config.affiliate_commission_percentage || 35) : Math.round(Number(p.price) * 0.35)
+      initial[p.id] = config[`affiliate_plan_${p.id}_reward`] || fallbackVal
+    })
+    return initial
+  })
 
   async function handleSaveSettings(formData) {
     setLoading(true)
@@ -221,102 +238,165 @@ export default function AffiliatesClient({ data }) {
 
         {/* CPA Settings */}
         <div style={{ background: 'var(--bg2)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '12px' }}>Subscription (CPA) Settings</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '20px' }}>💎</span>
+            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>Subscription (CPA) Commission Engine</h2>
+          </div>
           <p style={{ color: 'var(--text3)', fontSize: '13px', marginBottom: '16px', lineHeight: '1.5' }}>
-            Choose how partners earn when referred users buy VIP passes: Fixed UGX or Percentage % of plan price.
+            Configure how much affiliates earn when their referrals buy passes. Set global defaults or customize each plan individually with percentage (%) or fixed UGX amounts.
           </p>
-          <form action={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+          <form action={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <input type="hidden" name="_section_cpa" value="1" />
+            
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', cursor: 'pointer' }}>
-                <input type="checkbox" name="affiliate_cpa_enabled" value="true" defaultChecked={config.affiliate_cpa_enabled === 'true'} />
+                <input type="checkbox" name="affiliate_cpa_enabled" value="true" defaultChecked={config.affiliate_cpa_enabled !== 'false'} />
                 <strong style={{ color: '#fff' }}>Enable Subscription Commissions</strong>
               </label>
             </div>
 
-            {/* Mode Selector */}
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>
-                Commission Calculation Mode
+            {/* Reward Scope: First-Order Bounty vs Every Purchase */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '8px', fontWeight: '700' }}>
+                Commission Payout Scope
               </label>
-              <div style={{ display: 'flex', gap: '14px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#fff', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
                   <input
                     type="radio"
-                    name="affiliate_commission_type"
-                    value="fixed"
-                    checked={commType === 'fixed'}
-                    onChange={() => setCommType('fixed')}
+                    name="affiliate_reward_scope"
+                    value="first_purchase_only"
+                    defaultChecked={config.affiliate_reward_scope !== 'all_purchases'}
+                    style={{ marginTop: '3px' }}
                   />
-                  Fixed UGX per Plan
+                  <div>
+                    <strong style={{ color: '#4ade80', fontSize: '13px' }}>First-Order Acquisition Bounty (Recommended — High 35%–40% Cut)</strong>
+                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text3)' }}>
+                      Affiliates earn once on the customer&apos;s initial purchase. Repeat renewals are 100% platform profit.
+                    </p>
+                  </div>
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#fff', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
                   <input
                     type="radio"
-                    name="affiliate_commission_type"
-                    value="percentage"
-                    checked={commType === 'percentage'}
-                    onChange={() => setCommType('percentage')}
+                    name="affiliate_reward_scope"
+                    value="all_purchases"
+                    defaultChecked={config.affiliate_reward_scope === 'all_purchases'}
+                    style={{ marginTop: '3px' }}
                   />
-                  Percentage (%)
+                  <div>
+                    <strong style={{ color: '#fff', fontSize: '13px' }}>Lifetime Recurring (Every Renewal & Re-subscription)</strong>
+                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text3)' }}>
+                      Affiliates earn commission every time the user renews.
+                    </p>
+                  </div>
                 </label>
               </div>
             </div>
 
-            {commType === 'percentage' ? (
+            {/* Per-Plan Customization Grid */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>
+                  Active Subscription Plans & Payout Rates
+                </label>
+                <span style={{ fontSize: '11px', color: 'var(--text3)' }}>Toggle % or Fixed per plan</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {plans.length > 0 ? (
+                  plans.map(p => {
+                    const modeKey = `affiliate_plan_${p.id}_mode`
+                    const rewardKey = `affiliate_plan_${p.id}_reward`
+                    const currentMode = planModes[p.id] || 'percentage'
+                    const rawVal = planRewards[p.id]
+                    const currentNum = Number(rawVal) || (currentMode === 'percentage' ? 35 : Math.round(Number(p.price) * 0.35))
+                    const payoutAmount = currentMode === 'percentage' ? Math.round(Number(p.price) * (currentNum / 100)) : currentNum
+                    const platformKeeps = Math.max(0, Number(p.price) - payoutAmount)
+
+                    return (
+                      <div key={p.id} style={{ background: 'rgba(0,0,0,0.25)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontWeight: '700', color: '#fff', fontSize: '14px' }}>
+                            {p.name} ({Number(p.price).toLocaleString()} UGX)
+                          </span>
+                          <span style={{ fontSize: '12px', color: '#4ade80', fontWeight: '600' }}>
+                            Payout: +{payoutAmount.toLocaleString()} UGX (You keep: {platformKeeps.toLocaleString()} UGX)
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '10px' }}>
+                          <select
+                            name={modeKey}
+                            value={currentMode}
+                            onChange={(e) => setPlanModes(prev => ({ ...prev, [p.id]: e.target.value }))}
+                            style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px', fontSize: '12px' }}
+                          >
+                            <option value="percentage" style={{ color: '#000' }}>Percentage (%)</option>
+                            <option value="fixed" style={{ color: '#000' }}>Fixed (UGX)</option>
+                          </select>
+
+                          <input
+                            type="number"
+                            name={rewardKey}
+                            value={planRewards[p.id] !== undefined ? planRewards[p.id] : currentNum}
+                            onChange={(e) => setPlanRewards(prev => ({ ...prev, [p.id]: e.target.value }))}
+                            placeholder={currentMode === 'percentage' ? 'e.g. 35' : 'e.g. 2800'}
+                            className="flx-form-input"
+                            style={{ padding: '8px 12px', fontSize: '13px' }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                      Default Commission Percentage (%)
+                    </label>
+                    <input type="number" name="affiliate_commission_percentage" defaultValue={config.affiliate_commission_percentage || 35} className="flx-form-input" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Financial Controls: Threshold & Telecom Fee */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
-                  Commission Percentage (%)
+                  Minimum Cashout (UGX)
                 </label>
                 <input 
                   type="number" 
-                  name="affiliate_commission_percentage" 
-                  defaultValue={config.affiliate_commission_percentage || 25}
-                  min="1"
-                  max="80"
+                  name="affiliate_min_payout" 
+                  defaultValue={config.affiliate_min_payout || 5000} 
+                  min="1000"
+                  step="500"
                   className="flx-form-input" 
                 />
                 <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
-                  Partners earn this percentage on every subscription (e.g. 25% of 9,000 UGX Monthly Pass = 2,250 UGX).
+                  Min balance needed to withdraw (default 5,000).
                 </p>
               </div>
-            ) : (
-              plans.length > 0 ? (
-                plans.map(p => {
-                  const planKey = `affiliate_plan_${p.id}_reward`
-                  const defaultVal = config[planKey] || (p.price >= 9000 ? 3000 : (p.price >= 5000 ? 1500 : 200))
 
-                  return (
-                    <div key={p.id}>
-                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
-                        Commission for <strong>{p.name}</strong> ({Number(p.price).toLocaleString()} UGX)
-                      </label>
-                      <input 
-                        type="number" 
-                        name={planKey}
-                        defaultValue={defaultVal}
-                        className="flx-form-input" 
-                      />
-                    </div>
-                  )
-                })
-              ) : (
-                <>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
-                      Daily Pass Commission (UGX)
-                    </label>
-                    <input type="number" name="affiliate_plan_1_reward" defaultValue={config.affiliate_plan_1_reward || 200} className="flx-form-input" />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
-                      Monthly Pass Commission (UGX)
-                    </label>
-                    <input type="number" name="affiliate_plan_3_reward" defaultValue={config.affiliate_plan_3_reward || config.affiliate_plan_2_reward || 3000} className="flx-form-input" />
-                  </div>
-                </>
-              )
-            )}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '6px' }}>
+                  Telecom Transfer Fee (UGX)
+                </label>
+                <input 
+                  type="number" 
+                  name="affiliate_withdrawal_fee" 
+                  defaultValue={config.affiliate_withdrawal_fee !== undefined ? config.affiliate_withdrawal_fee : 500} 
+                  min="0"
+                  step="100"
+                  className="flx-form-input" 
+                />
+                <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+                  Deducted on MoMo cashouts (e.g. 500 UGX).
+                </p>
+              </div>
+            </div>
 
             <button type="submit" className="gms-btn gms-btn--primary" disabled={loading}>
               {loading ? 'Saving...' : 'Save CPA Settings'}

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { creditAffiliate } from '@/lib/payments';
 
 export async function manualApproveTransaction(transactionId) {
   // Use Service Role Key to bypass RLS
@@ -90,6 +91,43 @@ export async function manualApproveTransaction(transactionId) {
   if (profileError) {
     console.error("Profile update error:", profileError);
     return { error: 'Transaction updated, but failed to grant subscription: ' + profileError.message };
+  }
+
+  // 4. Credit Affiliate Commission for referrer if applicable
+  await creditAffiliate(supabaseAdmin, userEmail, transaction).catch((e) =>
+    console.error('Error processing affiliate commission on manual approve:', e)
+  );
+
+  // 5. Send support message notification to customer
+  try {
+    let { data: thread } = await supabaseAdmin
+      .from('support_threads')
+      .select('id')
+      .eq('user_id', transaction.user_id)
+      .maybeSingle();
+
+    if (!thread) {
+      const { data: newThread } = await supabaseAdmin
+        .from('support_threads')
+        .insert({
+          user_id: transaction.user_id,
+          subject: 'Payment Verified & Subscription Activated'
+        })
+        .select('id')
+        .single();
+      thread = newThread;
+    }
+
+    if (thread) {
+      await supabaseAdmin.from('support_messages').insert({
+        thread_id: thread.id,
+        sender_role: 'admin',
+        content: `🎉 Your payment of ${Number(transaction.amount || 0).toLocaleString()} ${transaction.currency || 'UGX'} has been verified! +${daysToAdd} days have been added to your account. Enjoy streaming!`,
+        is_read: false
+      });
+    }
+  } catch (msgErr) {
+    console.warn('[manualApproveTransaction] notification warning:', msgErr);
   }
 
   return { success: true, daysAdded: daysToAdd };
@@ -213,4 +251,36 @@ export async function diagnoseTransaction(transactionId) {
   } catch (err) {
     return { error: err.message };
   }
+}
+
+export async function rejectTransaction(transactionId) {
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+
+  const { data: profile } = await supabaseAuth
+    .from('user_profiles')
+    .select('role')
+    .eq('email', user.email)
+    .single();
+
+  if (profile?.role !== 'administrator') {
+    return { error: 'Access Denied: Admin only.' };
+  }
+
+  const { error } = await supabaseAdmin
+    .from('transactions')
+    .update({ status: 'failed' })
+    .eq('id', transactionId);
+
+  if (error) {
+    return { error: 'Failed to reject transaction: ' + error.message };
+  }
+
+  return { success: true };
 }

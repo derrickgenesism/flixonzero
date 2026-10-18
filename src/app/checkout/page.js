@@ -24,12 +24,34 @@ export default async function CheckoutPage() {
     .eq('is_active', true)
     .order('price', { ascending: true });
 
-  // One query for promo + limited-time offer settings (no extra DB round-trip)
+  // Query settings for promo, offers, manual payment, and gateway availability
   const { data: checkoutSettings } = await _injectedAdminClient().from('admin_settings')
     .select('setting_key, setting_value')
-    .in('setting_key', ['promo_enabled', ...OFFER_SETTING_KEYS]);
+    .in('setting_key', [
+      'promo_enabled',
+      'flutterwave_secret_key',
+      'manual_payment_enabled',
+      'manual_payment_title',
+      'manual_payment_instructions',
+      'manual_payment_numbers',
+      'platform_name',
+      'platform_currency',
+      ...OFFER_SETTING_KEYS
+    ]);
   
   const promoEnabled = checkoutSettings?.find(s => s.setting_key === 'promo_enabled')?.setting_value === 'true';
+  const flwSecret = checkoutSettings?.find(s => s.setting_key === 'flutterwave_secret_key')?.setting_value;
+  const hasAutomatedPayment = Boolean(flwSecret && flwSecret.trim().length > 0);
+
+  const manualPaymentSettings = {
+    enabled: checkoutSettings?.find(s => s.setting_key === 'manual_payment_enabled')?.setting_value !== 'false',
+    title: checkoutSettings?.find(s => s.setting_key === 'manual_payment_title')?.setting_value || 'Direct Mobile Money / Bank Transfer',
+    instructions: checkoutSettings?.find(s => s.setting_key === 'manual_payment_instructions')?.setting_value || 'Send the exact plan amount to one of the numbers above. Enter the phone number you paid from below and click "I Have Sent Money".',
+    numbers: checkoutSettings?.find(s => s.setting_key === 'manual_payment_numbers')?.setting_value || 'MTN Mobile Money: 0770000000\nAirtel Money: 0750000000',
+  };
+
+  const currency = checkoutSettings?.find(s => s.setting_key === 'platform_currency')?.setting_value || 'UGX';
+  const platformName = checkoutSettings?.find(s => s.setting_key === 'platform_name')?.setting_value || 'FlixOn';
   const offer = parseOfferSettings(checkoutSettings);
 
   const h = await headers();
@@ -54,6 +76,10 @@ export default async function CheckoutPage() {
             offer={offer}
             vpnDetected={vpnDetected}
             clientIp={clientIp}
+            hasAutomatedPayment={hasAutomatedPayment}
+            manualPaymentSettings={manualPaymentSettings}
+            currency={currency}
+            platformName={platformName}
           />
         </div>
       </main>

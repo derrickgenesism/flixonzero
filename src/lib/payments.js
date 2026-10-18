@@ -88,9 +88,10 @@ export async function activateTransaction(admin, transaction, flwTransactionId) 
   }
 }
 
-async function creditAffiliate(admin, userEmail, transaction) {
+export async function creditAffiliate(admin, userEmail, transaction) {
   const { data: allSettings } = await admin.from('admin_settings').select('setting_key, setting_value');
-  const cpaEnabled = allSettings?.find((s) => s.setting_key === 'affiliate_cpa_enabled')?.setting_value === 'true';
+  const cpaSetting = allSettings?.find((s) => s.setting_key === 'affiliate_cpa_enabled')?.setting_value;
+  const cpaEnabled = cpaSetting === undefined || cpaSetting === null || cpaSetting === 'true';
   if (!cpaEnabled) return;
 
   const { data: profileWithRef } = await admin
@@ -101,27 +102,65 @@ async function creditAffiliate(admin, userEmail, transaction) {
   if (!profileWithRef?.referred_by) return;
 
   const planNumericId = Number(transaction.plan_type);
-  if (isNaN(planNumericId) || planNumericId <= 0) return;
+  const txAmount = Number(transaction.amount || 0);
 
-  // 1. Determine Base Reward: Percentage Mode vs Fixed Plan Mode
-  const commType = allSettings?.find((s) => s.setting_key === 'affiliate_commission_type')?.setting_value || 'fixed';
+  // 1. Check First-Purchase Bounty Scope
+  const rewardScope = allSettings?.find((s) => s.setting_key === 'affiliate_reward_scope')?.setting_value || 'first_purchase_only';
+  let isFirstPurchase = true;
+
+  if (transaction.user_id) {
+    const { count: priorPurchases } = await admin
+      .from('transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', transaction.user_id)
+      .eq('status', 'successful')
+      .neq('id', transaction.id);
+
+    if (priorPurchases && priorPurchases > 0) {
+      isFirstPurchase = false;
+      if (rewardScope === 'first_purchase_only') {
+        console.log(`[creditAffiliate] Skipping commission: user ${transaction.user_id} has prior purchases and reward_scope is first_purchase_only`);
+        return;
+      }
+    }
+  }
+
+  // 2. Determine Per-Plan Commission Mode & Value
+  // Check if this specific plan has its own mode ('percentage' or 'fixed'), fallback to global
+  const planMode = allSettings?.find((s) => s.setting_key === `affiliate_plan_${planNumericId}_mode`)?.setting_value ||
+                   allSettings?.find((s) => s.setting_key === 'affiliate_commission_type')?.setting_value ||
+                   'percentage';
+
+  const planRewardStr = allSettings?.find((s) => s.setting_key === `affiliate_plan_${planNumericId}_reward`)?.setting_value;
   let baseReward = 0;
 
-  if (commType === 'percentage') {
-    const pct = Number(allSettings?.find((s) => s.setting_key === 'affiliate_commission_percentage')?.setting_value || 25);
-    baseReward = Math.round(Number(transaction.amount || 0) * (pct / 100));
+  if (planMode === 'percentage') {
+    const pct = Number(planRewardStr || allSettings?.find((s) => s.setting_key === 'affiliate_commission_percentage')?.setting_value || 35);
+    baseReward = Math.round(txAmount * (pct / 100));
   } else {
-    // Check specific plan reward, with fallback for Monthly Pass (Plan 3 -> Plan 2 setting)
-    let rewardStr = allSettings?.find((s) => s.setting_key === `affiliate_plan_${planNumericId}_reward`)?.setting_value;
-    if (!rewardStr && planNumericId === 3) {
-      rewardStr = allSettings?.find((s) => s.setting_key === 'affiliate_plan_2_reward')?.setting_value;
+    // Fixed amount mode
+    if (planRewardStr) {
+      baseReward = Number(planRewardStr);
+    } else {
+      // Default calibrated to 35% of current subscription plans:
+      // Daily Pass (1,000 UGX) -> 350 UGX
+      // 2 Weeks Pass (3,000 UGX) -> 1,050 UGX
+      // Monthly Pass (8,000 UGX) -> 2,800 UGX
+      if (planNumericId === 1 || txAmount <= 1500) {
+        baseReward = 350;
+      } else if (planNumericId === 2 || txAmount <= 4500) {
+        baseReward = 1050;
+      } else if (planNumericId === 3 || txAmount > 4500) {
+        baseReward = 2800;
+      } else {
+        baseReward = Math.round(txAmount * 0.35);
+      }
     }
-    baseReward = Number(rewardStr || 0);
   }
 
   if (baseReward <= 0) return;
 
-  // 2. Check Promotional Boost / Multiplier Campaign
+  // 3. Check Promotional Boost / Multiplier Campaign
   const boostEnabled = allSettings?.find((s) => s.setting_key === 'affiliate_boost_enabled')?.setting_value === 'true';
   const boostEndsAt = allSettings?.find((s) => s.setting_key === 'affiliate_boost_ends_at')?.setting_value;
   const isBoostActive = boostEnabled && (!boostEndsAt || new Date(boostEndsAt) > new Date());
@@ -141,7 +180,12 @@ async function creditAffiliate(admin, userEmail, transaction) {
     .eq('id', profileWithRef.referred_by)
     .maybeSingle();
 
+  // Guard: Affiliate must exist, must be approved, and CANNOT be referring themselves
   if (!affiliate || (affiliate.status !== 'approved' && affiliate.status !== null)) return;
+  if (affiliate.user_id === profileWithRef.id) {
+    console.warn(`[creditAffiliate] Self-referral blocked for user ${profileWithRef.id}`);
+    return;
+  }
 
   await admin
     .from('affiliates')
@@ -151,9 +195,10 @@ async function creditAffiliate(admin, userEmail, transaction) {
     })
     .eq('id', affiliate.id);
 
+  const scopeBadge = isFirstPurchase ? '🎉 First-Order Bounty' : 'Subscription Commission';
   const description = isBoostActive && multiplier > 1
-    ? `Commission for plan #${transaction.plan_type} [🔥 ${multiplier}X Boost: ${boostName}]`
-    : `Commission for plan #${transaction.plan_type} (${commType === 'percentage' ? `${allSettings?.find(s => s.setting_key === 'affiliate_commission_percentage')?.setting_value || 25}% of ${transaction.amount} UGX` : 'Fixed CPA'})`;
+    ? `Commission for plan #${transaction.plan_type} [🔥 ${multiplier}X Boost: ${boostName}] (${scopeBadge})`
+    : `Commission for plan #${transaction.plan_type} [${scopeBadge}: ${planMode === 'percentage' ? `${planRewardStr || 35}% of ${txAmount.toLocaleString()} UGX` : `${finalReward.toLocaleString()} UGX Fixed`}]`;
 
   await admin.from('affiliate_commissions').insert({
     affiliate_id: affiliate.id,

@@ -74,7 +74,7 @@ export async function signup(formData) {
         .ilike('referral_code', String(refCode).trim())
         .maybeSingle()
 
-      if (affiliate && (affiliate.status === 'approved' || !affiliate.status)) {
+      if (affiliate && (affiliate.status === 'approved' || !affiliate.status) && affiliate.user_id !== authData.user.id) {
         const cleanEmail = authData.user.email.toLowerCase().trim()
         // Retry loop to ensure profile created by trigger exists
         for (let attempt = 0; attempt < 3; attempt++) {

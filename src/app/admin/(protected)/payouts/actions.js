@@ -51,6 +51,13 @@ export async function approvePayout(arg) {
     return { error: 'Database update failed' };
   }
 
+  // Sync payout_requests table if present
+  await admin.from('payout_requests')
+    .update({ status: 'paid' })
+    .eq('affiliate_id', comm.affiliate_id)
+    .eq('status', 'pending')
+    .catch(() => {});
+
   // Send support message to notify user
   try {
     const userId = comm.affiliates?.user_id;
@@ -131,6 +138,13 @@ export async function rejectPayout(arg, optionalReason) {
       description: `${cleanDesc} (Rejected: ${reason})`
     })
     .eq('id', id);
+
+  // Sync payout_requests table if present
+  await admin.from('payout_requests')
+    .update({ status: 'rejected' })
+    .eq('affiliate_id', comm.affiliate_id)
+    .eq('status', 'pending')
+    .catch(() => {});
 
   // 3. Notify user in support thread
   try {

@@ -31,7 +31,10 @@ export async function getAffiliateSettings() {
     .eq('is_active', true)
     .order('price', { ascending: true })
 
-  const planSettingKeys = (plans || []).map(p => `affiliate_plan_${p.id}_reward`)
+  const planSettingKeys = (plans || []).flatMap(p => [
+    `affiliate_plan_${p.id}_reward`,
+    `affiliate_plan_${p.id}_mode`
+  ])
 
   const { data: settings } = await admin
     .from('admin_settings')
@@ -42,13 +45,19 @@ export async function getAffiliateSettings() {
       'affiliate_cpm_rate',
       'affiliate_commission_type',
       'affiliate_commission_percentage',
+      'affiliate_reward_scope',
+      'affiliate_withdrawal_fee',
+      'affiliate_min_payout',
       'affiliate_boost_enabled',
       'affiliate_boost_multiplier',
       'affiliate_boost_ends_at',
       'affiliate_boost_name',
       'affiliate_plan_1_reward',
+      'affiliate_plan_1_mode',
       'affiliate_plan_2_reward',
+      'affiliate_plan_2_mode',
       'affiliate_plan_3_reward',
+      'affiliate_plan_3_mode',
       ...planSettingKeys
     ])
 

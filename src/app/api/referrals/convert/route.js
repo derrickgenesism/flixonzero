@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
+import { calculateBonusWatchDays } from '@/lib/watchTimeBonus';
 
 // POST /api/referrals/convert
-// Convert referral earnings into subscription watch days based directly on platform subscription plans
+// Convert referral earnings into subscription watch days with Super-Conversion Bonus
 export async function POST(request) {
   try {
     const supabase = await createServerClient();
@@ -11,11 +12,6 @@ export async function POST(request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const daysRequested = Number(body.days);
-    if (!daysRequested || daysRequested < 1) {
-      return NextResponse.json({ error: 'Invalid number of days' }, { status: 400 });
-    }
-
     const admin = createAdminClient();
 
     // Fetch active subscription plans to determine pricing equivalent
@@ -25,20 +21,23 @@ export async function POST(request) {
       .eq('is_active', true)
       .order('price', { ascending: true });
 
-    const dailyPlan = plans?.find(p => p.duration_days === 1) || { price: 1000, duration_days: 1 };
     const twoWeeksPlan = plans?.find(p => p.duration_days === 14);
     const monthlyPlan = plans?.find(p => p.duration_days === 30);
 
-    const dailyRate = Math.round(Number(dailyPlan.price) / Number(dailyPlan.duration_days));
+    let totalCost = Math.floor(Number(body.cost || 0));
+    if (!totalCost && body.planId) {
+      if (body.planId === 'monthly') totalCost = Number(monthlyPlan?.price || 8000);
+      else if (body.planId === '2weeks') totalCost = Number(twoWeeksPlan?.price || 3000);
+      else totalCost = (Number(body.days) || 1) * 1000;
+    }
 
-    // Determine cost: package pricing if exact match, otherwise dailyRate per day
-    let totalCost = 0;
-    if (twoWeeksPlan && daysRequested === 14) {
-      totalCost = Number(twoWeeksPlan.price);
-    } else if (monthlyPlan && daysRequested === 30) {
-      totalCost = Number(monthlyPlan.price);
-    } else {
-      totalCost = daysRequested * dailyRate;
+    if (totalCost < 1000) {
+      return NextResponse.json({ error: 'Minimum conversion amount is 1,000 UGX' }, { status: 400 });
+    }
+
+    const daysToAdd = calculateBonusWatchDays(totalCost, plans);
+    if (daysToAdd < 1) {
+      return NextResponse.json({ error: 'Invalid conversion amount' }, { status: 400 });
     }
 
     // Get user profile
@@ -83,8 +82,8 @@ export async function POST(request) {
       ? Math.max(0, Math.ceil((new Date(profile.subscription_end_date) - now) / (1000 * 60 * 60 * 24)))
       : 0;
 
-    const newEnd = new Date(currentEnd.getTime() + daysRequested * 24 * 60 * 60 * 1000);
-    const newTotalDays = prevDays + daysRequested;
+    const newEnd = new Date(currentEnd.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+    const newTotalDays = prevDays + daysToAdd;
 
     await admin
       .from('user_profiles')
@@ -96,8 +95,8 @@ export async function POST(request) {
 
     // 3. Record in affiliate_commissions with transparent breakdown description
     const description = prevDays > 0
-      ? `Converted ${totalCost.toLocaleString()} UGX to +${daysRequested} Watch Days (${prevDays} existing + ${daysRequested} added = ${newTotalDays} total days)`
-      : `Converted ${totalCost.toLocaleString()} UGX to ${daysRequested} VIP Watch Days`;
+      ? `Converted ${totalCost.toLocaleString()} UGX to +${daysToAdd} Watch Days [🔥 Super-Bonus: ${prevDays} existing + ${daysToAdd} added = ${newTotalDays} total days]`
+      : `Converted ${totalCost.toLocaleString()} UGX to +${daysToAdd} VIP Watch Days (Super-Bonus)`;
 
     await admin.from('affiliate_commissions').insert({
       affiliate_id: affiliate.id,
@@ -108,11 +107,11 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      daysAdded: daysRequested,
+      daysAdded: daysToAdd,
       prevDays,
       newTotalDays,
       newExpiry: newEnd.toISOString(),
-      message: `🎉 Successfully added +${daysRequested} Watch Days! ${prevDays > 0 ? `Added to your existing ${prevDays} days (${newTotalDays} total days remaining).` : `You have ${newTotalDays} days remaining.`}`
+      message: `🎉 Successfully added +${daysToAdd} Watch Days! ${prevDays > 0 ? `Added to your existing ${prevDays} days (${newTotalDays} total days remaining).` : `You have ${newTotalDays} days remaining.`}`
     });
   } catch (err) {
     console.error('[convert error]', err);

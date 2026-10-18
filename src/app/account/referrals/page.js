@@ -4,11 +4,12 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { siteConfig } from '@/config/site';
 import { applyForAffiliate } from './actions';
 import ReferralsClient from './ReferralsClient';
 
 export const metadata = {
-  title: 'Affiliate & Referral Portal — FlixOn',
+  title: `Affiliate & Referral Portal — ${siteConfig.name}`,
 };
 
 export default async function ReferralsPage() {
@@ -162,8 +163,9 @@ export default async function ReferralsPage() {
   // preventing internal/preview deployment URLs (like flixozero.vercel.app) from leaking to end users.
   const headersList = await headers();
   const host = headersList.get('host') || '';
-  const isLocalDev = process.env.NODE_ENV === 'development' && (host.includes('localhost') || host.includes('127.0.0.1'));
-  const siteUrl = isLocalDev ? `http://${host}` : 'https://flixon.net';
+  const isLocalDev = host.includes('localhost') || host.includes('127.0.0.1');
+  const defaultSiteUrl = siteConfig?.url && !siteConfig.url.includes('example.com') ? siteConfig.url : 'https://flixon.net';
+  const siteUrl = isLocalDev ? `http://${host}` : (process.env.NEXT_PUBLIC_SITE_URL || defaultSiteUrl);
   const referralLink = `${siteUrl}/?ref=${affiliate.referral_code}`;
 
   // Get stats: Total Signups
@@ -178,13 +180,31 @@ export default async function ReferralsPage() {
     .select('id', { count: 'exact', head: true })
     .eq('affiliate_id', affiliate.id);
 
+  // Get active plans for dynamic watch time conversion
+  const { data: activePlans } = await admin
+    .from('subscription_plans')
+    .select('id, name, price, duration_days, is_active')
+    .eq('is_active', true)
+    .order('price', { ascending: true });
+
+  // Get payout settings (minimum payout & telecom transfer fee)
+  const { data: settingsRows } = await admin
+    .from('admin_settings')
+    .select('setting_key, setting_value')
+    .in('setting_key', ['affiliate_withdrawal_fee', 'affiliate_min_payout']);
+
+  const settingsMap = {};
+  (settingsRows || []).forEach(r => { settingsMap[r.setting_key] = r.setting_value; });
+  const withdrawalFee = Number(settingsMap['affiliate_withdrawal_fee'] !== undefined ? settingsMap['affiliate_withdrawal_fee'] : 500);
+  const minPayout = Number(settingsMap['affiliate_min_payout'] !== undefined ? settingsMap['affiliate_min_payout'] : 5000);
+
   // Get recent commissions / activity ledger
   const { data: commissions } = await admin
     .from('affiliate_commissions')
     .select('*')
     .eq('affiliate_id', affiliate.id)
     .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(30);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -199,7 +219,7 @@ export default async function ReferralsPage() {
           </Link>
           <div>
             <h1 style={{ fontSize: '32px', fontWeight: '900', margin: '0 0 4px' }}>Affiliate Partner Portal</h1>
-            <p style={{ color: 'var(--text3)', fontSize: '14px', margin: 0 }}>Track referrals, view earnings, and withdraw cash</p>
+            <p style={{ color: 'var(--text3)', fontSize: '14px', margin: 0 }}>Track referrals, view earnings, convert to watch days, or withdraw cash</p>
           </div>
         </div>
 
@@ -209,6 +229,9 @@ export default async function ReferralsPage() {
           totalSignups={totalSignups || 0}
           totalClicks={totalClicks || 0}
           commissions={commissions || []}
+          withdrawalFee={withdrawalFee}
+          minPayout={minPayout}
+          activePlans={activePlans || []}
         />
       </main>
     </div>

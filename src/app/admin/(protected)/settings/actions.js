@@ -26,8 +26,14 @@ export async function saveSettings(formData) {
     throw new Error("Forbidden");
   }
 
-  const checkboxKeys = ['free_mode_enabled', 'referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled', 'series_enabled', 'google_auth_enabled', 'offer_enabled', 'vpn_blocking_enabled']
+  const checkboxKeys = ['free_mode_enabled', 'referrals_enabled', 'ppv_enabled', 'promo_enabled', 'profiles_enabled', 'series_enabled', 'google_auth_enabled', 'offer_enabled', 'vpn_blocking_enabled', 'manual_payment_enabled']
   const keys = [
+    'platform_name',
+    'platform_currency',
+    'manual_payment_enabled',
+    'manual_payment_title',
+    'manual_payment_instructions',
+    'manual_payment_numbers',
     'free_mode_enabled',
     'tmdb_api_key',
     'app_download_url',

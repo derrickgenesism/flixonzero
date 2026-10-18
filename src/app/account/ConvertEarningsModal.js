@@ -20,8 +20,8 @@ export default function ConvertEarningsModal({
 
   // Daily plan price from database plans or default 1000 UGX
   const dailyPlan = plans.find(p => p.duration_days === 1) || { price: 1000, duration_days: 1 };
-  const twoWeeksPlan = plans.find(p => p.duration_days === 14) || { price: 5000, duration_days: 14 };
-  const monthlyPlan = plans.find(p => p.duration_days === 30) || { price: 9000, duration_days: 30 };
+  const twoWeeksPlan = plans.find(p => p.duration_days === 14) || { price: 3000, duration_days: 14 };
+  const monthlyPlan = plans.find(p => p.duration_days === 30) || { price: 8000, duration_days: 30 };
 
   const dailyRate = Math.round(Number(dailyPlan.price) / Number(dailyPlan.duration_days));
 
@@ -33,19 +33,20 @@ export default function ConvertEarningsModal({
     ? Math.max(0, Math.ceil((currentExpiry - now) / (1000 * 60 * 60 * 24)))
     : 0;
 
-  // Compute selected days and cost based on selected option
-  let daysToAdd = 1;
-  let costUgx = dailyRate;
+  // Compute selected days and cost based on supercharged conversion tiers
+  let daysToAdd = 3;
+  let costUgx = 1000;
 
   if (selectedPlanId === 'daily') {
-    daysToAdd = Math.max(1, Number(customDays) || 1);
-    costUgx = daysToAdd * dailyRate;
+    const packs = Math.max(1, Number(customDays) || 1);
+    daysToAdd = packs * 3; // 1,000 UGX = 3 Days Super-Bonus
+    costUgx = packs * 1000;
   } else if (selectedPlanId === '2weeks') {
-    daysToAdd = Number(twoWeeksPlan.duration_days);
-    costUgx = Number(twoWeeksPlan.price);
+    daysToAdd = 21; // 3,000 UGX = 21 Days (3 Weeks Super-Bonus)
+    costUgx = 3000;
   } else if (selectedPlanId === 'monthly') {
-    daysToAdd = Number(monthlyPlan.duration_days);
-    costUgx = Number(monthlyPlan.price);
+    daysToAdd = 40; // 8,000 UGX = 40 Days (Super-Bonus)
+    costUgx = 8000;
   }
 
   const newTotalDays = currentDaysLeft + daysToAdd;
@@ -306,22 +307,22 @@ export default function ConvertEarningsModal({
                     />
                     <div>
                       <div style={{ fontWeight: '700', color: '#fff', fontSize: '14px' }}>
-                        Daily Pass Rate ({dailyRate.toLocaleString()} UGX / day)
+                        1,000 UGX = 3 VIP Days 🔥
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text3)' }}>
-                        Select exact number of days
+                      <div style={{ fontSize: '12px', color: '#4ade80' }}>
+                        Super-Conversion: 3 days for every 1K!
                       </div>
                     </div>
                   </div>
                   <strong style={{ color: '#fbbf24', fontSize: '14px' }}>
-                    {(customDays * dailyRate).toLocaleString()} UGX
+                    {(customDays * 1000).toLocaleString()} UGX
                   </strong>
                 </label>
 
                 {/* Custom days counter if daily selected */}
                 {selectedPlanId === 'daily' && (
                   <div style={{ padding: '10px 14px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--text2)' }}>Number of Days:</span>
+                    <span style={{ fontSize: '13px', color: 'var(--text2)' }}>Pack Count (×3 Days each):</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <button
                         type="button"
@@ -331,18 +332,18 @@ export default function ConvertEarningsModal({
                       >
                         -
                       </button>
-                      <span style={{ fontSize: '16px', fontWeight: '800', color: '#fff', minWidth: '24px', textAlign: 'center' }}>
-                        {customDays}
+                      <span style={{ fontSize: '16px', fontWeight: '800', color: '#fff', minWidth: '40px', textAlign: 'center' }}>
+                        {customDays} ({customDays * 3}d)
                       </span>
                       <button
                         type="button"
                         onClick={() => {
                           const nextDays = customDays + 1;
-                          if (nextDays * dailyRate <= availableBalance) {
+                          if (nextDays * 1000 <= availableBalance) {
                             setCustomDays(nextDays);
                           }
                         }}
-                        disabled={(customDays + 1) * dailyRate > availableBalance}
+                        disabled={(customDays + 1) * 1000 > availableBalance}
                         className="gms-btn gms-btn--ghost"
                         style={{ padding: '4px 12px', fontSize: '14px' }}
                       >
@@ -352,7 +353,7 @@ export default function ConvertEarningsModal({
                   </div>
                 )}
 
-                {/* Option 2: 2 Weeks Pass (14 Days) */}
+                {/* Option 2: 2 Weeks Pass (21 Days Super-Bonus) */}
                 <label
                   style={{
                     display: 'flex',
@@ -374,19 +375,19 @@ export default function ConvertEarningsModal({
                     />
                     <div>
                       <div style={{ fontWeight: '700', color: '#fff', fontSize: '14px' }}>
-                        2 Weeks Pass (+14 Days)
+                        3,000 UGX = 21 Days (3 Weeks!) 🔥
                       </div>
                       <div style={{ fontSize: '12px', color: '#4ade80' }}>
-                        Best value 2-week plan
+                        +50% Free Bonus Days included
                       </div>
                     </div>
                   </div>
                   <strong style={{ color: '#fbbf24', fontSize: '14px' }}>
-                    {Number(twoWeeksPlan.price).toLocaleString()} UGX
+                    3,000 UGX
                   </strong>
                 </label>
 
-                {/* Option 3: Monthly Pass (30 Days) */}
+                {/* Option 3: Monthly Pass (40 Days Super-Bonus) */}
                 <label
                   style={{
                     display: 'flex',
@@ -408,15 +409,15 @@ export default function ConvertEarningsModal({
                     />
                     <div>
                       <div style={{ fontWeight: '700', color: '#fff', fontSize: '14px' }}>
-                        Monthly Pass (+30 Days)
+                        8,000 UGX = 40 Days VIP 🔥
                       </div>
                       <div style={{ fontSize: '12px', color: '#4ade80' }}>
-                        Full 30 days unlimited access
+                        +10 Extra Days Free (Full 40 Days)
                       </div>
                     </div>
                   </div>
                   <strong style={{ color: '#fbbf24', fontSize: '14px' }}>
-                    {Number(monthlyPlan.price).toLocaleString()} UGX
+                    8,000 UGX
                   </strong>
                 </label>
               </div>

@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
 import { normalizeUgandaPhone, isValidUgandaPhone } from '@/lib/fraudGuard';
+import { calculateBonusWatchDays } from '@/lib/watchTimeBonus';
 
 async function sendTelegramNotice(text) {
   try {
@@ -208,24 +209,10 @@ export async function convertToWatchDays(formData) {
     .eq('is_active', true)
     .order('price', { ascending: true });
 
-  const dailyPlan = plans?.find(p => p.duration_days === 1) || { price: 1000, duration_days: 1 };
-  const dailyRate = Math.round(Number(dailyPlan.price) / Number(dailyPlan.duration_days));
-  const twoWeeksPlan = plans?.find(p => p.duration_days === 14);
-  const monthlyPlan = plans?.find(p => p.duration_days === 30);
-
-  let daysToAdd = 0;
-  if (monthlyPlan && amount >= Number(monthlyPlan.price)) {
-    const months = Math.floor(amount / Number(monthlyPlan.price));
-    daysToAdd = months * 30;
-  } else if (twoWeeksPlan && amount >= Number(twoWeeksPlan.price)) {
-    const fortnights = Math.floor(amount / Number(twoWeeksPlan.price));
-    daysToAdd = fortnights * 14;
-  } else {
-    daysToAdd = Math.floor(amount / dailyRate);
-  }
+  const daysToAdd = calculateBonusWatchDays(amount, plans);
 
   if (daysToAdd < 1) {
-    return { error: `Minimum conversion is 1 Day (${dailyRate.toLocaleString()} UGX)` };
+    return { error: 'Minimum conversion is 1,000 UGX (grants 3 VIP Watch Days)' };
   }
 
   const { data: profile } = await admin
@@ -312,15 +299,32 @@ export async function requestPayout(formData) {
   const rawPhone = String(formData.get('phone') || '').trim();
   const normalizedPhone = normalizeUgandaPhone(rawPhone);
   
-  if (isNaN(amount) || amount < 5000) {
-    return { error: 'Minimum cash withdrawal is 5,000 UGX' };
+  const admin = createAdminClient();
+
+  const { data: minPayoutSetting } = await admin
+    .from('admin_settings')
+    .select('setting_value')
+    .eq('setting_key', 'affiliate_min_payout')
+    .maybeSingle();
+
+  const minPayout = Number(minPayoutSetting?.setting_value || 5000);
+
+  const { data: feeSetting } = await admin
+    .from('admin_settings')
+    .select('setting_value')
+    .eq('setting_key', 'affiliate_withdrawal_fee')
+    .maybeSingle();
+
+  const withdrawalFee = Number(feeSetting?.setting_value !== undefined ? feeSetting.setting_value : 500);
+  const netAmount = Math.max(0, amount - withdrawalFee);
+
+  if (isNaN(amount) || amount < minPayout) {
+    return { error: `Minimum cash withdrawal is ${minPayout.toLocaleString()} UGX` };
   }
 
   if (!isValidUgandaPhone(normalizedPhone)) {
     return { error: 'Please enter a valid Ugandan mobile money number (e.g. 077... or 075...)' };
   }
-
-  const admin = createAdminClient();
 
   const { data: profile } = await admin
     .from('user_profiles')
@@ -361,12 +365,27 @@ export async function requestPayout(formData) {
   }
 
   // 2. Record payout in affiliate_commissions as pending
+  const feeNote = withdrawalFee > 0 ? ` (Gross: ${amount.toLocaleString()} UGX | Fee: -${withdrawalFee.toLocaleString()} UGX | Net Transfer: ${netAmount.toLocaleString()} UGX)` : '';
   await admin.from('affiliate_commissions').insert({
     affiliate_id: affiliate.id,
     amount: -amount,
     type: 'payout_pending',
-    description: `Mobile Money Payout: 0${normalizedPhone.slice(3)} (Pending Admin Transfer)`
+    description: `Mobile Money Payout: 0${normalizedPhone.slice(3)}${feeNote} (Pending Admin Transfer)`
   });
+
+  // 2b. Sync into payout_requests table
+  await admin.from('payout_requests').insert({
+    affiliate_id: affiliate.id,
+    amount: amount,
+    status: 'pending',
+    payout_method: 'mobile_money',
+    payout_details: JSON.stringify({
+      phone: `0${normalizedPhone.slice(3)}`,
+      gross_amount: amount,
+      withdrawal_fee: withdrawalFee,
+      net_payout: netAmount
+    })
+  }).catch(() => {});
 
   // 3. Create or find support thread to notify user and admin
   try {
@@ -392,7 +411,7 @@ export async function requestPayout(formData) {
       await admin.from('support_messages').insert({
         thread_id: thread.id,
         sender_role: 'system',
-        content: `Your cash withdrawal request of ${amount.toLocaleString()} UGX to mobile money number 0${normalizedPhone.slice(3)} has been received and queued for transfer.`,
+        content: `Your cash withdrawal request of ${amount.toLocaleString()} UGX to mobile money 0${normalizedPhone.slice(3)} has been received. After telecom transfer fee (${withdrawalFee.toLocaleString()} UGX), you will receive ${netAmount.toLocaleString()} UGX.`,
         is_read: false
       });
     }
@@ -420,16 +439,18 @@ export async function requestPayout(formData) {
   await sendTelegramNotice(
     `💰 <b>NEW AFFILIATE CASH WITHDRAWAL REQUEST</b> 💰\n\n` +
     `• <b>Affiliate:</b> @${profile.username || 'User'} (<code>${profile.email}</code>)\n` +
-    `• <b>Amount:</b> <b>${amount.toLocaleString()} UGX</b>\n` +
+    `• <b>Gross Requested:</b> ${amount.toLocaleString()} UGX\n` +
+    `• <b>Telecom Transfer Fee:</b> -${withdrawalFee.toLocaleString()} UGX\n` +
+    `• <b>👉 NET CASH TO SEND:</b> <b>${netAmount.toLocaleString()} UGX</b>\n` +
     `• <b>Phone (MM):</b> <code>0${normalizedPhone.slice(3)}</code>\n` +
     `• <b>Remaining Balance:</b> ${(available - amount).toLocaleString()} UGX\n` +
     `• <b>Date Submitted:</b> ${dateFormatted} at ${timeFormatted} EAT\n\n` +
-    `<i>Send mobile money to the user and mark completed in Admin Panel → Payouts.</i>`
+    `👉 <i>Send <b>${netAmount.toLocaleString()} UGX</b> to <code>0${normalizedPhone.slice(3)}</code> and mark completed in Admin Panel → Payouts.</i>`
   );
 
   revalidatePath('/account/referrals');
   return { 
     success: true, 
-    message: `✅ Payout request of ${amount.toLocaleString()} UGX submitted! Mobile money transfer is typically processed within 2-6 hours.` 
+    message: `✅ Payout request of ${amount.toLocaleString()} UGX submitted! After telecom fee (${withdrawalFee.toLocaleString()} UGX), you will receive ${netAmount.toLocaleString()} UGX to your mobile money within 2-6 hours.` 
   };
 }

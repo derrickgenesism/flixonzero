@@ -13,12 +13,107 @@ export default async function AdminSettingsPage() {
   const flwPublic = settings?.find(s => s.setting_key === 'flutterwave_public_key')?.setting_value || ''
   const flwSecret = settings?.find(s => s.setting_key === 'flutterwave_secret_key')?.setting_value || ''
 
+  const platformName = settings?.find(s => s.setting_key === 'platform_name')?.setting_value || 'FlixOn'
+  const platformCurrency = settings?.find(s => s.setting_key === 'platform_currency')?.setting_value || 'UGX'
+  const manualPaymentEnabled = settings?.find(s => s.setting_key === 'manual_payment_enabled')?.setting_value !== 'false'
+  const manualPaymentTitle = settings?.find(s => s.setting_key === 'manual_payment_title')?.setting_value || 'Direct Mobile Money / Bank Transfer'
+  const manualPaymentNumbers = settings?.find(s => s.setting_key === 'manual_payment_numbers')?.setting_value || 'MTN Mobile Money: 0770000000 (Account Name)\nAirtel Money: 0750000000 (Account Name)'
+  const manualPaymentInstructions = settings?.find(s => s.setting_key === 'manual_payment_instructions')?.setting_value || '1. Send the exact plan amount to one of our official numbers above.\n2. Enter the phone number or sender name you paid from below.\n3. Click "I Have Sent Money". Our team will verify and activate your subscription in 5-15 minutes!'
+
   return (
     <div>
       <h1 style={{ fontSize: '32px', marginBottom: '20px' }}>System Settings</h1>
       
       <form action={saveSettings} style={{ background: 'var(--bg2)', padding: '30px', borderRadius: '10px', maxWidth: '600px' }}>
         
+        {/* White-Label Branding */}
+        <h3 style={{ margin: '0 0 6px', color: 'var(--acc)' }}>🏷️ Platform Branding & Currency</h3>
+        <p style={{ fontSize: '13px', color: 'var(--text3)', marginBottom: '15px' }}>
+          Personalize the platform name and billing currency for your brand.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 'bold' }}>Platform / Brand Name</label>
+            <input 
+              type="text" 
+              name="platform_name" 
+              defaultValue={platformName}
+              placeholder="e.g. MyStream"
+              style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 'bold' }}>Platform Currency</label>
+            <input 
+              type="text" 
+              name="platform_currency" 
+              defaultValue={platformCurrency}
+              placeholder="e.g. UGX, USD, KES, NGN, EUR"
+              style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
+            />
+          </div>
+        </div>
+
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '25px 0' }} />
+
+        {/* Manual Payment System */}
+        <h3 style={{ margin: '0 0 6px', color: '#38bdf8' }}>📱 Manual Payments (No API Required)</h3>
+        <p style={{ fontSize: '13px', color: 'var(--text3)', marginBottom: '15px' }}>
+          Allow users to pay directly by sending money to your phone numbers (MTN, Airtel, M-Pesa, Bank, Crypto, etc.). Users submit the number they paid with, and you approve it with 1-click in the Transactions tab.
+        </p>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: '#38bdf8', fontWeight: 'bold' }}>
+            <input 
+              type="checkbox" 
+              name="manual_payment_enabled" 
+              defaultChecked={manualPaymentEnabled}
+              style={{ transform: 'scale(1.2)' }}
+            />
+            Enable Manual / Direct Payment Mode
+          </label>
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>Payment Method Title</label>
+          <input 
+            type="text" 
+            name="manual_payment_title" 
+            defaultValue={manualPaymentTitle}
+            placeholder="e.g. Direct Mobile Money / Bank Transfer"
+            style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>
+            Payment Receiving Numbers & Accounts (Shown to User)
+          </label>
+          <textarea 
+            name="manual_payment_numbers" 
+            defaultValue={manualPaymentNumbers}
+            rows={4}
+            placeholder={"MTN Mobile Money: 077XXXXXXX (Your Name)\nAirtel Money: 075XXXXXXX (Your Name)"}
+            style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', fontFamily: 'monospace', fontSize: '13px', resize: 'vertical' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '25px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>
+            Instructions for Customer (Step-by-step)
+          </label>
+          <textarea 
+            name="manual_payment_instructions" 
+            defaultValue={manualPaymentInstructions}
+            rows={4}
+            placeholder="Step 1: Send money to one of our numbers. Step 2: Enter your phone number below and click submit."
+            style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', fontSize: '13px', resize: 'vertical' }}
+          />
+        </div>
+
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '25px 0' }} />
+
         <h3 style={{ margin: '0 0 15px', color: 'var(--acc)' }}>TMDB Integration</h3>
         <div style={{ marginBottom: '25px' }}>
           <label style={{ display: 'block', marginBottom: '8px' }}>TMDB API Key</label>

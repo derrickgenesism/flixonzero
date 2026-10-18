@@ -4,6 +4,20 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { approvePayout, rejectPayout } from './actions';
 
+function parsePayoutDetails(description, amountAbs, defaultFee = 500) {
+  const grossMatch = description?.match(/Gross:\s*([0-9,]+)\s*UGX/i);
+  const feeMatch = description?.match(/Fee:\s*-?([0-9,]+)\s*UGX/i);
+  const netMatch = description?.match(/Net Transfer:\s*([0-9,]+)\s*UGX/i);
+  const phoneMatch = description?.match(/(?:07\d{8}|256\d{9})/);
+
+  const phone = phoneMatch ? phoneMatch[0] : null;
+  const gross = grossMatch ? parseInt(grossMatch[1].replace(/,/g, ''), 10) : amountAbs;
+  const fee = feeMatch ? parseInt(feeMatch[1].replace(/,/g, ''), 10) : (amountAbs >= 5000 ? defaultFee : 0);
+  const net = netMatch ? parseInt(netMatch[1].replace(/,/g, ''), 10) : Math.max(0, gross - fee);
+
+  return { phone, gross, fee, net };
+}
+
 export default function PayoutsClient({ initialPayouts = [] }) {
   const router = useRouter();
   const [payouts, setPayouts] = useState(initialPayouts);
@@ -13,6 +27,8 @@ export default function PayoutsClient({ initialPayouts = [] }) {
   const [message, setMessage] = useState(null);
   const [rejectingItem, setRejectingItem] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [copiedPhoneId, setCopiedPhoneId] = useState(null);
+  const [copiedNetId, setCopiedNetId] = useState(null);
 
   // Counters & Aggregates
   const pendingPayouts = payouts.filter(p => p.type === 'payout_pending');
@@ -21,6 +37,11 @@ export default function PayoutsClient({ initialPayouts = [] }) {
   const rejectedPayouts = payouts.filter(p => p.type === 'payout_rejected');
 
   const pendingTotal = pendingPayouts.reduce((sum, p) => sum + Math.abs(Number(p.amount || 0)), 0);
+  const pendingNetTotal = pendingPayouts.reduce((sum, p) => {
+    const details = parsePayoutDetails(p.description, Math.abs(Number(p.amount || 0)));
+    return sum + details.net;
+  }, 0);
+
   const sentTotal = sentPayouts.reduce((sum, p) => sum + Math.abs(Number(p.amount || 0)), 0);
   const watchDaysTotal = watchDaysPayouts.reduce((sum, p) => sum + Math.abs(Number(p.amount || 0)), 0);
 
@@ -42,9 +63,28 @@ export default function PayoutsClient({ initialPayouts = [] }) {
     return username.includes(q) || email.includes(q) || refCode.includes(q) || desc.includes(q);
   });
 
+  // Copy helpers
+  function handleCopyPhone(id, phone) {
+    if (!phone) return;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(phone);
+      setCopiedPhoneId(id);
+      setTimeout(() => setCopiedPhoneId(null), 2000);
+    }
+  }
+
+  function handleCopyNet(id, net) {
+    if (!net) return;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(net.toString());
+      setCopiedNetId(id);
+      setTimeout(() => setCopiedNetId(null), 2000);
+    }
+  }
+
   // Mark as Sent handler
-  async function handleMarkSent(id, amount, username) {
-    if (!confirm(`Confirm Mobile Money transfer of ${amount.toLocaleString()} UGX to @${username || 'user'} has been completed? Status will change to GREEN (Sent).`)) {
+  async function handleMarkSent(id, netAmount, grossAmount, username, phone) {
+    if (!confirm(`Confirm Mobile Money transfer of ${netAmount.toLocaleString()} UGX (Net after telecom fee) to @${username || 'user'}${phone ? ` (${phone})` : ''} has been sent?\n\nGross deducted: ${grossAmount.toLocaleString()} UGX\nTelecom Fee: -500 UGX\nNet Sent: ${netAmount.toLocaleString()} UGX\n\nStatus will change to GREEN (Sent).`)) {
       return;
     }
 
@@ -68,7 +108,7 @@ export default function PayoutsClient({ initialPayouts = [] }) {
       );
       setMessage({
         type: 'success',
-        text: `✅ Payout of ${amount.toLocaleString()} UGX marked as Sent! Status is now GREEN (Sent) and user was notified.`
+        text: `✅ Payout of ${netAmount.toLocaleString()} UGX Net (${grossAmount.toLocaleString()} UGX Gross) marked as Sent! Status is now GREEN (Sent) and user was notified.`
       });
       router.refresh();
     } else {
@@ -118,7 +158,7 @@ export default function PayoutsClient({ initialPayouts = [] }) {
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '8px', color: '#fff' }}>Payout Requests</h1>
         <p style={{ color: 'var(--text2)', fontSize: '14px', margin: 0 }}>
-          Manage affiliate cash withdrawals. When not sent, payouts are marked <strong>Pending</strong>. When sent, they turn <strong>GREEN (Sent)</strong>.
+          Manage affiliate cash withdrawals. Transmit the <strong>Net Cash to Send</strong> via MTN or Airtel Mobile Money, then click <strong>Mark Sent</strong> to turn the status <strong>GREEN (Sent)</strong>.
         </p>
       </div>
 
@@ -177,10 +217,10 @@ export default function PayoutsClient({ initialPayouts = [] }) {
             </span>
           </div>
           <div style={{ fontSize: '32px', fontWeight: '900', color: '#fbbf24' }}>
-            {pendingTotal.toLocaleString()} <span style={{ fontSize: '16px', fontWeight: '600' }}>UGX</span>
+            {pendingNetTotal.toLocaleString()} <span style={{ fontSize: '16px', fontWeight: '600' }}>UGX NET</span>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '8px' }}>
-            Awaiting Mobile Money transfer by admin
+            Gross: {pendingTotal.toLocaleString()} UGX (Fees retained: {(pendingTotal - pendingNetTotal).toLocaleString()} UGX)
           </div>
         </div>
 
@@ -208,18 +248,18 @@ export default function PayoutsClient({ initialPayouts = [] }) {
                 borderRadius: '12px'
               }}
             >
-              Sent ({sentPayouts.length})
+              Completed ({sentPayouts.length})
             </span>
           </div>
           <div style={{ fontSize: '32px', fontWeight: '900', color: '#4ade80' }}>
             {sentTotal.toLocaleString()} <span style={{ fontSize: '16px', fontWeight: '600' }}>UGX</span>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '8px' }}>
-            Transferred directly to Mobile Money accounts
+            Successfully disbursed to Mobile Money
           </div>
         </div>
 
-        {/* Card 3: Watch Days Converted */}
+        {/* Card 3: Converted to VIP Days */}
         <div
           style={{
             background: 'rgba(96,165,250,0.06)',
@@ -231,7 +271,7 @@ export default function PayoutsClient({ initialPayouts = [] }) {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
             <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#60a5fa' }}>
-              Watch Days Converted
+              Converted Watch Days
             </span>
             <span
               style={{
@@ -243,58 +283,56 @@ export default function PayoutsClient({ initialPayouts = [] }) {
                 borderRadius: '12px'
               }}
             >
-              Converted ({watchDaysPayouts.length})
+              {watchDaysPayouts.length} Conversions
             </span>
           </div>
           <div style={{ fontSize: '32px', fontWeight: '900', color: '#60a5fa' }}>
             {watchDaysTotal.toLocaleString()} <span style={{ fontSize: '16px', fontWeight: '600' }}>UGX</span>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '8px' }}>
-            Instantly redeemed for VIP movie streaming days
+            Re-invested directly into platform streaming
           </div>
         </div>
       </div>
 
-      {/* Controls Bar: Search & Filter Tabs */}
+      {/* Filter Tabs & Search Bar */}
       <div
         style={{
-          background: 'var(--bg2)',
-          borderRadius: '12px',
-          padding: '16px 20px',
-          border: '1px solid var(--border)',
-          marginBottom: '20px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '16px'
+          gap: '16px',
+          marginBottom: '20px'
         }}
       >
-        {/* Filter Tabs */}
+        {/* Filter Pills */}
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
-            { key: 'all', label: `All (${payouts.length})`, activeBg: 'var(--acc)', activeColor: '#fff' },
-            { key: 'pending', label: `⏳ Pending (${pendingPayouts.length})`, activeBg: '#fbbf24', activeColor: '#000' },
-            { key: 'sent', label: `✅ Sent (${sentPayouts.length})`, activeBg: '#22c55e', activeColor: '#fff' },
-            { key: 'watch_days', label: `⚡ Watch Days (${watchDaysPayouts.length})`, activeBg: '#3b82f6', activeColor: '#fff' },
-            { key: 'rejected', label: `❌ Rejected (${rejectedPayouts.length})`, activeBg: '#ef4444', activeColor: '#fff' }
-          ].map(t => (
+            { id: 'all', label: `All (${payouts.length})` },
+            { id: 'pending', label: `⏳ Pending (${pendingPayouts.length})` },
+            { id: 'sent', label: `✅ Sent (${sentPayouts.length})` },
+            { id: 'watch_days', label: `⚡ Watch Days (${watchDaysPayouts.length})` },
+            { id: 'rejected', label: `❌ Rejected (${rejectedPayouts.length})` }
+          ].map(tab => (
             <button
-              key={t.key}
-              onClick={() => setFilter(t.key)}
+              key={tab.id}
+              type="button"
+              onClick={() => setFilter(tab.id)}
               style={{
-                background: filter === t.key ? t.activeBg : 'rgba(255,255,255,0.05)',
-                color: filter === t.key ? t.activeColor : 'var(--text2)',
-                border: filter === t.key ? 'none' : '1px solid rgba(255,255,255,0.08)',
-                padding: '8px 14px',
-                borderRadius: '8px',
+                padding: '8px 16px',
+                borderRadius: '20px',
                 fontSize: '13px',
                 fontWeight: '700',
+                border: '1px solid',
+                borderColor: filter === tab.id ? 'var(--acc)' : 'var(--border)',
+                background: filter === tab.id ? 'var(--acc)' : 'var(--bg2)',
+                color: filter === tab.id ? '#fff' : 'var(--text2)',
                 cursor: 'pointer',
                 transition: 'all 0.2s'
               }}
             >
-              {t.label}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -329,8 +367,8 @@ export default function PayoutsClient({ initialPayouts = [] }) {
               <th style={{ padding: '16px 20px', color: 'var(--text2)', fontWeight: '600' }}>Date</th>
               <th style={{ padding: '16px 20px', color: 'var(--text2)', fontWeight: '600' }}>Affiliate</th>
               <th style={{ padding: '16px 20px', color: 'var(--text2)', fontWeight: '600' }}>Type</th>
-              <th style={{ padding: '16px 20px', color: 'var(--text2)', fontWeight: '600' }}>Amount</th>
-              <th style={{ padding: '16px 20px', color: 'var(--text2)', fontWeight: '600' }}>Details / Note</th>
+              <th style={{ padding: '16px 20px', color: 'var(--text2)', fontWeight: '600' }}>Amount Breakdown</th>
+              <th style={{ padding: '16px 20px', color: 'var(--text2)', fontWeight: '600' }}>Mobile Money Recipient</th>
               <th style={{ padding: '16px 20px', color: 'var(--text2)', fontWeight: '600' }}>Status</th>
               <th style={{ padding: '16px 20px', color: 'var(--text2)', fontWeight: '600', textAlign: 'right' }}>Actions</th>
             </tr>
@@ -346,13 +384,14 @@ export default function PayoutsClient({ initialPayouts = [] }) {
                 const userProfile = req.affiliates?.user_profiles;
                 const amountAbs = Math.abs(Number(req.amount || 0));
                 const isLoading = actionLoadingId === req.id;
+                const details = parsePayoutDetails(req.description, amountAbs);
 
                 return (
                   <tr
                     key={req.id}
                     style={{
                       borderBottom: '1px solid var(--border)',
-                      background: isPending ? 'rgba(251,191,36,0.02)' : 'transparent'
+                      background: isPending ? 'rgba(251,191,36,0.03)' : 'transparent'
                     }}
                   >
                     {/* Date */}
@@ -383,14 +422,72 @@ export default function PayoutsClient({ initialPayouts = [] }) {
                       )}
                     </td>
 
-                    {/* Amount */}
-                    <td style={{ padding: '16px 20px', fontWeight: '800', color: '#fff', whiteSpace: 'nowrap' }}>
-                      {amountAbs.toLocaleString()} UGX
+                    {/* Amount Breakdown */}
+                    <td style={{ padding: '16px 20px', whiteSpace: 'nowrap' }}>
+                      {isWatchDays ? (
+                        <span style={{ fontWeight: '800', color: '#60a5fa' }}>{amountAbs.toLocaleString()} UGX</span>
+                      ) : (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '16px', fontWeight: '900', color: '#4ade80' }}>
+                              {details.net.toLocaleString()} UGX
+                            </span>
+                            <span style={{ fontSize: '10px', fontWeight: '800', background: 'rgba(74,222,128,0.15)', color: '#4ade80', padding: '1px 5px', borderRadius: '4px' }}>
+                              NET CASH
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyNet(req.id, details.net)}
+                              title="Copy Net Amount to transfer"
+                              style={{
+                                background: copiedNetId === req.id ? '#22c55e' : 'rgba(255,255,255,0.08)',
+                                color: '#fff',
+                                border: 'none',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {copiedNetId === req.id ? 'Copied!' : 'Copy'}
+                            </button>
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '3px' }}>
+                            Gross: {details.gross.toLocaleString()} | Fee: -{details.fee.toLocaleString()} UGX
+                          </div>
+                        </div>
+                      )}
                     </td>
 
-                    {/* Details / Note */}
-                    <td style={{ padding: '16px 20px', color: 'var(--text2)', maxWidth: '280px', wordBreak: 'break-word' }}>
-                      {req.description || '-'}
+                    {/* Mobile Money Recipient */}
+                    <td style={{ padding: '16px 20px', color: 'var(--text2)', maxWidth: '280px' }}>
+                      {details.phone ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: '800', color: '#fff', fontSize: '13px', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>
+                            {details.phone}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyPhone(req.id, details.phone)}
+                            style={{
+                              background: copiedPhoneId === req.id ? '#22c55e' : 'rgba(255,255,255,0.08)',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: '700',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {copiedPhoneId === req.id ? 'Copied!' : 'Copy Phone'}
+                          </button>
+                        </div>
+                      ) : null}
+                      <div style={{ fontSize: '12px', color: 'var(--text3)', wordBreak: 'break-word' }}>
+                        {req.description || '-'}
+                      </div>
                     </td>
 
                     {/* Status Badge */}
@@ -479,7 +576,7 @@ export default function PayoutsClient({ initialPayouts = [] }) {
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
                           <button
                             type="button"
-                            onClick={() => handleMarkSent(req.id, amountAbs, userProfile?.username)}
+                            onClick={() => handleMarkSent(req.id, details.net, details.gross, userProfile?.username, details.phone)}
                             disabled={isLoading}
                             className="gms-btn gms-btn--primary"
                             style={{
@@ -492,7 +589,7 @@ export default function PayoutsClient({ initialPayouts = [] }) {
                               cursor: 'pointer'
                             }}
                           >
-                            {isLoading ? 'Updating...' : '✓ Mark Sent'}
+                            {isLoading ? 'Updating...' : `✓ Mark Net (${details.net.toLocaleString()}) Sent`}
                           </button>
 
                           <button
