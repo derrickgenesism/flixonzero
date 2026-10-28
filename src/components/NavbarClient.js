@@ -4,13 +4,20 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import SearchInput from './SearchInput';
-import NotificationBell from './NotificationBell';
 import MovieRequestModal from './MovieRequestModal';
 import { logoutAndClearProfile } from '@/app/profiles/actions';
-
 import { createClient } from '@/utils/supabase/client';
 
-export default function NavbarClient({ user, activeProfile, isActive, daysLeft, seriesEnabled }) {
+export default function NavbarClient({
+  user,
+  activeProfile,
+  isActive = false,
+  isExpiringSoon = false,
+  hoursLeft = 0,
+  daysLeft = 0,
+  hasExpired = false,
+  seriesEnabled = false,
+}) {
   const [scrolled, setScrolled] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
@@ -34,7 +41,7 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft, 
         .select('id')
         .eq('email', user.email)
         .single();
-      
+
       if (!profile) return;
 
       const { data: thread } = await supabase
@@ -56,30 +63,37 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft, 
 
       // Subscribe to new messages
       const channelName = `desktop_support_unread_badge_${thread.id}_${Math.random()}`;
-        channel = supabase
+      channel = supabase
         .channel(channelName)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'support_messages',
-          filter: `thread_id=eq.${thread.id}`
-        }, (payload) => {
-          if (payload.new.sender_role === 'admin' && !payload.new.is_read) {
-            setUnreadCount(prev => prev + 1);
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'support_messages',
+            filter: `thread_id=eq.${thread.id}`,
+          },
+          (payload) => {
+            if (payload.new.sender_role === 'admin' && !payload.new.is_read) {
+              setUnreadCount((prev) => prev + 1);
+            }
           }
-        })
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'support_messages',
-          filter: `thread_id=eq.${thread.id}`
-        }, (payload) => {
-          if (payload.new.is_read && !payload.old.is_read) {
-            setUnreadCount(prev => Math.max(0, prev - 1));
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'support_messages',
+            filter: `thread_id=eq.${thread.id}`,
+          },
+          (payload) => {
+            if (payload.new.is_read && !payload.old.is_read) {
+              setUnreadCount((prev) => Math.max(0, prev - 1));
+            }
           }
-        })
+        )
         .subscribe();
-
     };
 
     fetchUnread();
@@ -97,17 +111,36 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft, 
       </Link>
       <div className="flx-nav__links">
         <Link href="/" className={`flx-nav__link${pathname === '/' ? ' flx-nav__link--active' : ''}`}>Home</Link>
-        {seriesEnabled && <Link href="/series" className={`flx-nav__link${pathname.startsWith('/series') ? ' flx-nav__link--active' : ''}`}>Series</Link>}
-        <Link href="/movies" className={`flx-nav__link${pathname === '/movies' ? ' flx-nav__link--active' : ''}`}>Movies</Link>
-        <Link href="/my-list" className={`flx-nav__link${pathname === '/my-list' ? ' flx-nav__link--active' : ''}`}>My List</Link>
+        {seriesEnabled && (
+          <Link href="/series" className={`flx-nav__link${pathname.startsWith('/series') ? ' flx-nav__link--active' : ''}`}>
+            Series
+          </Link>
+        )}
+        <Link href="/movies" className={`flx-nav__link${pathname === '/movies' ? ' flx-nav__link--active' : ''}`}>
+          Movies
+        </Link>
+        <Link href="/my-list" className={`flx-nav__link${pathname === '/my-list' ? ' flx-nav__link--active' : ''}`}>
+          My List
+        </Link>
         <button
           type="button"
           onClick={() => setRequestModalOpen(true)}
           className="flx-nav__link"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit', display: 'flex', alignItems: 'center', gap: '5px' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            font: 'inherit',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+          }}
         >
           <span>Request</span>
-          <span style={{ fontSize: '9px', background: 'var(--acc, #e50914)', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>NEW</span>
+          <span style={{ fontSize: '9px', background: 'var(--acc, #e50914)', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>
+            NEW
+          </span>
         </button>
       </div>
 
@@ -117,30 +150,147 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft, 
       </div>
 
       {/* Right: User area */}
-      <div className="flx-nav__right">
+      <div className="flx-nav__right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         {user ? (
           <>
-            <Link href="/support" className="hide-on-mobile" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)', cursor: 'pointer', marginRight: '8px' }}>
+            {/* VIP Expiry & Status Badges */}
+            {isActive && !isExpiringSoon && (
+              <Link
+                href="/checkout"
+                className="hide-on-mobile"
+                title="VIP Active: Click to extend or manage plan"
+                style={{
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '4px 10px',
+                  borderRadius: '50px',
+                  background: 'rgba(34, 197, 94, 0.12)',
+                  border: '1px solid rgba(34, 197, 94, 0.4)',
+                  color: '#4ade80',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span>👑</span>
+                <span>VIP ({daysLeft}d left)</span>
+              </Link>
+            )}
+
+            {isActive && isExpiringSoon && (
+              <Link
+                href="/checkout"
+                title="Your VIP pass expires today! Click to renew immediately."
+                style={{
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '4px 10px',
+                  borderRadius: '50px',
+                  background: 'rgba(234, 179, 8, 0.18)',
+                  border: '1px solid rgba(234, 179, 8, 0.5)',
+                  color: '#facc15',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  whiteSpace: 'nowrap',
+                  animation: 'vipPulse 1.8s infinite',
+                }}
+              >
+                <span>⚠️</span>
+                <span>{hoursLeft}h left</span>
+                <span style={{ textDecoration: 'underline' }}>⚡ Renew</span>
+              </Link>
+            )}
+
+            {hasExpired && (
+              <Link
+                href="/checkout"
+                title="VIP expired. Click to reactivate your plan."
+                style={{
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '4px 10px',
+                  borderRadius: '50px',
+                  background: 'rgba(239, 68, 68, 0.18)',
+                  border: '1px solid rgba(239, 68, 68, 0.45)',
+                  color: '#ff6b6b',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span>👑</span>
+                <span>⚡ Renew VIP</span>
+              </Link>
+            )}
+
+            <Link
+              href="/support"
+              className="hide-on-mobile"
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text2)',
+                cursor: 'pointer',
+                marginRight: '4px',
+              }}
+            >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
               {unreadCount > 0 && (
-                <span style={{
-                  position: 'absolute', top: '-4px', right: '-6px',
-                  background: '#e50914', color: '#fff',
-                  width: '16px', height: '16px', borderRadius: '50%',
-                  fontSize: '10px', fontWeight: 'bold',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-6px',
+                    background: '#e50914',
+                    color: '#fff',
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </Link>
-            <Link href="/profiles" style={{ cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }} title="Switch Profile">
-              <div style={{ width: '28px', height: '28px', borderRadius: '4px', background: '#e50914', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
+
+            <Link
+              href="/profiles"
+              style={{ cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+              title="Switch Profile"
+            >
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '4px',
+                  background: '#e50914',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                }}
+              >
                 {activeProfile ? activeProfile.name.charAt(0).toUpperCase() : '?'}
               </div>
             </Link>
+
             <form action={logoutAndClearProfile}>
               <button type="submit" className="gms-btn gms-btn--ghost" style={{ padding: '8px 14px', fontSize: '13px' }}>
                 Sign Out
@@ -149,12 +299,22 @@ export default function NavbarClient({ user, activeProfile, isActive, daysLeft, 
           </>
         ) : (
           <>
+            <Link href="/checkout" className="gms-btn gms-btn--primary" style={{ padding: '8px 16px', fontSize: '13px' }}>
+              ⚡ VIP Pass
+            </Link>
             <Link href="/login" className="gms-btn gms-btn--ghost" style={{ padding: '8px 16px', fontSize: '13px' }}>
               Sign In
             </Link>
           </>
         )}
       </div>
+
+      <style>{`
+        @keyframes vipPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
+          50% { box-shadow: 0 0 0 6px rgba(234, 179, 8, 0); }
+        }
+      `}</style>
 
       <MovieRequestModal
         isOpen={requestModalOpen}

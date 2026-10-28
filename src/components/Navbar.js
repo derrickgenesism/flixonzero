@@ -1,4 +1,4 @@
-const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
+import { createAdminClient } from '@/utils/supabase/admin';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveProfile } from '@/app/profiles/actions';
 import NavbarClient from './NavbarClient';
@@ -9,32 +9,58 @@ export default async function Navbar() {
   const activeProfile = await getActiveProfile();
 
   let isActive = false;
+  let isExpiringSoon = false;
+  let hoursLeft = 0;
   let daysLeft = 0;
+  let hasExpired = false;
 
   if (user) {
-    const { data: profile } = await supabase
+    const admin = createAdminClient();
+    const { data: profile } = await admin
       .from('user_profiles')
-      .select('subscription_end_date')
+      .select('subscription_end_date, subscription_plan')
       .eq('email', user.email)
-      .single();
+      .maybeSingle();
 
     if (profile?.subscription_end_date) {
       const end = new Date(profile.subscription_end_date);
       const now = new Date();
-      if (end > now) {
+      const diffMs = end - now;
+
+      if (diffMs > 0) {
         isActive = true;
-        daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+        const totalHours = Math.ceil(diffMs / (1000 * 60 * 60));
+        if (totalHours <= 24) {
+          isExpiringSoon = true;
+          hoursLeft = totalHours;
+        } else {
+          daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        }
+      } else {
+        hasExpired = true;
       }
     }
   }
 
-  const { data: settings } = await _injectedAdminClient().from('admin_settings')
+  const admin = createAdminClient();
+  const { data: settings } = await admin
+    .from('admin_settings')
     .select('setting_value')
     .eq('setting_key', 'series_enabled')
     .maybeSingle();
-  
+
   const seriesEnabled = settings?.setting_value === 'true';
 
-  return <NavbarClient user={user} activeProfile={activeProfile} isActive={isActive} daysLeft={daysLeft} seriesEnabled={seriesEnabled} />;
+  return (
+    <NavbarClient
+      user={user}
+      activeProfile={activeProfile}
+      isActive={isActive}
+      isExpiringSoon={isExpiringSoon}
+      hoursLeft={hoursLeft}
+      daysLeft={daysLeft}
+      hasExpired={hasExpired}
+      seriesEnabled={seriesEnabled}
+    />
+  );
 }
-

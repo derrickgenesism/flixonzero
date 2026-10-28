@@ -8,22 +8,40 @@ import { createClient } from '@/utils/supabase/client';
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [vipStatus, setVipStatus] = useState('none'); // 'active' | 'expiring' | 'expired' | 'none'
   const supabase = createClient();
 
   useEffect(() => {
     let channel;
-    const fetchUnread = async () => {
+    const fetchUserData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('id')
+        .select('id, subscription_end_date')
         .eq('email', user.email)
-        .single();
-      
+        .maybeSingle();
+
       if (!profile) return;
 
+      // Determine VIP status
+      if (profile.subscription_end_date) {
+        const end = new Date(profile.subscription_end_date);
+        const now = new Date();
+        const diffMs = end - now;
+        if (diffMs > 0) {
+          if (diffMs <= 24 * 60 * 60 * 1000) {
+            setVipStatus('expiring');
+          } else {
+            setVipStatus('active');
+          }
+        } else {
+          setVipStatus('expired');
+        }
+      }
+
+      // Check support unread count
       const { data: thread } = await supabase
         .from('support_threads')
         .select('id')
@@ -45,31 +63,38 @@ export default function MobileBottomNav() {
       const channelName = `support_unread_badge_${thread.id}_${Math.random()}`;
       channel = supabase
         .channel(channelName)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'support_messages',
-          filter: `thread_id=eq.${thread.id}`
-        }, (payload) => {
-          if (payload.new.sender_role === 'admin' && !payload.new.is_read) {
-            setUnreadCount(prev => prev + 1);
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'support_messages',
+            filter: `thread_id=eq.${thread.id}`,
+          },
+          (payload) => {
+            if (payload.new.sender_role === 'admin' && !payload.new.is_read) {
+              setUnreadCount((prev) => prev + 1);
+            }
           }
-        })
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'support_messages',
-          filter: `thread_id=eq.${thread.id}`
-        }, (payload) => {
-          if (payload.new.is_read && !payload.old.is_read) {
-            setUnreadCount(prev => Math.max(0, prev - 1));
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'support_messages',
+            filter: `thread_id=eq.${thread.id}`,
+          },
+          (payload) => {
+            if (payload.new.is_read && !payload.old.is_read) {
+              setUnreadCount((prev) => Math.max(0, prev - 1));
+            }
           }
-        })
+        )
         .subscribe();
-
     };
 
-    fetchUnread();
+    fetchUserData();
 
     return () => {
       if (channel) supabase.removeChannel(channel);
@@ -85,7 +110,7 @@ export default function MobileBottomNav() {
         </svg>
         <span>Home</span>
       </Link>
-      
+
       <Link href="/movies" className={`mbn-link ${pathname === '/movies' ? 'active' : ''}`}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
@@ -113,33 +138,97 @@ export default function MobileBottomNav() {
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
         </svg>
         {unreadCount > 0 && (
-          <div style={{
-            position: 'absolute',
-            top: '8px',
-            right: '25%',
-            background: '#e50914',
-            color: '#fff',
-            fontSize: '10px',
-            fontWeight: 'bold',
-            borderRadius: '10px',
-            padding: '2px 6px',
-            minWidth: '16px',
-            textAlign: 'center',
-            border: '2px solid var(--bg)'
-          }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: '6px',
+              right: '25%',
+              background: '#e50914',
+              color: '#fff',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              borderRadius: '10px',
+              padding: '2px 6px',
+              minWidth: '16px',
+              textAlign: 'center',
+              border: '2px solid var(--bg)',
+            }}
+          >
             {unreadCount}
           </div>
         )}
         <span>Support</span>
       </Link>
 
-      <Link href="/account" className={`mbn-link ${pathname === '/account' ? 'active' : ''}`}>
+      <Link href="/account" className={`mbn-link ${pathname === '/account' ? 'active' : ''}`} style={{ position: 'relative' }}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />
         </svg>
+        {vipStatus === 'active' && (
+          <span
+            style={{
+              position: 'absolute',
+              top: '5px',
+              right: '24%',
+              background: '#22c55e',
+              color: '#fff',
+              fontSize: '8px',
+              fontWeight: '900',
+              padding: '1px 4px',
+              borderRadius: '6px',
+              border: '1.5px solid #000',
+            }}
+          >
+            VIP
+          </span>
+        )}
+        {vipStatus === 'expiring' && (
+          <span
+            style={{
+              position: 'absolute',
+              top: '5px',
+              right: '24%',
+              background: '#eab308',
+              color: '#000',
+              fontSize: '8px',
+              fontWeight: '900',
+              padding: '1px 4px',
+              borderRadius: '6px',
+              border: '1.5px solid #000',
+              animation: 'vipPulse 1.5s infinite',
+            }}
+          >
+            !
+          </span>
+        )}
+        {vipStatus === 'expired' && (
+          <span
+            style={{
+              position: 'absolute',
+              top: '5px',
+              right: '24%',
+              background: '#ef4444',
+              color: '#fff',
+              fontSize: '8px',
+              fontWeight: '900',
+              padding: '1px 4px',
+              borderRadius: '6px',
+              border: '1.5px solid #000',
+            }}
+          >
+            ⚡
+          </span>
+        )}
         <span>Profile</span>
       </Link>
+
+      <style>{`
+        @keyframes vipPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.2); }
+        }
+      `}</style>
     </div>
   );
 }

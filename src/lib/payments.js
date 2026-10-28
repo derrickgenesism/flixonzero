@@ -48,7 +48,7 @@ export async function activateTransaction(admin, transaction, flwTransactionId) 
       const daysToAdd = transaction.duration_days || 0;
       const { data: profile } = await admin
         .from('user_profiles')
-        .select('subscription_end_date')
+        .select('subscription_end_date, role')
         .eq('email', userEmail)
         .single();
 
@@ -60,9 +60,17 @@ export async function activateTransaction(admin, transaction, flwTransactionId) 
       expiry.setDate(expiry.getDate() + daysToAdd);
 
       if (profile) {
+        const updatePayload = {
+          subscription_end_date: expiry.toISOString(),
+          subscription_plan: transaction.plan_type,
+        };
+        // Auto-unfreeze if account was marked frozen from transient checkout failures
+        if (profile.role === 'frozen') {
+          updatePayload.role = 'user';
+        }
         const { error } = await admin
           .from('user_profiles')
-          .update({ subscription_end_date: expiry.toISOString(), subscription_plan: transaction.plan_type })
+          .update(updatePayload)
           .eq('email', userEmail);
         if (error) throw error;
       } else {

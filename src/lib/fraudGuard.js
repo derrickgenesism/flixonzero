@@ -18,10 +18,10 @@ const recentRequestTimestamps = new Map(); // key (userId | ip | phone) -> times
 const telegramCooldowns = new Map(); // key -> timestamp of last alert
 
 // Security thresholds
-const MAX_FAILED_ATTEMPTS = 5; // 5 uncompleted / failed attempts in 2 hours triggers 2h lockout
+const MAX_FAILED_ATTEMPTS = 7; // 5 uncompleted / failed attempts in 2 hours triggers 2h lockout
 const PHONE_MAX_FAILURES = 3; // 3 failed attempts on the same phone across ANY account triggers phone lockout
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-const AUTO_FREEZE_THRESHOLD = 10; // Auto-freeze account if >= 10 failed attempts
+const AUTO_FREEZE_THRESHOLD = 15; // Auto-freeze account if >= 10 failed attempts
 const TELEGRAM_ALERT_COOLDOWN_MS = 20 * 60 * 1000; // Max 1 Telegram alert per offender every 20m
 const MIN_REQUEST_INTERVAL_MS = 12 * 1000; // 12 seconds cooldown between checkout attempts
 
@@ -539,6 +539,19 @@ export async function checkPaymentSecurity({
     if (!error && recentTxs) {
       let failedOrPending = 0;
       let hasSuccessful = false;
+
+      // If user has an active or recent subscription, they are a proven customer
+      if (userEmail) {
+        const { data: activeSubProfile } = await admin
+          .from('user_profiles')
+          .select('subscription_end_date')
+          .eq('email', userEmail)
+          .maybeSingle();
+
+        if (activeSubProfile?.subscription_end_date && new Date(activeSubProfile.subscription_end_date) > new Date()) {
+          hasSuccessful = true;
+        }
+      }
 
       for (const tx of recentTxs) {
         if (tx.status === 'successful') {

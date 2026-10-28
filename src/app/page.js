@@ -12,8 +12,29 @@ import FreeMoviesHero from '@/components/FreeMoviesHero';
 import { parseOfferSettings } from '@/lib/offer';
 
 export const metadata = {
-  title: 'FlixOn Uganda ï¿½ Watch VJ Translated Movies Online | Luganda Dubbed Films',
+  title: 'FlixOn Uganda — Watch VJ Translated Movies Online | Luganda Dubbed Films',
   description: 'FlixOn is Uganda\'s #1 streaming platform for VJ translated movies. Watch the latest Hollywood and Bollywood films dubbed in Luganda by VJ Junior, VJ Emmy, VJ Ice P, VJ Jingo, VJ Mark and more. Stream or download movies online in Uganda.',
+  keywords: [
+    'VJ translated movies Uganda',
+    'VJ Junior movies',
+    'VJ Emmy movies',
+    'VJ Ice P movies',
+    'VJ Jingo movies',
+    'filimu enjogerere',
+    'Luganda movies online',
+    'download translated movies Uganda',
+    'FlixOn Uganda',
+    'watch movies Uganda',
+    'stream Luganda movies'
+  ],
+  openGraph: {
+    title: 'FlixOn Uganda — #1 VJ Translated Movies & Series Streaming',
+    description: 'Watch thousands of movies translated by VJ Junior, VJ Emmy, VJ Ice P & VJ Jingo in Luganda. Fast streaming and download with Mobile Money.',
+    url: 'https://flixon.net',
+    siteName: 'FlixOn Uganda',
+    locale: 'en_UG',
+    type: 'website',
+  },
   alternates: {
     canonical: '/',
   },
@@ -23,9 +44,9 @@ export const metadata = {
 // Data-level caching is handled in src/lib/cache.js via unstable_cache
 
 const POPULAR_CATEGORIES = [
+  'VJ Junior', 'VJ Emmy', 'VJ ICE P', 'VJ Jingo', 'VJ Mark',
   'Action', 'Adventure', 'Drama', 'Comedy', 'Science Fiction', 'Horror',
-  'Thriller', 'Romance', 'Family', 'Animation',
-  'VJ ICE P', 'VJ Emmy', 'VJ Junior', 'VJ Jingo', 'VJ Mark'
+  'Thriller', 'Romance', 'Family', 'Animation'
 ];
 
 export default async function Home({ searchParams }) {

@@ -132,6 +132,7 @@ export default async function MoviePage({ params }) {
   let isFavorite = false;
   let hasPpvAccess = false;
   let userRating = 0;
+  let isExpiredSubscriber = false;
 
   const settings = await getCachedSettings();
   const globalFreeMode = settings.find(s => s.setting_key === 'free_mode_enabled')?.setting_value === 'true';
@@ -140,13 +141,18 @@ export default async function MoviePage({ params }) {
   if (user) {
     const { data: userProfile } = await supabase.from('user_profiles').select('subscription_end_date, role').eq('email', user.email).maybeSingle();
     const isFrozen = userProfile?.role === 'frozen' || userProfile?.role === 'banned';
-    if (userProfile?.subscription_end_date && new Date(userProfile.subscription_end_date) > new Date()) {
-      isPremiumUser = true;
+    if (userProfile?.subscription_end_date) {
+      if (new Date(userProfile.subscription_end_date) > new Date()) {
+        isPremiumUser = true;
+      } else {
+        isExpiredSubscriber = true;
+      }
     }
 
     // Self-heal: user paid but webhook/polling has not landed yet -> confirm now, never show a paywall to a paying user.
     if (!isPremiumUser && await reconcileRecentPending(user.id)) {
       isPremiumUser = true;
+      isExpiredSubscriber = false;
     }
 
     if (!isPremiumUser) {
@@ -310,15 +316,34 @@ export default async function MoviePage({ params }) {
                   </>
                 ) : (
                   <>
-                    <h2 style={{ fontSize: '26px', fontWeight: '900', margin: '0 0 12px', color: '#fff' }}>Premium Content</h2>
-                    <p style={{ fontSize: '15px', color: 'var(--text2)', marginBottom: '24px', lineHeight: '1.7' }}>
-                      Subscribe to watch <strong style={{ color: '#fff' }}>{movie.title}</strong> and thousands of other titles.
-                    </p>
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                      <Link href="/checkout" className="gms-btn gms-btn--primary" style={{ fontSize: '16px', padding: '14px 32px' }}>
-                        Subscribe to Watch
-                      </Link>
-                    </div>
+                    {isExpiredSubscriber ? (
+                      <>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.35)', color: '#ff6b6b', padding: '4px 12px', borderRadius: '50px', fontSize: '12px', fontWeight: '700', marginBottom: '12px' }}>
+                          <span>👑</span> VIP Pass Expired
+                        </div>
+                        <h2 style={{ fontSize: '26px', fontWeight: '900', margin: '0 0 10px', color: '#fff' }}>Renew VIP to Continue Watching</h2>
+                        <p style={{ fontSize: '14px', color: 'var(--text2)', marginBottom: '22px', lineHeight: '1.6', maxWidth: '420px', margin: '0 auto 22px' }}>
+                          Your VIP pass has expired. Reactivate your subscription in seconds via MTN or Airtel Mobile Money to watch <strong style={{ color: '#fff' }}>{movie.title}</strong>.
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                          <Link href="/checkout" className="gms-btn gms-btn--primary" style={{ fontSize: '16px', padding: '14px 32px', boxShadow: '0 6px 20px rgba(229, 9, 20, 0.45)' }}>
+                            ⚡ Renew VIP Subscription
+                          </Link>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <h2 style={{ fontSize: '26px', fontWeight: '900', margin: '0 0 12px', color: '#fff' }}>Premium Content</h2>
+                        <p style={{ fontSize: '15px', color: 'var(--text2)', marginBottom: '24px', lineHeight: '1.7' }}>
+                          Subscribe to watch <strong style={{ color: '#fff' }}>{movie.title}</strong> and thousands of other titles.
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                          <Link href="/checkout" className="gms-btn gms-btn--primary" style={{ fontSize: '16px', padding: '14px 32px' }}>
+                            Subscribe to Watch
+                          </Link>
+                        </div>
+                      </>
+                    )}
                       {user && <AlreadyPaidButton />}
                       {!user && (
                       <p style={{ marginTop: '16px', fontSize: '13px', color: 'var(--text3)' }}>
@@ -340,7 +365,7 @@ export default async function MoviePage({ params }) {
               dangerouslySetInnerHTML={{ __html: movie.video_url.replace(/width=["']?[0-9%px]+["']?/, 'width="100%"').replace(/height=["']?[0-9%px]+["']?/, 'height="100%"') }}
             />
           ) : (actualVideoUrl || movie.video_url) ? (
-            <VideoPlayer movie={movie} movieId={movie.id} initialProgress={initialProgress} />
+            <VideoPlayer movie={movie} movieId={movie.id} initialProgress={initialProgress} initialStreamUrl={actualVideoUrl || movie.video_url} />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text2)', flexDirection: 'column', gap: '12px', aspectRatio: '16/9' }}>
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

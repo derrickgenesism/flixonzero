@@ -8,15 +8,15 @@ import { redirect } from 'next/navigation';
 import { verifyAndActivate } from '@/lib/payments';
 import { checkPaymentSecurity, recordImmediateFailedAttempt } from '@/lib/fraudGuard';
 
-async function ensureReferralAttribution(admin, userId, cookieStore) {
+async function ensureReferralAttribution(admin, userEmail, cookieStore) {
   try {
     const refCode = cookieStore.get('affiliate_ref')?.value?.trim();
-    if (!refCode) return;
+    if (!refCode || !userEmail) return;
 
     const { data: profile } = await admin
       .from('user_profiles')
       .select('id, referred_by')
-      .eq('id', userId)
+      .eq('email', userEmail)
       .maybeSingle();
 
     if (profile && !profile.referred_by) {
@@ -26,11 +26,11 @@ async function ensureReferralAttribution(admin, userId, cookieStore) {
         .ilike('referral_code', refCode)
         .maybeSingle();
 
-      if (affiliate && (affiliate.status === 'approved' || !affiliate.status) && affiliate.user_id !== userId) {
+      if (affiliate && (affiliate.status === 'approved' || !affiliate.status) && affiliate.user_id !== profile.id) {
         await admin
           .from('user_profiles')
           .update({ referred_by: affiliate.id })
-          .eq('id', userId);
+          .eq('id', profile.id);
       }
     }
   } catch (err) {
@@ -51,7 +51,7 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
     .single();
 
   const cookieStore = await cookies();
-  await ensureReferralAttribution(_injectedAdminClient(), user.id, cookieStore);
+  await ensureReferralAttribution(_injectedAdminClient(), user.email, cookieStore);
   const visitorId = cookieStore.get('flx_vid')?.value || '';
 
   // ── Fraud & Rate-Limiting Security Check ─────────────────────────────────
@@ -244,7 +244,7 @@ export async function submitManualPayment(planId, phoneNumber, transactionRef = 
   }
 
   const cookieStore = await cookies();
-  await ensureReferralAttribution(_injectedAdminClient(), user.id, cookieStore);
+  await ensureReferralAttribution(_injectedAdminClient(), user.email, cookieStore);
 
   const cleanPhone = (phoneNumber || '').trim();
   if (!cleanPhone || cleanPhone.length < 5) {
