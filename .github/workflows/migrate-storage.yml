@@ -1,0 +1,42 @@
+name: Migrate Storage (R2 to Backblaze B2)
+
+on:
+  workflow_dispatch:
+    inputs:
+      concurrency:
+        description: 'Number of parallel streams (Default: 6)'
+        required: false
+        default: '6'
+
+jobs:
+  migrate:
+    name: Cloud-to-Cloud Video Transfer
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # Max allowed runtime (6 hours)
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install --production=false
+
+      - name: Run Cloud-to-Cloud Migration
+        env:
+          CONCURRENCY: ${{ github.event.inputs.concurrency || '6' }}
+          R2_ACCOUNT_ID: '8ccf9e8b6d2b8d87256960cf33144e9e'
+          R2_ACCESS_KEY: '308b3991b375f959f2fa1f3f089129c1'
+          R2_SECRET_KEY: '1077d3909325d7a963768bb6b58c8f8ebe68627f68f23f4eec76d1d6228fb7ca'
+          R2_BUCKET: 'movies'
+          B2_ENDPOINT: 'https://s3.us-east-005.backblazeb2.com'
+          B2_REGION: 'us-east-005'
+          B2_ACCESS_KEY: '005f55e2928c64f0000000001'
+          B2_SECRET_KEY: 'K005hcUWnse5QGvejFWTgegbDRKjaD0'
+          B2_BUCKET: 'flixonvideos'
+        run: node scripts/migrate_r2_to_b2.js
