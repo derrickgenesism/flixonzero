@@ -11,11 +11,6 @@ import { createClient } from '@/utils/supabase/client';
 export default function NavbarClient({
   user,
   activeProfile,
-  isActive = false,
-  isExpiringSoon = false,
-  hoursLeft = 0,
-  daysLeft = 0,
-  hasExpired = false,
   seriesEnabled = false,
 }) {
   const [scrolled, setScrolled] = useState(false);
@@ -153,82 +148,6 @@ export default function NavbarClient({
       <div className="flx-nav__right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         {user ? (
           <>
-            {/* VIP Expiry & Status Badges */}
-            {isActive && !isExpiringSoon && (
-              <Link
-                href="/checkout"
-                className="hide-on-mobile"
-                title="VIP Active: Click to extend or manage plan"
-                style={{
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '4px 10px',
-                  borderRadius: '50px',
-                  background: 'rgba(34, 197, 94, 0.12)',
-                  border: '1px solid rgba(34, 197, 94, 0.4)',
-                  color: '#4ade80',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span>👑</span>
-                <span>VIP ({daysLeft}d left)</span>
-              </Link>
-            )}
-
-            {isActive && isExpiringSoon && (
-              <Link
-                href="/checkout"
-                title="Your VIP pass expires today! Click to renew immediately."
-                style={{
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '4px 10px',
-                  borderRadius: '50px',
-                  background: 'rgba(234, 179, 8, 0.18)',
-                  border: '1px solid rgba(234, 179, 8, 0.5)',
-                  color: '#facc15',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  whiteSpace: 'nowrap',
-                  animation: 'vipPulse 1.8s infinite',
-                }}
-              >
-                <span>⚠️</span>
-                <span>{hoursLeft}h left</span>
-                <span style={{ textDecoration: 'underline' }}>⚡ Renew</span>
-              </Link>
-            )}
-
-            {hasExpired && (
-              <Link
-                href="/checkout"
-                title="VIP expired. Click to reactivate your plan."
-                style={{
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '4px 10px',
-                  borderRadius: '50px',
-                  background: 'rgba(239, 68, 68, 0.18)',
-                  border: '1px solid rgba(239, 68, 68, 0.45)',
-                  color: '#ff6b6b',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span>👑</span>
-                <span>⚡ Renew VIP</span>
-              </Link>
-            )}
-
             <Link
               href="/support"
               className="hide-on-mobile"
@@ -308,13 +227,6 @@ export default function NavbarClient({
           </>
         )}
       </div>
-
-      <style>{`
-        @keyframes vipPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
-          50% { box-shadow: 0 0 0 6px rgba(234, 179, 8, 0); }
-        }
-      `}</style>
 
       <MovieRequestModal
         isOpen={requestModalOpen}
