@@ -1,0 +1,35 @@
+name: Deploy FlixOn to VPS
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST || '161.129.65.113' }}
+          username: ${{ secrets.VPS_USER || 'root' }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            echo "🚀 Pulling latest code..."
+            cd /var/www/flixon
+            git pull origin master
+
+            echo "📦 Installing dependencies..."
+            npm install
+
+            echo "🔨 Building Next.js..."
+            npm run build
+
+            echo "🔄 Reloading FlixOn with zero downtime..."
+            pm2 reload flixon || pm2 restart flixon
+            pm2 save
+
+            echo "🎉 Deployment successfully completed!"
