@@ -20,9 +20,83 @@ export default async function AdminSettingsPage() {
   const manualPaymentNumbers = settings?.find(s => s.setting_key === 'manual_payment_numbers')?.setting_value || 'MTN Mobile Money: 0770000000 (Account Name)\nAirtel Money: 0750000000 (Account Name)'
   const manualPaymentInstructions = settings?.find(s => s.setting_key === 'manual_payment_instructions')?.setting_value || '1. Send the exact plan amount to one of our official numbers above.\n2. Enter the phone number or sender name you paid from below.\n3. Click "I Have Sent Money". Our team will verify and activate your subscription in 5-15 minutes!'
 
+  let deploymentInfo = null;
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const filePath = path.join(process.cwd(), 'public', 'deployment.json');
+    if (fs.existsSync(filePath)) {
+      deploymentInfo = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+  } catch (e) {}
+
   return (
     <div>
       <h1 style={{ fontSize: '32px', marginBottom: '20px' }}>System Settings</h1>
+
+      {/* Live Deployment & Server Status */}
+      <div style={{
+        background: 'var(--bg2)',
+        padding: '20px 24px',
+        borderRadius: '10px',
+        maxWidth: '600px',
+        marginBottom: '25px',
+        border: '1px solid rgba(16, 185, 129, 0.2)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 10px #10b981' }}></span>
+            <span style={{ fontWeight: 'bold', fontSize: '15px', color: '#fff' }}>Live VPS Deployment</span>
+          </div>
+          <span style={{ fontSize: '11px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '3px 8px', borderRadius: '20px', fontWeight: '600' }}>
+            Active &amp; Healthy
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '12px' }}>
+          <div>
+            <span style={{ color: 'var(--text3)', display: 'block', fontSize: '11px', marginBottom: '2px' }}>Latest Commit</span>
+            {deploymentInfo?.commit ? (
+              <a 
+                href={`https://github.com/derrickgenesism/flixonzero/commit/${deploymentInfo.commit}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: 'var(--acc)', fontFamily: 'monospace', textDecoration: 'underline', fontWeight: 'bold' }}
+              >
+                #{deploymentInfo.commit}
+              </a>
+            ) : (
+              <span style={{ color: 'var(--text2)', fontFamily: 'monospace' }}>Master HEAD</span>
+            )}
+          </div>
+
+          <div>
+            <span style={{ color: 'var(--text3)', display: 'block', fontSize: '11px', marginBottom: '2px' }}>Deployed At</span>
+            <span style={{ color: 'var(--text1)', fontWeight: '500' }}>
+              {deploymentInfo?.deployedAt ? new Date(deploymentInfo.deployedAt).toLocaleString() : 'Recent'}
+            </span>
+          </div>
+        </div>
+
+        {deploymentInfo?.message && (
+          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '12px', color: 'var(--text2)' }}>
+            <span style={{ color: 'var(--text3)', fontSize: '11px', display: 'block', marginBottom: '2px' }}>Commit Message:</span>
+            <span style={{ fontStyle: 'italic' }}>&quot;{deploymentInfo.message}&quot;</span>
+          </div>
+        )}
+
+        <div style={{ marginTop: '12px', display: 'flex', gap: '12px', fontSize: '11px' }}>
+          <a
+            href="https://github.com/derrickgenesism/flixonzero/actions"
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: 'var(--acc)', textDecoration: 'underline' }}
+          >
+            View GitHub Actions Deploy History ↗
+          </a>
+        </div>
+      </div>
       
       <form action={saveSettings} style={{ background: 'var(--bg2)', padding: '30px', borderRadius: '10px', maxWidth: '600px' }}>
         

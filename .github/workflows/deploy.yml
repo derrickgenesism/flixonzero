@@ -22,6 +22,9 @@ jobs:
             cd /var/www/flixon
             git pull origin master
 
+            echo "📋 Recording deployment metadata..."
+            node scripts/generate-deployment-info.js || true
+
             echo "📦 Installing dependencies..."
             npm install
 

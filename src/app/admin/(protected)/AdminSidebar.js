@@ -5,12 +5,20 @@ import { useState, useEffect } from 'react';
 export default function AdminSidebar({ unreadSupportCount, pendingPayoutsCount = 0 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [deployInfo, setDeployInfo] = useState(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/deployment')
+      .then(res => res.json())
+      .then(data => setDeployInfo(data))
+      .catch(() => {});
   }, []);
 
   return (
@@ -89,6 +97,75 @@ export default function AdminSidebar({ unreadSupportCount, pendingPayoutsCount =
           <Link href="/admin/security-logs" style={{ color: '#fff', fontSize: '14px' }}>🛡 Security Center</Link>
           <Link href="/admin/test-payment" style={{ color: '#ffeb3b', fontSize: '14px' }}>🧪 Test Payments</Link>
           <Link href="/" style={{ color: 'var(--text2)', fontSize: '13px', marginTop: '20px' }}>⬅ Back to Site</Link>
+
+          {deployInfo && (
+            <div style={{
+              marginTop: '25px',
+              padding: '12px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '8px',
+              fontSize: '11px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: '700', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 6px #10b981' }}></span>
+                  Live on VPS
+                </span>
+                {deployInfo.commit && deployInfo.commit !== 'unknown' && (
+                  <a
+                    href={`https://github.com/derrickgenesism/flixonzero/commit/${deployInfo.commit}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      fontFamily: 'monospace',
+                      color: 'var(--acc)',
+                      background: 'rgba(229, 9, 20, 0.1)',
+                      border: '1px solid rgba(229, 9, 20, 0.2)',
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      textDecoration: 'none'
+                    }}
+                    title="View commit on GitHub"
+                  >
+                    #{deployInfo.commit}
+                  </a>
+                )}
+              </div>
+
+              {deployInfo.message && (
+                <div 
+                  style={{ 
+                    color: 'var(--text2)', 
+                    fontSize: '11px', 
+                    lineHeight: '1.3',
+                    whiteSpace: 'nowrap', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis' 
+                  }} 
+                  title={deployInfo.message}
+                >
+                  "{deployInfo.message}"
+                </div>
+              )}
+
+              <div style={{ color: 'var(--text3)', fontSize: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>🕒 {deployInfo.deployedAt ? new Date(deployInfo.deployedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently'}</span>
+                <a
+                  href="https://github.com/derrickgenesism/flixonzero/actions"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: 'var(--text3)', textDecoration: 'underline', fontSize: '9px' }}
+                >
+                  Actions ↗
+                </a>
+              </div>
+            </div>
+          )}
         </nav>
       </aside>
     </>
