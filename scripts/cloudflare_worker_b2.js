@@ -51,16 +51,18 @@ export default {
         "Content-Range, Content-Length, Accept-Ranges, Content-Disposition"
       );
 
-      // 6. Force Download if ?download query parameter is present
-      // Example: https://cdn.flixon.net/movie.mp4?download=1
-      if (url.searchParams.has("download")) {
+      // 6. Force Download if ?download or ?dl=1 query parameter is present
+      if (url.searchParams.has("download") || url.searchParams.get("dl") === "1") {
         const rawName = url.pathname.split("/").pop() || "movie.mp4";
-        let cleanName = decodeURIComponent(rawName);
-        cleanName = cleanName.replace(/["\r\n]/g, "");
+        let cleanName = decodeURIComponent(rawName).replace(/["\r\n]/g, "");
+        if (!cleanName.toLowerCase().endsWith(".mp4") && !cleanName.toLowerCase().endsWith(".mkv")) {
+          cleanName += ".mp4";
+        }
         responseHeaders.set(
           "Content-Disposition",
           `attachment; filename="${cleanName}"`
         );
+        responseHeaders.set("Content-Type", "application/octet-stream");
       }
 
       return new Response(b2Response.body, {

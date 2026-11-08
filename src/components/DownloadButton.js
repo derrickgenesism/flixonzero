@@ -121,7 +121,19 @@ export default function DownloadButton({ movieId, title, requiresSubscription, o
       }
 
       // Trigger browser native download via location assignment.
-      window.location.href = dlData.downloadUrl;
+      const cleanTitle = (title || 'movie').replace(/[^a-zA-Z0-9\s\-_]/g, '').trim().replace(/\s+/g, '_') || 'movie';
+      const safeFilename = cleanTitle + '.mp4';
+      const link = document.createElement('a');
+      link.href = dlData.downloadUrl;
+      link.setAttribute('download', safeFilename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      }, 2000);
 
     } catch (err) {
       if (err.name === 'AbortError') {
