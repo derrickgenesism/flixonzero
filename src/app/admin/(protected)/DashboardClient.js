@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function fmt(n) { return Number(n || 0).toLocaleString(); }
@@ -161,7 +162,7 @@ function Panel({ title, badge, children }) {
 }
 
 // ── Main Client Component ─────────────────────────────────────────────────────
-export default function DashboardClient({ stats, transactions, recentSignups, topMovies, topUsers }) {
+export default function DashboardClient({ stats, transactions, recentSignups, topMovies, topUsers, liveActiveUsers = [] }) {
   const {
     totalUsers, activeSubscribers, conversionRate,
     totalRevenue, monthlyRevenue, revenueGrowth,
@@ -279,6 +280,90 @@ export default function DashboardClient({ stats, transactions, recentSignups, to
               💳 <strong style={{ color: 'var(--acc)' }}>{pendingTxs}</strong> pending transactions all-time
             </div>
           )}
+        </div>
+      )}
+
+      {/* Real-Time Active Users Section */}
+      <SectionHeading title="🔴 Real-Time Active Users & Live Feed" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+        <KpiCard
+          label="Online Right Now"
+          value={stats.onlineNowCount || 0}
+          sub="Active on site in last 30 minutes"
+          accent="#10b981"
+          icon="🟢"
+        />
+        <KpiCard
+          label="Active Users Today"
+          value={stats.activeTodayCount || 0}
+          sub="Logged-in members active today"
+          accent="#fbbf24"
+          icon="🟡"
+        />
+        <KpiCard
+          label="Total Registered Users"
+          value={fmt(totalUsers)}
+          sub="Platform user database"
+          accent="#fff"
+          icon="👥"
+        />
+        <KpiCard
+          label="Active Subscribers"
+          value={fmt(activeSubscribers)}
+          sub={`${conversionRate}% platform conversion`}
+          accent="#60a5fa"
+          icon="⭐"
+        />
+      </div>
+
+      {liveActiveUsers && liveActiveUsers.length > 0 && (
+        <div style={{ background: 'var(--bg2)', borderRadius: '14px', border: '1px solid var(--border)', overflowX: 'auto', marginBottom: '28px' }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 8px #10b981' }}></span>
+              <strong style={{ fontSize: '14px', color: '#fff' }}>Live User Activity Feed (Today)</strong>
+            </div>
+            <Link href="/admin/users?filter=online" style={{ fontSize: '12px', color: 'var(--acc)', textDecoration: 'none', fontWeight: '600' }}>
+              View All Users &rarr;
+            </Link>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--text3)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Member</th>
+                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Status</th>
+                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Current / Last Page</th>
+                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {liveActiveUsers.slice(0, 10).map((u, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                  <td style={{ padding: '12px 16px' }}>
+                    <span style={{ fontWeight: '600', color: '#fff' }}>{u.email}</span>
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {u.isOnline ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 6px #10b981' }}></span>
+                        Online Now
+                      </span>
+                    ) : (
+                      <span style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700' }}>
+                        Active Today
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--text2)' }}>
+                    {u.path}
+                  </td>
+                  <td style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--text3)' }}>
+                    {new Date(u.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

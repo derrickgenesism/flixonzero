@@ -60,7 +60,8 @@ export default async function AdminDashboardPage() {
     { count: freeVisitsThisWeekCount },
     { count: freeVisitsThisMonthCount },
     { count: freeVisitsLastMonthCount },
-    { data: freeVisitsRaw }
+    { data: freeVisitsRaw },
+    { data: liveVisitsRaw }
   ] = await Promise.all([
     // Counts (Zero row data transferred — microsecond header counts)
     supabase.from('user_profiles').select('id', { count: 'exact', head: true }),
@@ -102,7 +103,10 @@ export default async function AdminDashboardPage() {
     supabase.from('site_visits').select('id', { count: 'exact', head: true }).ilike('path', '%free%').gte('created_at', lastMonthStart.toISOString()).lt('created_at', thisMonthStart.toISOString()),
 
     // Recent Free Visits Dataset (Tiny payload: 2 string fields)
-    supabase.from('site_visits').select('visitor_id, created_at').ilike('path', '%free%').order('created_at', { ascending: false }).limit(1000)
+    supabase.from('site_visits').select('visitor_id, created_at').ilike('path', '%free%').order('created_at', { ascending: false }).limit(1000),
+
+    // Live User Visits Today (for real-time active users feed)
+    supabase.from('site_visits').select('user_id, path, created_at').not('user_id', 'is', null).gte('created_at', todayStart.toISOString()).order('created_at', { ascending: false }).limit(300)
   ]);
 
   // ── 2. AGGREGATE LOGIC ──────────────────────────────────────────────────
@@ -188,6 +192,7 @@ export default async function AdminDashboardPage() {
   const displayUuids = new Set();
   topUsersRaw.forEach(u => displayUuids.add(u.id));
   last50Txs?.forEach(tx => { if (tx.user_id) displayUuids.add(tx.user_id); });
+  liveVisitsRaw?.forEach(v => { if (v.user_id) displayUuids.add(v.user_id); });
   const uuidMap = {};
   const uniqueUuids = Array.from(displayUuids);
   if (uniqueUuids.length > 0) {
@@ -199,6 +204,22 @@ export default async function AdminDashboardPage() {
       }
     });
   }
+
+  const thirtyMinAgo = new Date(now.getTime() - 30 * 60 * 1000);
+  const liveActiveUsers = [];
+  const seenLiveEmails = new Set();
+  (liveVisitsRaw || []).forEach(v => {
+    const email = uuidMap[v.user_id];
+    if (!email || seenLiveEmails.has(email)) return;
+    seenLiveEmails.add(email);
+    const isOnline = new Date(v.created_at) >= thirtyMinAgo;
+    liveActiveUsers.push({
+      email,
+      isOnline,
+      lastActive: v.created_at,
+      path: v.path
+    });
+  });
 
   const enrichedTxs = (last50Txs || []).map(tx => ({
     ...tx,
@@ -390,11 +411,16 @@ export default async function AdminDashboardPage() {
         freePagesPerVisitorThisMonth,
         freeTrafficShareToday,
         freeTrafficShareThisMonth,
+
+        // Real-Time Active Users
+        onlineNowCount: liveActiveUsers.filter(u => u.isOnline).length,
+        activeTodayCount: liveActiveUsers.length,
       }}
       transactions={enrichedTxs}
       recentSignups={recentSignups}
       topMovies={topMovies}
       topUsers={topUsers}
+      liveActiveUsers={liveActiveUsers}
     />
   );
 }

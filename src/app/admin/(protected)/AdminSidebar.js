@@ -61,6 +61,9 @@ export default function AdminSidebar({ unreadSupportCount, pendingPayoutsCount =
           <Link href="/admin/movies/cloudflare-import" style={{ color: '#fff', fontSize: '14px' }}>🌩 Cloudflare Import</Link>
           <Link href="/admin/movies/upload" style={{ color: '#fff', fontSize: '14px' }}>⬆ Direct Upload</Link>
           <Link href="/admin/movies/compress-existing" style={{ color: '#fff', fontSize: '14px' }}>🗜 Compress Existing</Link>
+          <Link href="/admin/movies/quarantine" style={{ color: '#e50914', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>🚫 Quarantined Movies</span>
+          </Link>
 
           <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px', color: 'var(--text3)', textTransform: 'uppercase', margin: '12px 0 4px' }}>Revenue</div>
           <Link href="/admin/plans" style={{ color: '#fff', fontSize: '14px' }}>💳 Subscription Plans</Link>

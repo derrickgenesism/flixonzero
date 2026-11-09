@@ -5,7 +5,7 @@ import crypto from 'crypto';
 // In-memory sliding hour tracker to prevent click-farm spam
 // affiliateId -> { count: number, resetAt: number }
 const hourlyClickTracker = new Map();
-const MAX_CLICKS_PER_HOUR = 60;
+const MAX_CLICKS_PER_HOUR = 120;
 
 function isBot(ua) {
   if (!ua) return true;
@@ -29,18 +29,7 @@ export async function POST(request) {
     const cleanRef = ref.trim().toLowerCase();
     const admin = createAdminClient();
 
-    // 1. Check if PPC is globally enabled
-    const { data: ppcSetting } = await admin
-      .from('admin_settings')
-      .select('setting_value')
-      .eq('setting_key', 'affiliate_ppc_enabled')
-      .maybeSingle();
-
-    if (ppcSetting?.setting_value !== 'true') {
-      return NextResponse.json({ success: false, message: 'PPC disabled' });
-    }
-
-    // 2. Look up the affiliate by referral code
+    // 1. Look up the affiliate by referral code
     const { data: affiliate } = await admin
       .from('affiliates')
       .select('id, user_id, balance, total_earned, status')
@@ -51,18 +40,13 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid ref' }, { status: 404 });
     }
 
-    // Must be approved to earn click rewards
-    if (affiliate.status !== 'approved' && affiliate.status !== null) {
-      return NextResponse.json({ success: false, message: 'Affiliate not active' });
-    }
-
-    // 3. Bot filter
+    // 2. Bot filter
     const ua = request.headers.get('user-agent') || '';
     if (isBot(ua)) {
       return NextResponse.json({ success: true, message: 'Bot filtered' });
     }
 
-    // 4. IP + UA uniqueness hashing
+    // 3. IP + UA uniqueness hashing
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                request.headers.get('x-real-ip') || 
                '127.0.0.1';
@@ -70,7 +54,7 @@ export async function POST(request) {
     const rawString = `${ip}-${ua}`;
     const hash = crypto.createHash('sha256').update(rawString).digest('hex');
 
-    // 5. Deduplicate: Has this visitor clicked THIS affiliate link before?
+    // 4. Deduplicate: Has this visitor clicked THIS affiliate link before?
     const { data: existingClick } = await admin
       .from('affiliate_clicks')
       .select('id')
@@ -82,7 +66,7 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: 'Already tracked' });
     }
 
-    // 6. Anti-Click-Farm Hourly Throttle
+    // 5. Anti-Click-Farm Hourly Throttle
     const now = Date.now();
     let tracker = hourlyClickTracker.get(affiliate.id);
     if (!tracker || now > tracker.resetAt) {
@@ -95,39 +79,52 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: 'Hourly cap reached' });
     }
 
-    // 7. Record unique click
+    // 6. Record unique click (ALWAYS logged for accurate performance metrics)
     await admin.from('affiliate_clicks').insert({
       affiliate_id: affiliate.id,
       ip_ua_hash: hash
     });
 
-    // 8. Calculate reward (CPM / 1000)
-    const { data: cpmSetting } = await admin
-      .from('admin_settings')
-      .select('setting_value')
-      .eq('setting_key', 'affiliate_cpm_rate')
-      .maybeSingle();
+    // 7. Check if Pay-Per-Click (PPC) cash reward is enabled
+    const isApproved = affiliate.status === 'approved' || affiliate.status === null;
+    let amountPerClick = 0;
 
-    const cpm = Number(cpmSetting?.setting_value || 5000);
-    const amountPerClick = Math.round((cpm / 1000) * 100) / 100; // 2 decimal precision
+    if (isApproved) {
+      const { data: ppcSetting } = await admin
+        .from('admin_settings')
+        .select('setting_value')
+        .eq('setting_key', 'affiliate_ppc_enabled')
+        .maybeSingle();
 
-    if (amountPerClick > 0) {
-      await admin.from('affiliates')
-        .update({
-          balance: Number(affiliate.balance || 0) + amountPerClick,
-          total_earned: Number(affiliate.total_earned || 0) + amountPerClick
-        })
-        .eq('id', affiliate.id);
+      if (ppcSetting?.setting_value === 'true') {
+        const { data: cpmSetting } = await admin
+          .from('admin_settings')
+          .select('setting_value')
+          .eq('setting_key', 'affiliate_cpm_rate')
+          .maybeSingle();
 
-      await admin.from('affiliate_commissions').insert({
-        affiliate_id: affiliate.id,
-        amount: amountPerClick,
-        type: 'click',
-        description: 'Unique Link Visit'
-      });
+        const cpm = Number(cpmSetting?.setting_value || 5000);
+        amountPerClick = Math.round((cpm / 1000) * 100) / 100; // 2 decimal precision
+
+        if (amountPerClick > 0) {
+          await admin.from('affiliates')
+            .update({
+              balance: Number(affiliate.balance || 0) + amountPerClick,
+              total_earned: Number(affiliate.total_earned || 0) + amountPerClick
+            })
+            .eq('id', affiliate.id);
+
+          await admin.from('affiliate_commissions').insert({
+            affiliate_id: affiliate.id,
+            amount: amountPerClick,
+            type: 'click',
+            description: 'Unique Link Visit'
+          });
+        }
+      }
     }
 
-    return NextResponse.json({ success: true, amountPerClick });
+    return NextResponse.json({ success: true, tracked: true, amountPerClick });
   } catch (err) {
     console.error('[affiliate track error]', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

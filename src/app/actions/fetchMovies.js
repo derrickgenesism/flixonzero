@@ -10,15 +10,14 @@ export async function fetchMoviesPage(category, page = 0, pageSize = PAGE_SIZE) 
   const from = page * pageSize;
   const to = from + pageSize - 1;
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const startOf2026 = '2026-01-01T00:00:00.000Z';
-
-  let query = supabase.from('movies').select('id, title, description, thumbnail_url, type, categories, release_year, created_at, actors, series_id, season_number, episode_number', { count: 'exact' });
+  let query = supabase
+    .from('movies')
+    .select('id, title, description, thumbnail_url, type, categories, release_year, created_at, actors, series_id, season_number, episode_number', { count: 'exact' })
+    .neq('type', 'broken_quarantine');
 
   if (!category || category === 'All') {
     query = query.order('created_at', { ascending: false });
   } else if (category === 'Trending' || category === 'New Arrivals' || category === 'Latest' || category.includes('Latest')) {
-    // User requested Trending, Latest and New Arrivals to simply be the most recently added
     query = query.order('created_at', { ascending: false });
   } else if (category === 'Top Rated') {
     query = query.not('imdb_rating', 'is', null).order('imdb_rating', { ascending: false });
@@ -54,6 +53,7 @@ export async function searchMoviesPage(q, page = 0, pageSize = PAGE_SIZE) {
   const { data, count, error } = await supabase
     .from('movies')
     .select('id, title, description, thumbnail_url, type, categories, release_year, created_at, actors, series_id, season_number, episode_number', { count: 'exact' })
+    .neq('type', 'broken_quarantine')
     .or(`title.ilike.%${q}%,actors.ilike.%${q}%`)
     .order('created_at', { ascending: false })
     .range(from, to);
@@ -82,6 +82,8 @@ export async function fetchFavoritesPage(profileId, page = 0, pageSize = PAGE_SI
     return { movies: [], total: 0 };
   }
   
-  const movies = (data || []).map(f => f.movies).filter(Boolean);
+  const movies = (data || [])
+    .map(f => f.movies)
+    .filter(m => m && m.type !== 'broken_quarantine');
   return { movies, total: count || 0 };
 }

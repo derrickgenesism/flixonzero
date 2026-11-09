@@ -1,5 +1,6 @@
 const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
 import { createClient } from '@/utils/supabase/server'
+import Link from 'next/link'
 import { saveSettings } from './actions'
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +9,10 @@ export default async function AdminSettingsPage() {
   const { createAdminClient } = require('@/utils/supabase/admin');
   const supabase = createAdminClient()
   const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*')
+  const { count: quarantineCount } = await _injectedAdminClient()
+    .from('movies')
+    .select('id', { count: 'exact', head: true })
+    .eq('type', 'broken_quarantine');
 
   const tmdbKey = settings?.find(s => s.setting_key === 'tmdb_api_key')?.setting_value || ''
   const flwPublic = settings?.find(s => s.setting_key === 'flutterwave_public_key')?.setting_value || ''
@@ -96,6 +101,54 @@ export default async function AdminSettingsPage() {
             View GitHub Actions Deploy History ↗
           </a>
         </div>
+      </div>
+
+      {/* Broken / Quarantined Movies Management Card */}
+      <div style={{
+        background: 'var(--bg2)',
+        padding: '20px 24px',
+        borderRadius: '10px',
+        maxWidth: '600px',
+        marginBottom: '25px',
+        border: '1px solid rgba(239, 68, 68, 0.25)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px' }}>🚫</span>
+            <span style={{ fontWeight: 'bold', fontSize: '15px', color: '#fff' }}>Broken &amp; External Movies Quarantine</span>
+          </div>
+          <span style={{
+            fontSize: '12px',
+            background: (quarantineCount || 0) > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.1)',
+            color: (quarantineCount || 0) > 0 ? '#ef4444' : '#10b981',
+            padding: '3px 10px',
+            borderRadius: '20px',
+            fontWeight: '700'
+          }}>
+            {quarantineCount || 0} Quarantined
+          </span>
+        </div>
+        <p style={{ fontSize: '13px', color: 'var(--text3)', margin: '0 0 14px', lineHeight: '1.5' }}>
+          Movies with broken links or external third-party hosts are hidden from all users. You can review them, upload the MP4s to your Backblaze B2 bucket, update the URLs, and republish them one by one.
+        </p>
+        <Link
+          href="/admin/movies/quarantine"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 16px',
+            background: '#e50914',
+            color: '#fff',
+            borderRadius: '6px',
+            textDecoration: 'none',
+            fontSize: '13px',
+            fontWeight: '700'
+          }}
+        >
+          Manage &amp; Restore Quarantined Movies ({quarantineCount || 0}) &rarr;
+        </Link>
       </div>
       
       <form action={saveSettings} style={{ background: 'var(--bg2)', padding: '30px', borderRadius: '10px', maxWidth: '600px' }}>

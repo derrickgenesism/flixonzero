@@ -66,15 +66,96 @@ export async function getAffiliateSettings() {
     config[s.setting_key] = s.setting_value
   })
 
-  // get all affiliates using admin client to bypass RLS restrictions
-  const { data: affiliates, error } = await admin
-    .from('affiliates')
-    .select('*, user_profiles!affiliates_user_id_fkey(email, username)')
-    .order('created_at', { ascending: false })
+  // Parallel fetch: affiliates, clicks, referred users, recent commissions
+  const now = new Date();
+  const [
+    { data: affiliates, error: affErr },
+    { data: clicksRaw },
+    { data: referredUsersRaw },
+    { data: commissionsRaw }
+  ] = await Promise.all([
+    admin.from('affiliates')
+      .select('*, user_profiles!affiliates_user_id_fkey(email, username)')
+      .order('created_at', { ascending: false }),
+    admin.from('affiliate_clicks').select('affiliate_id'),
+    admin.from('user_profiles')
+      .select('id, email, username, referred_by, subscription_end_date, created_at')
+      .not('referred_by', 'is', null),
+    admin.from('affiliate_commissions')
+      .select('id, affiliate_id, amount, type, description, created_at')
+      .order('created_at', { ascending: false })
+      .limit(500)
+  ]);
 
-  if (error) console.error('Error fetching affiliates:', error)
+  if (affErr) console.error('Error fetching affiliates:', affErr);
 
-  return { config, affiliates: affiliates || [], plans: plans || [] }
+  // Group clicks by affiliate_id
+  const clicksMap = {};
+  (clicksRaw || []).forEach(c => {
+    clicksMap[c.affiliate_id] = (clicksMap[c.affiliate_id] || 0) + 1;
+  });
+
+  // Group referred users by affiliate_id
+  const referralsMap = {};
+  (referredUsersRaw || []).forEach(u => {
+    if (!referralsMap[u.referred_by]) referralsMap[u.referred_by] = [];
+    referralsMap[u.referred_by].push({
+      id: u.id,
+      email: u.email,
+      username: u.username,
+      hasActiveSub: u.subscription_end_date ? new Date(u.subscription_end_date) > now : false,
+      joinedAt: u.created_at
+    });
+  });
+
+  // Group commissions by affiliate_id
+  const commissionsMap = {};
+  (commissionsRaw || []).forEach(c => {
+    if (!commissionsMap[c.affiliate_id]) commissionsMap[c.affiliate_id] = [];
+    commissionsMap[c.affiliate_id].push(c);
+  });
+
+  // Enrich each affiliate with performance metrics
+  let totalClicks = (clicksRaw || []).length;
+  let totalSignups = (referredUsersRaw || []).length;
+  let totalPaidSubs = 0;
+  let totalBalanceUnpaid = 0;
+  let totalEarnedAll = 0;
+
+  const enrichedAffiliates = (affiliates || []).map(a => {
+    const clicks = clicksMap[a.id] || 0;
+    const referredList = referralsMap[a.id] || [];
+    const signups = referredList.length;
+    const activeSubs = referredList.filter(u => u.hasActiveSub).length;
+    totalPaidSubs += activeSubs;
+    totalBalanceUnpaid += Number(a.balance || 0);
+    totalEarnedAll += Number(a.total_earned || 0);
+
+    const clickToSignupRate = clicks > 0 ? ((signups / clicks) * 100).toFixed(1) : '0';
+    const signupToPaidRate = signups > 0 ? ((activeSubs / signups) * 100).toFixed(1) : '0';
+
+    return {
+      ...a,
+      clicksCount: clicks,
+      signupsCount: signups,
+      activeSubsCount: activeSubs,
+      clickToSignupRate,
+      signupToPaidRate,
+      referredList,
+      commissions: commissionsMap[a.id] || []
+    };
+  });
+
+  const overview = {
+    totalPartners: enrichedAffiliates.length,
+    totalClicks,
+    totalSignups,
+    totalPaidSubs,
+    totalBalanceUnpaid,
+    totalEarnedAll
+  };
+
+  return { config, affiliates: enrichedAffiliates, plans: plans || [], overview }
 }
 
 export async function updateSettings(formData) {

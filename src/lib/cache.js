@@ -9,7 +9,11 @@ const getAnonClient = () => createSupabaseClient(
 
 export const getCachedMovies = unstable_cache(
   async () => {
-    const { data } = await getAnonClient().from('movies').select('id, title, description, thumbnail_url, type, categories, release_year, created_at, actors, series_id, season_number, episode_number').order('created_at', { ascending: false });
+    const { data } = await getAnonClient()
+      .from('movies')
+      .select('id, title, description, thumbnail_url, type, categories, release_year, created_at, actors, series_id, season_number, episode_number')
+      .neq('type', 'broken_quarantine')
+      .order('created_at', { ascending: false });
     return data || [];
   },
   ['all-movies'],
@@ -19,8 +23,8 @@ export const getCachedMovies = unstable_cache(
 export const getCachedSettings = unstable_cache(
   async () => {
     const { createAdminClient } = require('@/utils/supabase/admin');
-      const adminClient = createAdminClient();
-      const { data } = await adminClient.from('admin_settings').select('*');
+    const adminClient = createAdminClient();
+    const { data } = await adminClient.from('admin_settings').select('*');
     return data || [];
   },
   ['admin-settings'],
@@ -39,7 +43,11 @@ export const getCachedSeries = unstable_cache(
 export const getCachedMovieById = async (id) => {
   const cachedFn = unstable_cache(
     async () => {
-      const { data } = await getAnonClient().from('movies').select('id, title, description, thumbnail_url, type, categories, release_year, created_at, actors, series_id, season_number, episode_number, video_url').eq('id', id).single();
+      const { data } = await getAnonClient()
+        .from('movies')
+        .select('id, title, description, thumbnail_url, type, categories, release_year, created_at, actors, series_id, season_number, episode_number, video_url')
+        .eq('id', id)
+        .single();
       return data || null;
     },
     ['movie-by-id', String(id)],
