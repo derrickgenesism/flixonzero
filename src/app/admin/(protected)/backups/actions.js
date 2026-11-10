@@ -1,12 +1,12 @@
 'use server'
-const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');;
 
+import { createAdminClient } from '@/utils/supabase/admin';
 import { createClient } from '@/utils/supabase/server';
 import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import { revalidatePath } from 'next/cache';
 
 async function getR2Client(supabase) {
-  const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*');
+  const { data: settings } = await createAdminClient().from('admin_settings').select('*');
   const getSetting = (k, fallback = '') => settings?.find(s => s.setting_key === k)?.setting_value || fallback;
   const provider = getSetting('storage_provider', 'b2');
 
@@ -22,7 +22,6 @@ async function getR2Client(supabase) {
         region: b2Region,
         endpoint: b2Endpoint,
         credentials: { accessKeyId: b2AccessKey, secretAccessKey: b2SecretKey },
-        forcePathStyle: true,
       });
       return { s3, bucketName, provider: 'b2' };
     }

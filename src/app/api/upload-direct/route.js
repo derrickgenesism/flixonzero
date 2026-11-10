@@ -1,4 +1,4 @@
-const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
+import { createAdminClient } from '@/utils/supabase/admin';
 import { createClient } from '@/utils/supabase/server';
 import { S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -31,7 +31,7 @@ export async function GET(req) {
       const { data: profile } = await supabase.from('user_profiles').select('role').eq('email', user.email).single();
       if (profile?.role !== 'administrator' && profile?.role !== 'editor') throw new Error('Not authorized');
 
-      const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*');
+      const { data: settings } = await createAdminClient().from('admin_settings').select('*');
       const getSetting = (k, fallback = '') => settings?.find(s => s.setting_key === k)?.setting_value || fallback;
 
       const defaultProvider = getSetting('storage_provider', 'b2');
@@ -55,7 +55,6 @@ export async function GET(req) {
           region: b2Region,
           endpoint: b2Endpoint,
           credentials: { accessKeyId: b2AccessKey, secretAccessKey: b2SecretKey },
-          forcePathStyle: true,
         });
       } else {
         const accountId = getSetting('r2_account_id');
@@ -85,6 +84,9 @@ export async function GET(req) {
 
       const upload = new Upload({
         client: s3,
+        queueSize: 8,
+        partSize: 50 * 1024 * 1024,
+        leavePartsOnError: false,
         params: {
           Bucket: bucketName,
           Key: generatedKey,

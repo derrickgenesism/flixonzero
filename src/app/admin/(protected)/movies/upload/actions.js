@@ -30,6 +30,9 @@ export async function uploadUrlToR2(videoUrl, generatedKey, targetProvider = nul
 
     const upload = new Upload({
       client: s3,
+      queueSize: 8,
+      partSize: 50 * 1024 * 1024, // 50MB parts for fast multi-part upload
+      leavePartsOnError: false,
       params: {
         Bucket: config.bucketName,
         Key: generatedKey,

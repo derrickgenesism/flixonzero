@@ -127,6 +127,7 @@ function compressVideo(inputPath, outputPath, job, totalFramesGuess) {
         '-b:a', '128k',
         '-map_metadata', '-1',
         '-movflags', '+faststart',
+        '-threads', '0',
         '-f', 'mp4',
       ])
       .on('start', (commandLine) => {

@@ -1,4 +1,4 @@
-const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
+import { createAdminClient } from '@/utils/supabase/admin';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
@@ -26,7 +26,7 @@ export async function POST(request) {
     if (!filename) return NextResponse.json({ error: 'Filename is required' }, { status: 400 });
 
     // Get Storage Settings
-    const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*');
+    const { data: settings } = await createAdminClient().from('admin_settings').select('*');
     const getSetting = (k, fallback = '') => settings?.find(s => s.setting_key === k)?.setting_value || fallback;
 
     const defaultProvider = getSetting('storage_provider', 'b2');
@@ -54,7 +54,6 @@ export async function POST(request) {
           accessKeyId: b2AccessKey,
           secretAccessKey: b2SecretKey,
         },
-        forcePathStyle: true,
       });
     } else {
       const accountId = getSetting('r2_account_id');

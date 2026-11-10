@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import Script from 'next/script';
 
 // ─── Format Bytes ────────────────────────────────────────────────────────────
 function formatBytes(bytes) {
@@ -445,45 +444,6 @@ export default function WarmerClient({ dbMovies = [], initialProvider = 'b2' }) 
     };
   }, [isBatchUploading]);
 
-  // Reactive Batch Upload Processor (up to 3 parallel streams)
-  useEffect(() => {
-    if (isBatchUploading) {
-      const uploadingCount = uploadQueue.filter(u => u.status === 'uploading').length;
-      if (uploadingCount < 3) {
-        const nextPending = uploadQueue.find(u => u.status === 'pending');
-        if (nextPending) {
-          processSingleStreamUpload(nextPending);
-        } else if (uploadingCount === 0) {
-          setIsBatchUploading(false);
-        }
-      }
-    }
-  }, [uploadQueue, isBatchUploading]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleStartBatchUpload = (e) => {
-    e.preventDefault();
-    if (!linksText.trim()) return;
-
-    const lines = linksText.trim().split('\n').filter(l => l.trim().length > 0);
-    const newItems = lines.map((line, idx) => {
-      const parts = line.split('|').map(s => s.trim());
-      return {
-        id: `up-${Date.now()}-${idx}`,
-        url: parts[0],
-        name: parts[1] || '',
-        status: 'pending',
-        message: 'Pending in queue...',
-        percent: 0,
-        speedLabel: '',
-        etaLabel: '',
-      };
-    });
-
-    setUploadQueue(prev => [...prev, ...newItems]);
-    setLinksText('');
-    setIsBatchUploading(true);
-  };
-
   const processSingleStreamUpload = async (item) => {
     setUploadQueue(prev => prev.map(u => u.id === item.id ? { ...u, status: 'uploading', message: 'Connecting...' } : u));
 
@@ -578,6 +538,49 @@ export default function WarmerClient({ dbMovies = [], initialProvider = 'b2' }) 
       } : u));
     }
   };
+
+
+
+  // Reactive Batch Upload Processor (up to 3 parallel streams)
+  useEffect(() => {
+    if (isBatchUploading) {
+      const uploadingCount = uploadQueue.filter(u => u.status === 'uploading').length;
+      if (uploadingCount < 3) {
+        const nextPending = uploadQueue.find(u => u.status === 'pending');
+        if (nextPending) {
+          processSingleStreamUpload(nextPending);
+        } else if (uploadingCount === 0) {
+          setIsBatchUploading(false);
+        }
+      }
+    }
+  }, [uploadQueue, isBatchUploading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleStartBatchUpload = (e) => {
+    e.preventDefault();
+    if (!linksText.trim()) return;
+
+    const lines = linksText.trim().split('\n').filter(l => l.trim().length > 0);
+    const newItems = lines.map((line, idx) => {
+      const parts = line.split('|').map(s => s.trim());
+      return {
+        id: `up-${Date.now()}-${idx}`,
+        url: parts[0],
+        name: parts[1] || '',
+        status: 'pending',
+        message: 'Pending in queue...',
+        percent: 0,
+        speedLabel: '',
+        etaLabel: '',
+      };
+    });
+
+    setUploadQueue(prev => [...prev, ...newItems]);
+    setLinksText('');
+    setIsBatchUploading(true);
+  };
+
+
 
   // ───────────────────────────────────────────────────────────────────────────
   // RENDER

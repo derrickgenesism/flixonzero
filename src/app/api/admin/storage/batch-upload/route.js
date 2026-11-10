@@ -124,11 +124,15 @@ export async function POST(request) {
           bucket: storage.config.bucketName,
           publicUrl,
         });
-        controller.close();
+        try {
+          controller.close();
+        } catch (_) {}
       } catch (err) {
         console.error('Batch upload error:', err);
         sendEvent({ type: 'error', error: err.message || 'Streaming upload failed' });
-        controller.close();
+        try {
+          controller.close();
+        } catch (_) {}
       }
     },
   });

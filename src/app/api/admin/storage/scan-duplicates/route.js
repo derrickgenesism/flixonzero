@@ -60,8 +60,9 @@ export async function POST(request) {
     const rawObjects = [];
     let pageCount = 0;
 
-    // Scan up to 30 pages (30,000 files)
-    while (isTruncated && pageCount < 30) {
+    // Scan up to 5 pages (5,000 files) to keep fuzzy O(N²) matching instantaneous and prevent timeout
+    const MAX_PAGES = 5;
+    while (isTruncated && pageCount < MAX_PAGES) {
       const command = new ListObjectsV2Command({
         Bucket: config.bucketName,
         ContinuationToken: continuationToken,
@@ -77,8 +78,11 @@ export async function POST(request) {
       pageCount++;
     }
 
+    const isCapped = isTruncated && pageCount >= MAX_PAGES;
+
     const processed = rawObjects
       .filter(obj => obj.Key && obj.Key.trim().length > 0)
+      .slice(0, 5000)
       .map(obj => ({
         key: obj.Key,
         size: obj.Size || 0,
@@ -156,6 +160,8 @@ export async function POST(request) {
       provider: config.provider,
       bucket: config.bucketName,
       scannedCount: processed.length,
+      isCapped,
+      warning: isCapped ? 'Bucket has over 5,000 files. Scanned the first 5,000 files for fast duplicate matching.' : null,
       groupCount: groups.length,
       totalDuplicateFiles,
       totalWastedBytes,

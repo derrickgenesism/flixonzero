@@ -1,4 +1,4 @@
-const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');
+import { createAdminClient } from '@/utils/supabase/admin';
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
@@ -9,7 +9,7 @@ export const metadata = { title: 'Storage Bucket Importer (B2 & R2) — Admin' }
 export default async function CloudStorageImportPage({ searchParams }) {
   const supabase = await createClient();
 
-  const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*');
+  const { data: settings } = await createAdminClient().from('admin_settings').select('*');
   const getSetting = (k, fallback = '') => settings?.find(s => s.setting_key === k)?.setting_value || fallback;
 
   // Determine active provider from query string or default setting
@@ -52,7 +52,6 @@ export default async function CloudStorageImportPage({ searchParams }) {
             region: b2Region,
             endpoint: b2Endpoint,
             credentials: { accessKeyId: b2AccessKey, secretAccessKey: b2SecretKey },
-            forcePathStyle: true,
           })
         : new S3Client({
             region: 'auto',
