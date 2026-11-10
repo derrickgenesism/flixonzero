@@ -81,6 +81,7 @@ function ProgressBar({ progress, status }) {
 export default function ExistingClient({ initialVideos = [], currentProvider = 'b2', bucketName = '' }) {
   const [videos] = useState(initialVideos || []);
   const [jobs, setJobs] = useState({});
+  const [rawJobs, setRawJobs] = useState([]);
   const [workerOnline, setWorkerOnline] = useState(false);
   const [loadingKey, setLoadingKey] = useState(null);
   const [sortBy, setSortBy] = useState('newest');
@@ -102,6 +103,7 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
       if (!res.ok) return;
       const data = await res.json();
       setWorkerOnline(Boolean(data.workerOnline));
+      setRawJobs(data.jobs || []);
 
       const map = {};
       for (const job of (data.jobs || [])) {
@@ -129,22 +131,26 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
     return false;
   }, [jobs]);
 
+  const activeQueueJobs = useMemo(() => {
+    return (rawJobs || []).filter(j => j.status === 'pending' || j.status === 'processing');
+  }, [rawJobs]);
+
   const stats = useMemo(() => {
     let compressedCount = 0;
     let uncompressedCount = 0;
-    let queueCount = 0;
     for (const v of videos) {
-      const job = jobs[v.key];
-      if (job?.status === 'pending' || job?.status === 'processing') {
-        queueCount++;
-      } else if (isVideoCompressed(v)) {
+      if (isVideoCompressed(v)) {
         compressedCount++;
       } else {
         uncompressedCount++;
       }
     }
-    return { compressedCount, uncompressedCount, queueCount };
-  }, [videos, jobs, isVideoCompressed]);
+    return {
+      compressedCount,
+      uncompressedCount,
+      queueCount: activeQueueJobs.length,
+    };
+  }, [videos, activeQueueJobs, isVideoCompressed]);
 
   const sortedVideos = useMemo(() => {
     let list = [...videos];
@@ -354,35 +360,52 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
         </form>
       </div>
 
-      {/* Active Processing Jobs Banner */}
-      {Object.values(jobs).filter(j => j.status === 'processing').map(job => (
-        <div key={job.id} style={{
+      {/* Active Processing / Queue Status Banner */}
+      {activeQueueJobs.length > 0 && (
+        <div style={{
           marginBottom: '20px', padding: '16px 20px',
           background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(129,140,248,0.08))',
           border: '1px solid rgba(99,102,241,0.4)', borderRadius: '8px',
           display: 'flex', alignItems: 'center', gap: '16px'
         }}>
-          <div style={{ fontSize: '24px' }}>⚡</div>
+          <div style={{ fontSize: '28px' }}>⚡</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: '600', color: '#fff', marginBottom: '6px', fontSize: '14px' }}>
-              ⚡ VPS Squeeze Engine: <span style={{ color: '#818cf8' }}>{job.video_key}</span>
+            <div style={{ fontWeight: '700', color: '#fff', marginBottom: '6px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span>VPS Squeeze Engine:</span>
+              <span style={{ color: '#818cf8', wordBreak: 'break-all' }}>
+                {activeQueueJobs[0].video_key.replace(/^URL\|[^|]+\|/, '')}
+              </span>
+              <span style={{
+                background: activeQueueJobs[0].status === 'processing' ? 'rgba(99,102,241,0.3)' : 'rgba(255,183,0,0.2)',
+                color: activeQueueJobs[0].status === 'processing' ? '#818cf8' : '#ffb700',
+                padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold'
+              }}>
+                {activeQueueJobs[0].status === 'processing' ? 'Active' : 'Queued #1'}
+              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', height: '8px', borderRadius: '4px', overflow: 'hidden', maxWidth: '400px' }}>
                 <div style={{
-                  width: `${job.progress || 0}%`, height: '100%',
+                  width: `${activeQueueJobs[0].progress || (activeQueueJobs[0].status === 'processing' ? 5 : 0)}%`, height: '100%',
                   background: 'linear-gradient(90deg, #6366f1, #a78bfa)',
                   transition: 'width 0.5s ease',
                   boxShadow: '0 0 8px rgba(99,102,241,0.6)'
                 }} />
               </div>
-              <span style={{ color: '#818cf8', fontWeight: '700', fontSize: '14px' }}>
-                {job.progress ? `${job.progress}%` : '📥 Transferring to VPS...'}
+              <span style={{ color: '#818cf8', fontWeight: '700', fontSize: '13px' }}>
+                {activeQueueJobs[0].status === 'processing'
+                  ? (activeQueueJobs[0].progress ? `${activeQueueJobs[0].progress}%` : '📥 Transferring to VPS...')
+                  : '⏳ In VPS Queue (#1)'}
               </span>
             </div>
+            {activeQueueJobs.length > 1 && (
+              <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text2)' }}>
+                +{activeQueueJobs.length - 1} more video{activeQueueJobs.length > 2 ? 's' : ''} waiting in queue ({activeQueueJobs.slice(1, 4).map(j => j.video_key.replace(/^URL\|[^|]+\|/, '')).join(', ')}{activeQueueJobs.length > 4 ? '...' : ''})
+              </div>
+            )}
           </div>
           <button
-            onClick={() => handleCancel(job.id)}
+            onClick={() => handleCancel(activeQueueJobs[0].id)}
             style={{
               padding: '6px 12px', background: 'rgba(229,9,20,0.2)', border: '1px solid #e50914',
               color: '#fff', borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
@@ -391,7 +414,7 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
             Cancel
           </button>
         </div>
-      ))}
+      )}
 
       {/* Filter Tabs Bar (All / Uncompressed / Compressed / Queue) */}
       <div style={{
@@ -479,7 +502,91 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
 
       {/* Table */}
       <div style={{ background: 'var(--bg2)', borderRadius: '8px', overflowX: 'auto' }}>
-        {videos.length === 0 ? (
+        {filterTab === 'queue' ? (
+          activeQueueJobs.length === 0 ? (
+            <div style={{ padding: '50px 20px', textAlign: 'center', color: 'var(--text2)' }}>
+              <div style={{ fontSize: '32px', marginBottom: '10px' }}>🎉</div>
+              <div style={{ fontWeight: '600', color: '#fff', marginBottom: '6px' }}>VPS Compression Queue is Empty!</div>
+              <div style={{ fontSize: '13px', color: 'var(--text3)' }}>All queued videos have been compressed. Click &quot;🗜 Squeeze&quot; on any video or paste a link above to add more.</div>
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px' }}>POSITION</th>
+                  <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px' }}>VIDEO / FILE NAME</th>
+                  <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px' }}>QUEUED AT (EAT)</th>
+                  <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px' }}>STATUS & PROGRESS</th>
+                  <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px', textAlign: 'right' }}>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeQueueJobs.map((qJob, index) => {
+                  const isProc = qJob.status === 'processing';
+                  const cleanKey = (qJob.video_key || '').replace(/^URL\|[^|]+\|/, '');
+                  const sourceLink = qJob.video_key?.startsWith('URL|') ? qJob.video_key.split('|')[1] : null;
+
+                  return (
+                    <tr key={qJob.id} style={{
+                      borderTop: '1px solid var(--border)',
+                      background: isProc ? 'rgba(99,102,241,0.08)' : 'transparent',
+                    }}>
+                      <td style={{ padding: '14px 18px', color: isProc ? '#818cf8' : 'var(--text3)', fontWeight: '700', fontSize: '13px' }}>
+                        {isProc ? '⚡ ACTIVE' : `#${index + 1}`}
+                      </td>
+                      <td style={{ padding: '14px 18px', fontWeight: '500', maxWidth: '320px', wordBreak: 'break-all' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span>🎥</span>
+                          <div>
+                            <div style={{ color: '#fff' }}>{cleanKey}</div>
+                            {sourceLink && (
+                              <a href={sourceLink} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: 'var(--acc)', textDecoration: 'underline' }}>
+                                Direct Source Link ↗
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '14px 18px', color: 'var(--text2)', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                        {qJob.created_at ? new Date(qJob.created_at).toLocaleString('en-UG', {
+                          timeZone: 'Africa/Kampala',
+                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
+                        }) + ' EAT' : '—'}
+                      </td>
+                      <td style={{ padding: '14px 18px', minWidth: '200px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{
+                            alignSelf: 'flex-start',
+                            background: isProc ? 'rgba(99,102,241,0.15)' : 'rgba(255,183,0,0.12)',
+                            border: `1px solid ${isProc ? '#6366f1' : '#ffb700'}`,
+                            color: isProc ? '#818cf8' : '#ffb700',
+                            padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600'
+                          }}>
+                            {isProc
+                              ? (qJob.progress ? `⚡ Squeezing ${qJob.progress}%` : '📥 Transferring to VPS...')
+                              : `⏳ Waiting in VPS Queue (#${index + 1})`}
+                          </span>
+                          <ProgressBar progress={qJob.progress} status={qJob.status} />
+                        </div>
+                      </td>
+                      <td style={{ padding: '14px 18px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button
+                          onClick={() => handleCancel(qJob.id)}
+                          style={{
+                            padding: '6px 14px', background: 'rgba(229,9,20,0.15)', border: '1px solid #e50914',
+                            color: '#fff', borderRadius: '5px', fontSize: '12px', cursor: 'pointer', fontWeight: '600'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )
+        ) : videos.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text2)' }}>
             No video files found in {currentProvider.toUpperCase()} bucket ({bucketName}).
           </div>
