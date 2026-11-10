@@ -35,19 +35,32 @@ function StatusBadge({ status, progress, isTaggedName }) {
     }
     return <span style={{ color: 'var(--text3)', fontSize: '12px' }}>🎞️ Raw File</span>;
   }
+  if (status === 'processing') {
+    return (
+      <span style={{
+        background: s.bg, border: `1px solid ${s.border}`, color: s.color,
+        padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', whiteSpace: 'nowrap'
+      }}>
+        {progress ? `⚡ Squeezing ${progress}%` : '📥 Transferring to VPS...'}
+      </span>
+    );
+  }
   return (
     <span style={{
       background: s.bg, border: `1px solid ${s.border}`, color: s.color,
       padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', whiteSpace: 'nowrap'
     }}>
-      {status === 'processing' ? `⚡ ${progress || 0}%` : s.label}
+      {s.label}
     </span>
   );
 }
 
 function ProgressBar({ progress, status }) {
-  if (status === 'pending') return <span style={{ color: 'var(--text3)', fontSize: '13px' }}>Waiting for background worker...</span>;
-  if (status === 'completed') return <span style={{ color: '#46b450', fontSize: '13px' }}>Compression complete!</span>;
+  if (status === 'pending') return <span style={{ color: 'var(--text3)', fontSize: '13px' }}>⏳ In Queue — VPS will process automatically...</span>;
+  if (status === 'processing' && (!progress || progress === 0)) {
+    return <span style={{ color: '#818cf8', fontSize: '12px' }}>📥 Transferring video to VPS (High-speed)...</span>;
+  }
+  if (status === 'completed') return <span style={{ color: '#46b450', fontSize: '13px' }}>✅ Compression complete!</span>;
   if (status === 'failed' || status === 'cancelled') return null;
   
   const pct = progress || 0;
@@ -352,7 +365,7 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
           <div style={{ fontSize: '24px' }}>⚡</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: '600', color: '#fff', marginBottom: '6px', fontSize: '14px' }}>
-              VPS Compressor Working: <span style={{ color: '#818cf8' }}>{job.video_key}</span>
+              ⚡ VPS Squeeze Engine: <span style={{ color: '#818cf8' }}>{job.video_key}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', height: '8px', borderRadius: '4px', overflow: 'hidden', maxWidth: '400px' }}>
@@ -363,7 +376,9 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
                   boxShadow: '0 0 8px rgba(99,102,241,0.6)'
                 }} />
               </div>
-              <span style={{ color: '#818cf8', fontWeight: '700', fontSize: '14px' }}>{job.progress || 0}%</span>
+              <span style={{ color: '#818cf8', fontWeight: '700', fontSize: '14px' }}>
+                {job.progress ? `${job.progress}%` : '📥 Transferring to VPS...'}
+              </span>
             </div>
           </div>
           <button

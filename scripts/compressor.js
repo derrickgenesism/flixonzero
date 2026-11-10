@@ -452,6 +452,13 @@ async function startWorker() {
   await recoverStaleJobs();
   let loopCount = 0;
 
+  // Persistent heartbeat ping every 6 seconds so engine NEVER appears offline during long downloads or encodes
+  setInterval(async () => {
+    if (isRunning) {
+      await pingHeartbeat();
+    }
+  }, 6000);
+
   while (isRunning) {
     try {
       await pingHeartbeat();
