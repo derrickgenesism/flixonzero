@@ -6,16 +6,37 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const supabase = await createClient();
+  const adminClient = createAdminClient();
   
   const { data: jobs, error } = await supabase
     .from('compression_jobs')
     .select('*')
-    .order('created_at', { ascending: false })
-    .limit(100);
+    .order('updated_at', { ascending: false })
+    .limit(1000);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ jobs: jobs || [] });
+  // Check worker heartbeat in admin_settings
+  let workerOnline = false;
+  let lastPing = null;
+  try {
+    const { data: pingSetting } = await adminClient
+      .from('admin_settings')
+      .select('setting_value')
+      .eq('setting_key', 'compressor_worker_last_ping')
+      .maybeSingle();
+
+    if (pingSetting?.setting_value) {
+      lastPing = Number(pingSetting.setting_value);
+      workerOnline = (Date.now() - lastPing) < 30000; // active within last 30s
+    }
+  } catch (_) {}
+
+  return NextResponse.json({
+    jobs: jobs || [],
+    workerOnline,
+    lastPing,
+  });
 }
 
 export async function POST(request) {

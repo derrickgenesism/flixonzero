@@ -1,7 +1,7 @@
 require('dotenv').config({ path: '.env.local' });
 require('dotenv').config({ path: '.env' });
 const { createClient } = require('@supabase/supabase-js');
-const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const fs = require('fs');
 const path = require('path');
@@ -220,9 +220,9 @@ async function processNextJob() {
       .update({ status: 'processing', progress: 0 })
       .eq('id', job.id);
 
-    // 2. Determine storage credentials
-    const creds = await getStorageCredentials();
-    const s3 = new S3Client({
+    // 2. Determine storage credentials & locate file
+    let creds = await getStorageCredentials();
+    let s3 = new S3Client({
       region: creds.region,
       endpoint: creds.endpoint,
       credentials: {
@@ -254,6 +254,30 @@ async function processNextJob() {
         .update({ video_key: actualKey, original_size: totalBytes })
         .eq('id', job.id);
     } else {
+      // Check if file is in current provider; if not, check alternate provider
+      try {
+        const head = await s3.send(new HeadObjectCommand({ Bucket: creds.bucketName, Key: actualKey }));
+        totalBytes = head.ContentLength || 0;
+      } catch (headErr) {
+        const altProvider = creds.provider === 'b2' ? 'r2' : 'b2';
+        try {
+          const altCreds = await getStorageCredentials(altProvider);
+          const altS3 = new S3Client({
+            region: altCreds.region,
+            endpoint: altCreds.endpoint,
+            credentials: {
+              accessKeyId: altCreds.accessKeyId,
+              secretAccessKey: altCreds.secretAccessKey,
+            },
+          });
+          const altHead = await altS3.send(new HeadObjectCommand({ Bucket: altCreds.bucketName, Key: actualKey }));
+          totalBytes = altHead.ContentLength || 0;
+          creds = altCreds;
+          s3 = altS3;
+          console.log(`[Job ${job.id}] Video located in alternate bucket: ${altCreds.provider.toUpperCase()} (${altCreds.bucketName})`);
+        } catch (_) {}
+      }
+
       console.log(`[Job ${job.id}] Downloading raw video from ${creds.provider.toUpperCase()} (${creds.bucketName}): ${actualKey}`);
       const getCommand = new GetObjectCommand({
         Bucket: creds.bucketName,
@@ -261,7 +285,7 @@ async function processNextJob() {
       });
 
       const response = await s3.send(getCommand);
-      totalBytes = response.ContentLength || 0;
+      totalBytes = response.ContentLength || totalBytes;
       await pipeline(response.Body, fs.createWriteStream(inputPath));
       totalBytes = fs.statSync(inputPath).size;
       console.log(`[Job ${job.id}] Downloaded from bucket. Raw size: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
@@ -283,18 +307,23 @@ async function processNextJob() {
 
     console.log(`[Job ${job.id}] Squeeze finished! Raw: ${(totalBytes / 1024 / 1024).toFixed(2)} MB -> Compressed: ${(compressedSize / 1024 / 1024).toFixed(2)} MB (Saved ${savedPct}%)`);
 
-    // 5. Upload compressed video to storage bucket (B2 or R2)
-    console.log(`[Job ${job.id}] Uploading compressed video to ${creds.provider.toUpperCase()} (${creds.bucketName})...`);
+    // 5. Upload compressed video to storage bucket (B2 or R2) with Squeeze Metadata Tag
+    console.log(`[Job ${job.id}] Uploading compressed video to ${creds.provider.toUpperCase()} (${creds.bucketName}) with Squeeze tag...`);
     const uploadStream = fs.createReadStream(outputPath);
     const upload = new Upload({
       client: s3,
       queueSize: 8,
-      partSize: 10 * 1024 * 1024,
+      partSize: 20 * 1024 * 1024,
       params: {
         Bucket: creds.bucketName,
         Key: actualKey,
         Body: uploadStream,
         ContentType: 'video/mp4',
+        Metadata: {
+          squeeze: '1',
+          compressed: 'true',
+          'compressed-at': new Date().toISOString(),
+        },
       },
     });
 
@@ -373,6 +402,16 @@ async function processNextJob() {
   }
 }
 
+async function pingHeartbeat() {
+  try {
+    await supabase.from('admin_settings').upsert({
+      setting_key: 'compressor_worker_last_ping',
+      setting_value: Date.now().toString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'setting_key' });
+  } catch (_) {}
+}
+
 /**
  * Main 24/7 worker loop
  */
@@ -386,10 +425,11 @@ async function startWorker() {
 
   while (isRunning) {
     try {
+      await pingHeartbeat();
       const processed = await processNextJob();
       if (!processed) {
-        // Sleep 5 seconds before checking again
-        await new Promise(r => setTimeout(r, 5000));
+        // Sleep 4 seconds before checking again
+        await new Promise(r => setTimeout(r, 4000));
       }
     } catch (loopErr) {
       console.error('[Worker Loop Error]', loopErr.message);

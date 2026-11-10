@@ -13,15 +13,28 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-function StatusBadge({ status, progress }) {
+function StatusBadge({ status, progress, isTaggedName }) {
   const styles = {
-    pending:    { bg: 'rgba(255,183,0,0.1)',    border: '#ffb700', color: '#ffb700',  label: '⏳ Pending' },
+    pending:    { bg: 'rgba(255,183,0,0.1)',    border: '#ffb700', color: '#ffb700',  label: '⏳ In Queue' },
     processing: { bg: 'rgba(99,102,241,0.1)',   border: '#6366f1', color: '#818cf8',  label: '⚡ Processing' },
-    completed:  { bg: 'rgba(70,180,80,0.1)',    border: '#46b450', color: '#46b450',  label: '✅ Done' },
+    completed:  { bg: 'rgba(70,180,80,0.1)',    border: '#46b450', color: '#46b450',  label: '✅ Compressed' },
     failed:     { bg: 'rgba(229,9,20,0.1)',     border: '#e50914', color: '#e50914',  label: '❌ Failed' },
     cancelled:  { bg: 'rgba(150,150,150,0.1)',  border: '#888',    color: '#aaa',      label: '🚫 Cancelled' },
   };
-  const s = styles[status] || styles.pending;
+  const s = styles[status];
+  if (!s) {
+    if (isTaggedName) {
+      return (
+        <span style={{
+          background: 'rgba(70,180,80,0.1)', border: '1px solid #46b450', color: '#46b450',
+          padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', whiteSpace: 'nowrap'
+        }}>
+          🏷️ Compressed (Tag)
+        </span>
+      );
+    }
+    return <span style={{ color: 'var(--text3)', fontSize: '12px' }}>🎞️ Raw File</span>;
+  }
   return (
     <span style={{
       background: s.bg, border: `1px solid ${s.border}`, color: s.color,
@@ -33,7 +46,7 @@ function StatusBadge({ status, progress }) {
 }
 
 function ProgressBar({ progress, status }) {
-  if (status === 'pending') return <span style={{ color: 'var(--text3)', fontSize: '13px' }}>Waiting for VPS worker...</span>;
+  if (status === 'pending') return <span style={{ color: 'var(--text3)', fontSize: '13px' }}>Waiting for background worker...</span>;
   if (status === 'completed') return <span style={{ color: '#46b450', fontSize: '13px' }}>Compression complete!</span>;
   if (status === 'failed' || status === 'cancelled') return null;
   
@@ -55,40 +68,28 @@ function ProgressBar({ progress, status }) {
 export default function ExistingClient({ initialVideos = [], currentProvider = 'b2', bucketName = '' }) {
   const [videos] = useState(initialVideos || []);
   const [jobs, setJobs] = useState({});
+  const [workerOnline, setWorkerOnline] = useState(false);
   const [loadingKey, setLoadingKey] = useState(null);
   const [sortBy, setSortBy] = useState('newest');
+  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'uncompressed' | 'compressed' | 'queue'
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [toastMsg, setToastMsg] = useState(null);
 
   // Direct remote URL queueing state
   const [remoteUrl, setRemoteUrl] = useState('');
   const [remoteName, setRemoteName] = useState('');
   const [isQueueingRemote, setIsQueueingRemote] = useState(false);
 
-  const sortedVideos = useMemo(() => {
-    let list = [...videos];
-    if (search.trim()) {
-      list = list.filter(v => (v.key || '').toLowerCase().includes(search.toLowerCase()));
-    }
-    switch (sortBy) {
-      case 'largest':  list.sort((a, b) => (b.size || 0) - (a.size || 0)); break;
-      case 'smallest': list.sort((a, b) => (a.size || 0) - (b.size || 0)); break;
-      case 'newest':   list.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified)); break;
-      case 'oldest':   list.sort((a, b) => new Date(a.lastModified) - new Date(b.lastModified)); break;
-    }
-    setVisibleCount(PAGE_SIZE);
-    return list;
-  }, [videos, sortBy, search]);
-
-  const visibleVideos = sortedVideos.slice(0, visibleCount);
-
-  // Poll for live job status every 3 seconds
+  // Poll for live job status & worker heartbeat every 3 seconds
   const fetchJobs = useCallback(async () => {
     try {
       const res = await fetch('/api/compression-jobs');
       if (!res.ok) return;
       const data = await res.json();
+      setWorkerOnline(Boolean(data.workerOnline));
+
       const map = {};
       for (const job of (data.jobs || [])) {
         if (!map[job.video_key] || new Date(job.created_at) > new Date(map[job.video_key].created_at)) {
@@ -105,10 +106,67 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
     return () => clearInterval(interval);
   }, [fetchJobs]);
 
+  const isVideoCompressed = useCallback((video) => {
+    const job = jobs[video.key];
+    if (job?.status === 'completed') return true;
+    const lower = (video.key || '').toLowerCase();
+    if (lower.includes('_compressed') || lower.includes('.compressed') || lower.includes('-compressed') || lower.includes('.optimized') || lower.includes('_opt')) {
+      return true;
+    }
+    return false;
+  }, [jobs]);
+
+  const stats = useMemo(() => {
+    let compressedCount = 0;
+    let uncompressedCount = 0;
+    let queueCount = 0;
+    for (const v of videos) {
+      const job = jobs[v.key];
+      if (job?.status === 'pending' || job?.status === 'processing') {
+        queueCount++;
+      } else if (isVideoCompressed(v)) {
+        compressedCount++;
+      } else {
+        uncompressedCount++;
+      }
+    }
+    return { compressedCount, uncompressedCount, queueCount };
+  }, [videos, jobs, isVideoCompressed]);
+
+  const sortedVideos = useMemo(() => {
+    let list = [...videos];
+    if (search.trim()) {
+      list = list.filter(v => (v.key || '').toLowerCase().includes(search.toLowerCase()));
+    }
+    switch (sortBy) {
+      case 'largest':  list.sort((a, b) => (b.size || 0) - (a.size || 0)); break;
+      case 'smallest': list.sort((a, b) => (a.size || 0) - (b.size || 0)); break;
+      case 'newest':   list.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified)); break;
+      case 'oldest':   list.sort((a, b) => new Date(a.lastModified) - new Date(b.lastModified)); break;
+    }
+    return list;
+  }, [videos, sortBy, search]);
+
+  const filteredVideos = useMemo(() => {
+    return sortedVideos.filter(v => {
+      const job = jobs[v.key];
+      const isQueue = job?.status === 'pending' || job?.status === 'processing';
+      const isComp = isVideoCompressed(v);
+      if (filterTab === 'queue') return isQueue;
+      if (filterTab === 'uncompressed') return !isComp && !isQueue;
+      if (filterTab === 'compressed') return isComp;
+      return true;
+    });
+  }, [sortedVideos, filterTab, jobs, isVideoCompressed]);
+
+  const visibleVideos = filteredVideos.slice(0, visibleCount);
+
   const handleCancel = async (id) => {
     try {
       await fetch(`/api/compression-jobs/${id}/cancel`, { method: 'POST' });
       fetchJobs();
+      setToastMsg({ type: 'info', text: 'Job cancelled successfully.' });
+      setTimeout(() => setToastMsg(null), 4000);
     } catch (err) {
       console.error('Failed to cancel', err);
     }
@@ -121,6 +179,15 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
       alert(res.error);
     } else {
       fetchJobs();
+      if (workerOnline) {
+        setToastMsg({ type: 'success', text: `✅ "${key}" queued for VPS compression! The background worker will process it automatically.` });
+      } else {
+        setToastMsg({
+          type: 'warning',
+          text: `⏳ "${key}" queued in Supabase! NOTE: The background worker is currently offline. Start the worker on VPS or run 'npm run compressor' locally to begin compression.`,
+        });
+      }
+      setTimeout(() => setToastMsg(null), 8000);
     }
     setLoadingKey(null);
   };
@@ -142,10 +209,17 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to queue job');
-      alert('✅ Compression job queued! The VPS compressor is downloading and compressing in the background.');
+      
       setRemoteUrl('');
       setRemoteName('');
       fetchJobs();
+      setToastMsg({
+        type: workerOnline ? 'success' : 'warning',
+        text: workerOnline
+          ? '✅ Direct link queued! The background worker is downloading & compressing it.'
+          : '⏳ Direct link queued in Supabase! Start the worker on VPS or run npm run compressor to process.',
+      });
+      setTimeout(() => setToastMsg(null), 8000);
     } catch (err) {
       alert(`Error queueing job: ${err.message}`);
     }
@@ -154,7 +228,27 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
 
   return (
     <div>
-      {/* Remote URL Quick Compressor Box */}
+      {/* Toast Notification Banner */}
+      {toastMsg && (
+        <div style={{
+          marginBottom: '20px',
+          padding: '14px 20px',
+          borderRadius: '8px',
+          fontSize: '13px',
+          fontWeight: '600',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: toastMsg.type === 'success' ? 'rgba(70,180,80,0.15)' : toastMsg.type === 'warning' ? 'rgba(255,152,0,0.15)' : 'rgba(99,102,241,0.15)',
+          border: `1px solid ${toastMsg.type === 'success' ? '#46b450' : toastMsg.type === 'warning' ? '#ff9800' : '#6366f1'}`,
+          color: '#fff',
+        }}>
+          <span>{toastMsg.text}</span>
+          <button onClick={() => setToastMsg(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+        </div>
+      )}
+
+      {/* Worker Status & Remote Link Queue Box */}
       <div style={{
         background: 'var(--bg2)',
         padding: '20px',
@@ -162,8 +256,39 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
         border: '1px solid rgba(255,255,255,0.1)',
         marginBottom: '25px',
       }}>
+        {/* Worker Heartbeat Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingBottom: '16px',
+          marginBottom: '16px',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              background: workerOnline ? '#46b450' : '#ff9800',
+              boxShadow: workerOnline ? '0 0 10px #46b450' : '0 0 10px #ff9800',
+            }} />
+            <span style={{ fontSize: '13px', fontWeight: '700', color: workerOnline ? '#46b450' : '#ff9800' }}>
+              {workerOnline ? 'VPS Compression Worker: ONLINE (24/7 PM2 Active)' : 'Compression Worker: OFFLINE (Standby)'}
+            </span>
+          </div>
+
+          {!workerOnline && (
+            <div style={{ fontSize: '12px', color: 'var(--text2)', background: 'rgba(255,152,0,0.08)', padding: '6px 12px', borderRadius: '6px', border: '1px solid rgba(255,152,0,0.2)' }}>
+              To run worker: VPS uses <code>pm2 start flixon-compressor</code> or on your PC double-click <strong>run-compressor.bat</strong>
+            </div>
+          )}
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <h3 style={{ margin: 0, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>⚡</span> Queue Direct Video Link for Squeeze Compression
           </h3>
           <span style={{ fontSize: '12px', color: 'var(--text3)' }}>
@@ -261,7 +386,49 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
         </div>
       ))}
 
-      {/* Filter / Search Bar */}
+      {/* Filter Tabs Bar (All / Uncompressed / Compressed / Queue) */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '12px',
+        marginBottom: '16px',
+      }}>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {[
+            { id: 'all', label: `All Videos (${videos.length})` },
+            { id: 'uncompressed', label: `🎞️ Uncompressed (${stats.uncompressedCount})` },
+            { id: 'compressed', label: `✅ Squeeze Compressed (${stats.compressedCount})` },
+            { id: 'queue', label: `⏳ Queue (${stats.queueCount})` },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => { setFilterTab(tab.id); setVisibleCount(PAGE_SIZE); }}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                border: '1px solid',
+                background: filterTab === tab.id ? 'var(--acc)' : 'var(--bg2)',
+                borderColor: filterTab === tab.id ? 'var(--acc)' : 'rgba(255,255,255,0.1)',
+                color: filterTab === tab.id ? '#fff' : 'var(--text2)',
+                transition: 'all 0.15s',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <span style={{ color: 'var(--text3)', fontSize: '13px' }}>
+          Showing {visibleVideos.length} of {filteredVideos.length} videos
+        </span>
+      </div>
+
+      {/* Search & Sort Controls */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 240px' }}>
           <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '14px', pointerEvents: 'none' }}>🔍</span>
@@ -269,7 +436,7 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
             type="text"
             placeholder={`Search ${currentProvider.toUpperCase()} files by filename...`}
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE); }}
             style={{
               width: '100%', padding: '9px 12px 9px 36px', boxSizing: 'border-box',
               background: 'var(--bg2)', border: '1px solid var(--border)',
@@ -301,10 +468,6 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
             </button>
           ))}
         </div>
-
-        <span style={{ color: 'var(--text3)', fontSize: '13px', flexShrink: 0 }}>
-          {sortedVideos.length} of {videos.length} videos
-        </span>
       </div>
 
       {/* Table */}
@@ -313,9 +476,9 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text2)' }}>
             No video files found in {currentProvider.toUpperCase()} bucket ({bucketName}).
           </div>
-        ) : sortedVideos.length === 0 ? (
+        ) : filteredVideos.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text2)' }}>
-            No videos match your search. <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: 'var(--acc)', cursor: 'pointer', textDecoration: 'underline' }}>Clear search</button>
+            No videos match this filter. <button onClick={() => { setSearch(''); setFilterTab('all'); }} style={{ background: 'none', border: 'none', color: 'var(--acc)', cursor: 'pointer', textDecoration: 'underline' }}>Show all</button>
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -323,8 +486,8 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
               <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
                 <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px' }}>FILE NAME</th>
                 <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px', cursor: 'pointer' }} onClick={() => setSortBy(sortBy === 'largest' ? 'smallest' : 'largest')}>SIZE {sortBy === 'largest' ? '▼' : sortBy === 'smallest' ? '▲' : ''}</th>
-                <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px' }}>SAVED</th>
-                <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px' }}>VPS STATUS</th>
+                <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px' }}>SAVINGS</th>
+                <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px' }}>STATUS & TAG</th>
                 <th style={{ padding: '14px 18px', color: 'var(--text3)', fontWeight: '600', fontSize: '12px', textAlign: 'right' }}>ACTIONS</th>
               </tr>
             </thead>
@@ -333,7 +496,8 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
                 const job = jobs[video.key];
                 const isProcessing = job?.status === 'processing';
                 const isPending = job?.status === 'pending';
-                const isDone = job?.status === 'completed';
+                const isDone = isVideoCompressed(video);
+                const isTaggedName = (video.key || '').toLowerCase().includes('_compressed') || (video.key || '').toLowerCase().includes('.compressed') || (video.key || '').toLowerCase().includes('-compressed');
 
                 return (
                   <tr key={video.key} style={{
@@ -351,7 +515,7 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
                       {formatBytes(video.size)}
                     </td>
                     <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
-                      {isDone && job?.original_size && job?.compressed_size ? (
+                      {job?.status === 'completed' && job?.original_size && job?.compressed_size ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                           <span style={{ color: 'var(--text3)', fontSize: '11px', textDecoration: 'line-through' }}>{formatBytes(job.original_size)}</span>
                           <span style={{ color: '#46b450', fontSize: '12px', fontWeight: '700' }}>
@@ -361,6 +525,8 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
                             {Math.round((1 - job.compressed_size / job.original_size) * 100)}% saved
                           </span>
                         </div>
+                      ) : isDone ? (
+                        <span style={{ color: '#46b450', fontSize: '12px', fontWeight: '600' }}>✓ Optimized</span>
                       ) : (
                         <span style={{ color: 'var(--text3)', fontSize: '12px' }}>—</span>
                       )}
@@ -368,11 +534,11 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
                     <td style={{ padding: '14px 18px' }}>
                       {job ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <StatusBadge status={job.status} progress={job.progress} />
+                          <StatusBadge status={job.status} progress={job.progress} isTaggedName={isTaggedName} />
                           <ProgressBar progress={job.progress} status={job.status} />
                         </div>
                       ) : (
-                        <span style={{ color: 'var(--text3)', fontSize: '12px' }}>Raw File</span>
+                        <StatusBadge status={isDone ? 'completed' : null} progress={null} isTaggedName={isTaggedName} />
                       )}
                     </td>
                     <td style={{ padding: '14px 18px', textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -391,23 +557,41 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
                         >
                           👁 Preview
                         </button>
-                        <button
-                          onClick={() => handleCompress(video.key)}
-                          disabled={isProcessing || isPending || loadingKey === video.key}
-                          style={{
-                            padding: '6px 14px',
-                            background: isDone ? 'rgba(70,180,80,0.15)' : 'var(--acc)',
-                            border: isDone ? '1px solid #46b450' : 'none',
-                            color: '#fff',
-                            borderRadius: '5px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            cursor: (isProcessing || isPending || loadingKey === video.key) ? 'not-allowed' : 'pointer',
-                            opacity: (isProcessing || isPending || loadingKey === video.key) ? 0.6 : 1,
-                          }}
-                        >
-                          {loadingKey === video.key ? 'Queueing...' : isDone ? 'Re-compress' : isProcessing ? 'Compressing...' : '🗜 Squeeze'}
-                        </button>
+
+                        {isPending || isProcessing ? (
+                          <button
+                            onClick={() => handleCancel(job.id)}
+                            style={{
+                              padding: '6px 12px',
+                              background: 'rgba(229,9,20,0.15)',
+                              border: '1px solid #e50914',
+                              color: '#fff',
+                              borderRadius: '5px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleCompress(video.key)}
+                            disabled={loadingKey === video.key}
+                            style={{
+                              padding: '6px 14px',
+                              background: isDone ? 'rgba(70,180,80,0.15)' : 'var(--acc)',
+                              border: isDone ? '1px solid #46b450' : 'none',
+                              color: '#fff',
+                              borderRadius: '5px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: loadingKey === video.key ? 'not-allowed' : 'pointer',
+                              opacity: loadingKey === video.key ? 0.6 : 1,
+                            }}
+                          >
+                            {loadingKey === video.key ? 'Queueing...' : isDone ? 'Re-compress' : '🗜 Squeeze'}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -417,7 +601,7 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
           </table>
         )}
 
-        {sortedVideos.length > visibleCount && (
+        {filteredVideos.length > visibleCount && (
           <div style={{ padding: '20px', textAlign: 'center', borderTop: '1px solid var(--border)' }}>
             <button
               onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
@@ -426,7 +610,7 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
                 color: '#fff', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600'
               }}
             >
-              Load more ({sortedVideos.length - visibleCount} remaining)
+              Load more ({filteredVideos.length - visibleCount} remaining)
             </button>
           </div>
         )}
