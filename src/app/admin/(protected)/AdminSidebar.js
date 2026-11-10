@@ -58,9 +58,9 @@ export default function AdminSidebar({ unreadSupportCount, pendingPayoutsCount =
           <Link href="/admin/series" style={{ color: '#fff', fontSize: '14px' }}>📺 Manage Series</Link>
           <Link href="/admin/collections" style={{ color: '#fff', fontSize: '14px' }}>📁 Collections</Link>
           <Link href="/admin/tmdb" style={{ color: '#fff', fontSize: '14px' }}>☁ TMDB Importer</Link>
-          <Link href="/admin/movies/cloudflare-import" style={{ color: '#fff', fontSize: '14px' }}>🌩 Cloudflare Import</Link>
+          <Link href="/admin/movies/cloudflare-import" style={{ color: '#fff', fontSize: '14px' }}>☁️ Storage Import (B2/R2)</Link>
           <Link href="/admin/movies/upload" style={{ color: '#fff', fontSize: '14px' }}>⬆ Direct Upload</Link>
-          <Link href="/admin/movies/compress-existing" style={{ color: '#fff', fontSize: '14px' }}>🗜 Compress Existing</Link>
+          <Link href="/admin/movies/compress-existing" style={{ color: '#fff', fontSize: '14px' }}>🗜 Squeeze VPS Compressor</Link>
           <Link href="/admin/movies/quarantine" style={{ color: '#e50914', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>🚫 Quarantined Movies</span>
           </Link>
@@ -96,7 +96,7 @@ export default function AdminSidebar({ unreadSupportCount, pendingPayoutsCount =
           <Link href="/admin/homepage" style={{ color: '#fff', fontSize: '14px' }}>🏠 Homepage Layout</Link>
           <Link href="/admin/settings" style={{ color: '#fff', fontSize: '14px' }}>⚙ Settings & API Keys</Link>
           <Link href="/admin/backups" style={{ color: '#fff', fontSize: '14px' }}>💾 Database Backups</Link>
-          <Link href="/admin/cache-warmer" style={{ color: '#fff', fontSize: '14px' }}>🔥 Cache Warmer</Link>
+          <Link href="/admin/cache-warmer" style={{ color: '#fff', fontSize: '14px' }}>🔥 Storage Hub & Warmer</Link>
           <Link href="/admin/security-logs" style={{ color: '#fff', fontSize: '14px' }}>🛡 Security Center</Link>
           <Link href="/admin/test-payment" style={{ color: '#ffeb3b', fontSize: '14px' }}>🧪 Test Payments</Link>
           <Link href="/" style={{ color: 'var(--text2)', fontSize: '13px', marginTop: '20px' }}>⬅ Back to Site</Link>

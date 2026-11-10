@@ -1,69 +1,94 @@
-'use server'
-const { createAdminClient: _injectedAdminClient } = require('@/utils/supabase/admin');;
+'use server';
 
 import { createClient } from '@/utils/supabase/server';
-import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { queueCompressionJob } from '../upload/actions';
+import { createAdminClient } from '@/utils/supabase/admin';
+import { getStorageClient, getStoragePublicUrl } from '@/utils/storage';
+import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 
-export async function listR2Videos(prefix = '') {
+export async function listStorageVideos(provider = 'b2', prefix = '') {
   const supabase = await createClient();
-  
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Not authenticated' };
 
-  const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*');
-  const accountId = settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value;
-  const accessKey = settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value;
-  const secretKey = settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value;
-  const bucketName = settings?.find(s => s.setting_key === 'r2_bucket_name')?.setting_value;
-
-  if (!accountId || !accessKey || !secretKey || !bucketName) {
-    return { error: 'R2 Settings missing in Admin' };
-  }
-
-  const s3 = new S3Client({
-    region: 'auto',
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
-  });
-
   try {
+    const { client, config } = await getStorageClient(provider);
     const allVideos = [];
     let continuationToken = undefined;
 
-    // R2 returns max 1000 per page — loop until we have everything
     do {
       const command = new ListObjectsV2Command({
-        Bucket: bucketName,
+        Bucket: config.bucketName,
         Prefix: prefix,
         MaxKeys: 1000,
         ContinuationToken: continuationToken,
       });
 
-      const response = await s3.send(command);
+      const response = await client.send(command);
 
       const page = (response.Contents || [])
         .filter(obj => {
-          const key = obj.Key.toLowerCase();
+          const key = (obj.Key || '').toLowerCase();
           return key.endsWith('.mp4') || key.endsWith('.mkv') || key.endsWith('.webm') || key.endsWith('.mov') || key.endsWith('.avi');
         })
         .map(obj => ({
           key: obj.Key,
           size: obj.Size,
           lastModified: obj.LastModified,
+          url: getStoragePublicUrl(obj.Key, config.provider),
         }));
 
       allVideos.push(...page);
       continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
     } while (continuationToken);
 
-    return { videos: allVideos };
+    return { videos: allVideos, provider: config.provider, bucket: config.bucketName };
   } catch (err) {
-    console.error('S3 List Error:', err);
+    console.error('Storage List Error:', err);
     return { error: err.message };
   }
 }
 
-export async function queueExistingJob(videoKey) {
-  return await queueCompressionJob(videoKey);
+// Backwards-compatible alias
+export async function listR2Videos(prefix = '') {
+  return await listStorageVideos('r2', prefix);
+}
+
+export async function queueExistingJob(videoKey, sourceUrl = null, provider = 'b2') {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  let targetKey = videoKey;
+  if (sourceUrl) {
+    const fileName = videoKey || sourceUrl.split('/').pop().split('?')[0] || `video_${Date.now()}.mp4`;
+    targetKey = `URL|${sourceUrl}|${fileName}`;
+  }
+
+  if (!targetKey) return { error: 'Missing video key or source URL' };
+
+  const adminClient = createAdminClient();
+
+  const { data: existing } = await adminClient
+    .from('compression_jobs')
+    .select('id, status')
+    .eq('video_key', targetKey)
+    .in('status', ['pending', 'processing'])
+    .maybeSingle();
+
+  if (existing) {
+    return { success: true, message: 'Job already queued or running' };
+  }
+
+  const { data, error } = await adminClient
+    .from('compression_jobs')
+    .insert({
+      video_key: targetKey,
+      status: 'pending',
+      progress: 0,
+    })
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  return { success: true, job: data };
 }

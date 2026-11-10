@@ -22,32 +22,59 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { filename, contentType } = await request.json();
+    const { filename, contentType, provider: requestedProvider } = await request.json();
     if (!filename) return NextResponse.json({ error: 'Filename is required' }, { status: 400 });
 
-    // Get R2 Settings
+    // Get Storage Settings
     const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*');
-    const accountId = settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value;
-    const accessKey = settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value;
-    const secretKey = settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value;
-    const bucketName = settings?.find(s => s.setting_key === 'r2_bucket_name')?.setting_value;
+    const getSetting = (k, fallback = '') => settings?.find(s => s.setting_key === k)?.setting_value || fallback;
 
-    if (!accountId || !accessKey || !secretKey || !bucketName) {
-      return NextResponse.json({ error: 'R2 Settings missing in Admin' }, { status: 500 });
-    }
+    const defaultProvider = getSetting('storage_provider', 'b2');
+    const provider = requestedProvider || defaultProvider;
 
-    const s3 = new S3Client({
-      region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: accessKey,
-        secretAccessKey: secretKey,
-      },
-    });
-
-    // Use the exact filename provided by the user
-    // Clean it up just in case (remove paths) and replace spaces with hyphens
+    let s3;
+    let bucketName;
     const cleanFilename = filename.split(/[/\\]/).pop().replace(/\s+/g, '-');
+
+    if (provider === 'b2') {
+      const b2Endpoint = getSetting('b2_endpoint', 'https://s3.us-east-005.backblazeb2.com');
+      const b2Region = getSetting('b2_region', 'us-east-005');
+      bucketName = getSetting('b2_bucket_name', 'flixonvideos');
+      const b2AccessKey = getSetting('b2_access_key', '005f55e2928c64f0000000001');
+      const b2SecretKey = getSetting('b2_secret_key', 'K005hcUWnse5QGvejFWTgegbDRKjaD0');
+
+      if (!b2AccessKey || !b2SecretKey || !bucketName) {
+        return NextResponse.json({ error: 'Backblaze B2 settings missing in Admin' }, { status: 500 });
+      }
+
+      s3 = new S3Client({
+        region: b2Region,
+        endpoint: b2Endpoint,
+        credentials: {
+          accessKeyId: b2AccessKey,
+          secretAccessKey: b2SecretKey,
+        },
+        forcePathStyle: true,
+      });
+    } else {
+      const accountId = getSetting('r2_account_id');
+      const accessKey = getSetting('r2_access_key');
+      const secretKey = getSetting('r2_secret_key');
+      bucketName = getSetting('r2_bucket_name', 'movies');
+
+      if (!accountId || !accessKey || !secretKey || !bucketName) {
+        return NextResponse.json({ error: 'Cloudflare R2 settings missing in Admin' }, { status: 500 });
+      }
+
+      s3 = new S3Client({
+        region: 'auto',
+        endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId: accessKey,
+          secretAccessKey: secretKey,
+        },
+      });
+    }
 
     const command = new PutObjectCommand({
       Bucket: bucketName,
@@ -57,7 +84,18 @@ export async function POST(request) {
 
     const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 }); // 1 hour
 
-    return NextResponse.json({ url: signedUrl, key: cleanFilename });
+    let cdnDomain = getSetting('cdn_domain', 'cdn.flixon.net');
+    if (cdnDomain && !cdnDomain.startsWith('http')) cdnDomain = `https://${cdnDomain}`;
+    cdnDomain = cdnDomain.replace(/\/$/, '');
+    const cdnUrl = `${cdnDomain}/${encodeURIComponent(cleanFilename)}`;
+
+    return NextResponse.json({
+      url: signedUrl,
+      key: cleanFilename,
+      provider,
+      bucket: bucketName,
+      cdnUrl
+    });
 
   } catch (error) {
     console.error('Presign Error:', error);

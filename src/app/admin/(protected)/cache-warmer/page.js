@@ -1,31 +1,42 @@
 import { createClient } from '@/utils/supabase/server';
+import { getStorageConfig } from '@/utils/storage';
 import WarmerClient from './WarmerClient';
 
-export const metadata = { title: 'Cache Warmer — Admin' };
+export const metadata = { title: '🔥 Storage Hub & Video Warmer — Admin' };
+export const dynamic = 'force-dynamic';
 
 export default async function CacheWarmerPage() {
   const supabase = await createClient();
 
-  // Fetch all video URLs
+  // Fetch all active movies with video URLs
   const { data: movies } = await supabase
     .from('movies')
-    .select('title, video_url')
+    .select('id, title, video_url')
     .not('video_url', 'is', null)
-    .neq('video_url', '');
+    .neq('video_url', '')
+    .order('created_at', { ascending: false });
+
+  let defaultProvider = 'b2';
+  try {
+    const config = await getStorageConfig();
+    defaultProvider = config.provider;
+  } catch (_) {}
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '28px', margin: 0 }}>Video Cache Warmer</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>🔥</span> Storage Hub & Video Warmer
+          </h1>
+          <p style={{ color: 'var(--text2)', margin: 0, maxWidth: '800px', lineHeight: '1.5' }}>
+            Comprehensive storage management across <strong>Backblaze B2</strong> and <strong>Cloudflare R2</strong>.
+            Warm videos on the CDN edge for 0 buffering, search and preview bucket files, scan and clean duplicate raw videos, and stream batch external URLs directly into storage!
+          </p>
+        </div>
       </div>
-      
-      <p style={{ color: 'var(--text2)', marginBottom: '30px', maxWidth: '800px', lineHeight: '1.6' }}>
-        Use this tool to automatically load and play a few seconds of your videos in the background. 
-        This forces Cloudflare and CDN edge servers to cache the video segments, ensuring real users 
-        experience zero buffering when they start watching.
-      </p>
 
-      <WarmerClient dbMovies={movies || []} />
+      <WarmerClient dbMovies={movies || []} initialProvider={defaultProvider} />
     </div>
   );
 }

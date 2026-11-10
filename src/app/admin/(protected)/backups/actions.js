@@ -7,13 +7,35 @@ import { revalidatePath } from 'next/cache';
 
 async function getR2Client(supabase) {
   const { data: settings } = await _injectedAdminClient().from('admin_settings').select('*');
-  const accountId = settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value;
-  const accessKey = settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value;
-  const secretKey = settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value;
-  const bucketName = settings?.find(s => s.setting_key === 'r2_bucket_name')?.setting_value;
+  const getSetting = (k, fallback = '') => settings?.find(s => s.setting_key === k)?.setting_value || fallback;
+  const provider = getSetting('storage_provider', 'b2');
+
+  if (provider === 'b2') {
+    const b2Endpoint = getSetting('b2_endpoint', 'https://s3.us-east-005.backblazeb2.com');
+    const b2Region = getSetting('b2_region', 'us-east-005');
+    const bucketName = getSetting('b2_bucket_name', 'flixonvideos');
+    const b2AccessKey = getSetting('b2_access_key', '005f55e2928c64f0000000001');
+    const b2SecretKey = getSetting('b2_secret_key', 'K005hcUWnse5QGvejFWTgegbDRKjaD0');
+
+    if (b2AccessKey && b2SecretKey && bucketName) {
+      const s3 = new S3Client({
+        region: b2Region,
+        endpoint: b2Endpoint,
+        credentials: { accessKeyId: b2AccessKey, secretAccessKey: b2SecretKey },
+        forcePathStyle: true,
+      });
+      return { s3, bucketName, provider: 'b2' };
+    }
+  }
+
+  // Fallback to Cloudflare R2
+  const accountId = getSetting('r2_account_id');
+  const accessKey = getSetting('r2_access_key');
+  const secretKey = getSetting('r2_secret_key');
+  const bucketName = getSetting('r2_bucket_name');
 
   if (!accountId || !accessKey || !secretKey || !bucketName) {
-    throw new Error('R2 credentials not fully configured in settings.');
+    throw new Error('Storage credentials (Backblaze B2 or Cloudflare R2) not fully configured in settings.');
   }
 
   const s3 = new S3Client({
@@ -25,7 +47,7 @@ async function getR2Client(supabase) {
     },
   });
 
-  return { s3, bucketName, accountId };
+  return { s3, bucketName, accountId, provider: 'r2' };
 }
 
 export async function listBackups() {

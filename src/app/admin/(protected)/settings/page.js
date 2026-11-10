@@ -302,60 +302,144 @@ export default async function AdminSettingsPage() {
 
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '30px 0' }} />
 
-        <h3 style={{ margin: '0 0 15px', color: 'var(--acc)' }}>Cloudflare R2 Integration</h3>
-        <p style={{ fontSize: '13px', color: 'var(--text3)', marginBottom: '15px' }}>Used for scanning and importing videos directly from your R2 storage bucket.</p>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px' }}>Cloudflare Account ID</label>
-            <input 
-              type="text" 
-              name="r2_account_id" 
-              defaultValue={settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value || ''}
-              style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
-            />
+        {/* Cloud Video Storage Settings: Backblaze B2 & Cloudflare R2 */}
+        <h3 style={{ margin: '0 0 6px', color: 'var(--acc)' }}>☁️ Cloud Video Storage (Backblaze B2 &amp; Cloudflare R2)</h3>
+        <p style={{ fontSize: '13px', color: 'var(--text3)', marginBottom: '20px' }}>
+          Configure your storage buckets for direct video imports, uploads, and automated backups.
+        </p>
+
+        {/* Primary Storage Provider Selector */}
+        <div style={{ marginBottom: '20px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', fontSize: '13px' }}>
+            Primary Storage Provider
+          </label>
+          <div style={{ display: 'flex', gap: '20px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+              <input
+                type="radio"
+                name="storage_provider"
+                value="b2"
+                defaultChecked={(settings?.find(s => s.setting_key === 'storage_provider')?.setting_value || 'b2') === 'b2'}
+              />
+              <span style={{ fontWeight: '600', color: '#c084fc' }}>🟣 Backblaze B2 (Active / Bandwidth Alliance)</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+              <input
+                type="radio"
+                name="storage_provider"
+                value="r2"
+                defaultChecked={settings?.find(s => s.setting_key === 'storage_provider')?.setting_value === 'r2'}
+              />
+              <span style={{ fontWeight: '600', color: '#f97316' }}>🟠 Cloudflare R2</span>
+            </label>
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px' }}>R2 Bucket Name</label>
-            <input 
-              type="text" 
-              name="r2_bucket_name" 
-              defaultValue={settings?.find(s => s.setting_key === 'r2_bucket_name')?.setting_value || ''}
-              style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
-            />
+          <p style={{ fontSize: '12px', color: 'var(--text3)', margin: '8px 0 0' }}>
+            Both providers are fully supported simultaneously. You can import from both B2 and R2 buckets anytime.
+          </p>
+        </div>
+
+        {/* Backblaze B2 Section */}
+        <div style={{ background: 'rgba(192, 132, 252, 0.05)', border: '1px solid rgba(192, 132, 252, 0.2)', padding: '18px', borderRadius: '8px', marginBottom: '20px' }}>
+          <h4 style={{ margin: '0 0 12px', color: '#c084fc', fontSize: '14px', fontWeight: '700' }}>🟣 Backblaze B2 Configuration</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px' }}>B2 S3 Endpoint</label>
+              <input 
+                type="text" 
+                name="b2_endpoint" 
+                defaultValue={settings?.find(s => s.setting_key === 'b2_endpoint')?.setting_value || 'https://s3.us-east-005.backblazeb2.com'}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', fontSize: '13px' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px' }}>B2 Bucket Name</label>
+              <input 
+                type="text" 
+                name="b2_bucket_name" 
+                defaultValue={settings?.find(s => s.setting_key === 'b2_bucket_name')?.setting_value || 'flixonvideos'}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', fontSize: '13px' }}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px' }}>B2 Key ID (Access Key)</label>
+              <input 
+                type="text" 
+                name="b2_access_key" 
+                defaultValue={settings?.find(s => s.setting_key === 'b2_access_key')?.setting_value || ''}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', fontSize: '13px' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px' }}>B2 Application Key (Secret Key)</label>
+              <input 
+                type="password" 
+                name="b2_secret_key" 
+                defaultValue={settings?.find(s => s.setting_key === 'b2_secret_key')?.setting_value || ''}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', fontSize: '13px' }}
+              />
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px' }}>R2 Access Key ID</label>
-            <input 
-              type="text" 
-              name="r2_access_key" 
-              defaultValue={settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value || ''}
-              style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
-            />
+        {/* Cloudflare R2 Section */}
+        <div style={{ background: 'rgba(249, 115, 22, 0.05)', border: '1px solid rgba(249, 115, 22, 0.2)', padding: '18px', borderRadius: '8px', marginBottom: '20px' }}>
+          <h4 style={{ margin: '0 0 12px', color: '#f97316', fontSize: '14px', fontWeight: '700' }}>🟠 Cloudflare R2 Configuration</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px' }}>Cloudflare Account ID</label>
+              <input 
+                type="text" 
+                name="r2_account_id" 
+                defaultValue={settings?.find(s => s.setting_key === 'r2_account_id')?.setting_value || ''}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', fontSize: '13px' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px' }}>R2 Bucket Name</label>
+              <input 
+                type="text" 
+                name="r2_bucket_name" 
+                defaultValue={settings?.find(s => s.setting_key === 'r2_bucket_name')?.setting_value || ''}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', fontSize: '13px' }}
+              />
+            </div>
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px' }}>R2 Secret Access Key</label>
-            <input 
-              type="password" 
-              name="r2_secret_key" 
-              defaultValue={settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value || ''}
-              style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px' }}>R2 Access Key ID</label>
+              <input 
+                type="text" 
+                name="r2_access_key" 
+                defaultValue={settings?.find(s => s.setting_key === 'r2_access_key')?.setting_value || ''}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', fontSize: '13px' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px' }}>R2 Secret Access Key</label>
+              <input 
+                type="password" 
+                name="r2_secret_key" 
+                defaultValue={settings?.find(s => s.setting_key === 'r2_secret_key')?.setting_value || ''}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', fontSize: '13px' }}
+              />
+            </div>
           </div>
         </div>
 
         <div style={{ marginBottom: '25px' }}>
-          <label style={{ display: 'block', marginBottom: '8px' }}>CDN Domain</label>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', fontSize: '13px' }}>CDN Domain (Public Streaming)</label>
           <input 
             type="text" 
             name="cdn_domain" 
             placeholder="e.g. cdn.flixon.net"
-            defaultValue={settings?.find(s => s.setting_key === 'cdn_domain')?.setting_value || ''}
+            defaultValue={settings?.find(s => s.setting_key === 'cdn_domain')?.setting_value || 'cdn.flixon.net'}
             style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px' }}
           />
+          <p style={{ fontSize: '12px', color: 'var(--text3)', margin: '6px 0 0' }}>
+            All video links are generated through this CDN domain (e.g. <code>https://cdn.flixon.net/filename.mp4</code>) with Cloudflare CDN caching and $0 egress.
+          </p>
         </div>
 
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '30px 0' }} />

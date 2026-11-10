@@ -33,6 +33,10 @@ jobs:
 
             echo "🔄 Reloading FlixOn with zero downtime..."
             pm2 reload flixon || pm2 restart flixon
+
+            echo "🗜 Ensuring background Squeeze compressor service is running..."
+            (which ffmpeg > /dev/null 2>&1) || (apt-get update -qq && apt-get install -y -qq ffmpeg || true)
+            pm2 describe flixon-compressor > /dev/null 2>&1 && pm2 reload flixon-compressor || pm2 start scripts/compressor.js --name "flixon-compressor" --time
             pm2 save
 
             echo "🎉 Deployment successfully completed!"
