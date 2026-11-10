@@ -107,7 +107,7 @@ jobs:
 
             echo "⚡ Starting 24/7 Squeeze Background Compressor Engine on PM2..."
             pm2 delete flixon-compressor > /dev/null 2>&1 || true
-            pm2 start scripts/compressor.js --name "flixon-compressor" --time
+            pm2 start scripts/compressor.js --name "flixon-compressor" --cwd /var/www/flixon --time
 
             pm2 save
             sleep 4
