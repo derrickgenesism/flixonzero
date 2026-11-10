@@ -1,11 +1,11 @@
 {
-  "commit": "e498a56",
-  "fullCommit": "e498a56ce636391d9287c528d1ee9dc7ac161a3d",
-  "message": "feat: robust zero-downtime deploy with blue-green releases, auto-rollback, health check, and manual rollback workflow",
+  "commit": "d97a45b",
+  "fullCommit": "d97a45bd5e8728b9b2cc3939a8b403e46949cfaa",
+  "message": "feat(compress): add full live VPS queue table, active queue count, and transparent job tracking",
   "author": "derrickgenesism",
-  "commitDate": "Tue Nov 10 09:20:44 2026 +0300",
-  "deployedAt": "2026-11-10T06:40:32.935Z",
-  "deployedAtEAT": "10 Nov 2026, 09:40 am EAT",
+  "commitDate": "Tue Nov 10 10:35:36 2026 +0300",
+  "deployedAt": "2026-11-10T07:35:55.974Z",
+  "deployedAtEAT": "10 Nov 2026, 10:35 am EAT",
   "timeZone": "Africa/Kampala (EAT, UTC+3)",
   "repository": "derrickgenesism/flixonzero"
 }
