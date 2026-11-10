@@ -1,0 +1,84 @@
+name: 🔙 Manual Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      steps_back:
+        description: 'How many releases to roll back (1 = previous, 2 = two ago, etc.)'
+        required: false
+        default: '1'
+      confirm:
+        description: 'Type ROLLBACK to confirm'
+        required: true
+
+jobs:
+  rollback:
+    name: 🔙 Rollback FlixOn to Previous Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate confirmation
+        if: ${{ github.event.inputs.confirm != 'ROLLBACK' }}
+        run: |
+          echo "❌ Confirmation failed. You must type ROLLBACK exactly."
+          exit 1
+
+      - name: Execute rollback on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST || '161.129.65.113' }}
+          username: ${{ secrets.VPS_USER || 'root' }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+
+            SITE_DIR="/var/www/flixon"
+            RELEASES_DIR="/var/www/flixon-releases"
+            STEPS_BACK="${{ github.event.inputs.steps_back }}"
+
+            echo "========================================================"
+            echo "  FlixOn MANUAL ROLLBACK — $STEPS_BACK step(s) back"
+            echo "========================================================"
+
+            # List releases sorted newest first
+            RELEASES=($(ls -1dt "$RELEASES_DIR"/[0-9]* 2>/dev/null))
+            TOTAL=${#RELEASES[@]}
+
+            if [ "$TOTAL" -eq 0 ]; then
+              echo "❌ No releases found in $RELEASES_DIR"
+              exit 1
+            fi
+
+            echo "Available releases:"
+            for i in "${!RELEASES[@]}"; do
+              CURRENT_MARK=""
+              CURRENT=$(readlink -f "$SITE_DIR" 2>/dev/null || echo "")
+              [ "${RELEASES[$i]}" = "$CURRENT" ] && CURRENT_MARK=" ← CURRENT"
+              echo "  [$i] ${RELEASES[$i]}$CURRENT_MARK"
+            done
+
+            TARGET_INDEX="$STEPS_BACK"
+            if [ "$TARGET_INDEX" -ge "$TOTAL" ]; then
+              echo "❌ Only $TOTAL release(s) available — cannot go back $STEPS_BACK"
+              exit 1
+            fi
+
+            TARGET_RELEASE="${RELEASES[$TARGET_INDEX]}"
+            echo ""
+            echo "🎯 Rolling back to: $TARGET_RELEASE"
+
+            ln -sfn "$TARGET_RELEASE" "$SITE_DIR"
+            pm2 reload flixon --update-env || pm2 restart flixon --update-env
+            sleep 4
+
+            # Health check after rollback
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "http://localhost:3000/api/deployment" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Rollback successful! Site responding (HTTP 200)"
+            else
+              echo "⚠️  Rollback done but health check returned $HTTP_CODE — check manually"
+            fi
+
+            echo ""
+            echo "Active release is now: $(readlink -f $SITE_DIR)"
