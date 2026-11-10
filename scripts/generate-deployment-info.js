@@ -19,7 +19,19 @@ try {
     console.warn('Could not read git details, using fallback:', err.message);
   }
 
-  const deployedAt = new Date().toISOString();
+  const now = new Date();
+  const deployedAt = now.toISOString();
+
+  // Format explicitly into East African Time (Uganda / Kampala, UTC+3)
+  const deployedAtEAT = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Kampala',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(now) + ' EAT';
 
   const deploymentData = {
     commit,
@@ -28,6 +40,8 @@ try {
     author,
     commitDate,
     deployedAt,
+    deployedAtEAT,
+    timeZone: 'Africa/Kampala (EAT, UTC+3)',
     repository: 'derrickgenesism/flixonzero'
   };
 
@@ -41,7 +55,7 @@ try {
     JSON.stringify(deploymentData, null, 2)
   );
 
-  console.log('✅ Generated public/deployment.json successfully:');
+  console.log('✅ Generated public/deployment.json successfully (East African Time):');
   console.log(deploymentData);
 } catch (error) {
   console.error('Failed to generate deployment info:', error);

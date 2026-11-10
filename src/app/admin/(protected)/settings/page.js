@@ -79,7 +79,7 @@ export default async function AdminSettingsPage() {
           <div>
             <span style={{ color: 'var(--text3)', display: 'block', fontSize: '11px', marginBottom: '2px' }}>Deployed At</span>
             <span style={{ color: 'var(--text1)', fontWeight: '500' }}>
-              {deploymentInfo?.deployedAt ? new Date(deploymentInfo.deployedAt).toLocaleString() : 'Recent'}
+              {deploymentInfo?.deployedAtEAT || (deploymentInfo?.deployedAt ? new Date(deploymentInfo.deployedAt).toLocaleString('en-UG', { timeZone: 'Africa/Kampala', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) + ' EAT' : 'Recent')}
             </span>
           </div>
         </div>

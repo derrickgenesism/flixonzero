@@ -90,5 +90,18 @@ export async function queueExistingJob(videoKey, sourceUrl = null, provider = 'b
     .single();
 
   if (error) return { error: error.message };
+
+  // Auto-wake background compressor if needed
+  try {
+    const { spawn } = await import('child_process');
+    const path = await import('path');
+    const scriptPath = path.resolve(process.cwd(), 'scripts', 'compressor.js');
+    const child = spawn(process.execPath, [scriptPath], {
+      detached: true,
+      stdio: 'ignore'
+    });
+    child.unref();
+  } catch (_) {}
+
   return { success: true, job: data };
 }

@@ -93,10 +93,22 @@ export async function POST(request) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
+    // Auto-wake background compressor if needed
+    try {
+      const { spawn } = await import('child_process');
+      const path = await import('path');
+      const scriptPath = path.resolve(process.cwd(), 'scripts', 'compressor.js');
+      const child = spawn(process.execPath, [scriptPath], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      child.unref();
+    } catch (_) {}
+
     return NextResponse.json({
       success: true,
       job: newJob,
-      message: 'Video compression job queued successfully. The VPS will process it in the background.',
+      message: 'Video compression job queued successfully. The background engine will process it automatically.',
     });
   } catch (err) {
     console.error('Queue compression job error:', err);

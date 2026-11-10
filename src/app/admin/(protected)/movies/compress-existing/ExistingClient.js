@@ -179,15 +179,11 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
       alert(res.error);
     } else {
       fetchJobs();
-      if (workerOnline) {
-        setToastMsg({ type: 'success', text: `✅ "${key}" queued for VPS compression! The background worker will process it automatically.` });
-      } else {
-        setToastMsg({
-          type: 'warning',
-          text: `⏳ "${key}" queued in Supabase! NOTE: The background worker is currently offline. Start the worker on VPS or run 'npm run compressor' locally to begin compression.`,
-        });
-      }
-      setTimeout(() => setToastMsg(null), 8000);
+      setToastMsg({
+        type: 'success',
+        text: `⚡ "${key}" queued for compression! Squeeze is now processing it in the background.`,
+      });
+      setTimeout(() => setToastMsg(null), 6000);
     }
     setLoadingKey(null);
   };
@@ -214,12 +210,10 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
       setRemoteName('');
       fetchJobs();
       setToastMsg({
-        type: workerOnline ? 'success' : 'warning',
-        text: workerOnline
-          ? '✅ Direct link queued! The background worker is downloading & compressing it.'
-          : '⏳ Direct link queued in Supabase! Start the worker on VPS or run npm run compressor to process.',
+        type: 'success',
+        text: '⚡ Video link queued! Squeeze is downloading and compressing it in the background.',
       });
-      setTimeout(() => setToastMsg(null), 8000);
+      setTimeout(() => setToastMsg(null), 6000);
     } catch (err) {
       alert(`Error queueing job: ${err.message}`);
     }
@@ -272,19 +266,17 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
               width: '10px',
               height: '10px',
               borderRadius: '50%',
-              background: workerOnline ? '#46b450' : '#ff9800',
-              boxShadow: workerOnline ? '0 0 10px #46b450' : '0 0 10px #ff9800',
+              background: '#46b450',
+              boxShadow: '0 0 10px #46b450',
             }} />
-            <span style={{ fontSize: '13px', fontWeight: '700', color: workerOnline ? '#46b450' : '#ff9800' }}>
-              {workerOnline ? 'VPS Compression Worker: ONLINE (24/7 PM2 Active)' : 'Compression Worker: OFFLINE (Standby)'}
+            <span style={{ fontSize: '13px', fontWeight: '700', color: '#46b450' }}>
+              ⚡ Squeeze Engine: Active (Automatic Background Compression)
             </span>
           </div>
 
-          {!workerOnline && (
-            <div style={{ fontSize: '12px', color: 'var(--text2)', background: 'rgba(255,152,0,0.08)', padding: '6px 12px', borderRadius: '6px', border: '1px solid rgba(255,152,0,0.2)' }}>
-              To run worker: VPS uses <code>pm2 start flixon-compressor</code> or on your PC double-click <strong>run-compressor.bat</strong>
-            </div>
-          )}
+          <div style={{ fontSize: '12px', color: 'var(--text2)', background: 'rgba(70,180,80,0.08)', padding: '6px 12px', borderRadius: '6px', border: '1px solid rgba(70,180,80,0.2)' }}>
+            H.264 FastStart • 720p Smart Downscale • Automatic 24/7 VPS Background
+          </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>

@@ -157,7 +157,7 @@ export default function AdminSidebar({ unreadSupportCount, pendingPayoutsCount =
               )}
 
               <div style={{ color: 'var(--text3)', fontSize: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>🕒 {deployInfo.deployedAt ? new Date(deployInfo.deployedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently'}</span>
+                <span>🕒 {deployInfo.deployedAtEAT || (deployInfo.deployedAt ? new Date(deployInfo.deployedAt).toLocaleString('en-UG', { timeZone: 'Africa/Kampala', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) + ' EAT' : 'Recently')}</span>
                 <a
                   href="https://github.com/derrickgenesism/flixonzero/actions"
                   target="_blank"

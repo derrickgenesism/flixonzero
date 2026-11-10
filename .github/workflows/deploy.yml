@@ -142,7 +142,7 @@ jobs:
 
             # ── 10. Reload PM2 (zero downtime) ─────────────────────────
             echo "♻️  Reloading FlixOn PM2 process..."
-            pm2 reload flixon --update-env || pm2 restart flixon --update-env
+            pm2 restart flixon --update-env || (cd "$CURRENT_LINK" && pm2 start npm --name "flixon" -- start)
             sleep 4
 
             # ── 11. Health check (hits /api/deployment endpoint) ───────
@@ -177,10 +177,9 @@ jobs:
             # ── 12. Ensure compressor worker is running ─────────────────
             echo "🗜  Ensuring Squeeze compressor worker is running..."
             (which ffmpeg > /dev/null 2>&1) || (apt-get update -qq && apt-get install -y -qq ffmpeg || true)
-            cd "$NEW_RELEASE"
-            pm2 describe flixon-compressor > /dev/null 2>&1 \
-              && pm2 reload flixon-compressor \
-              || pm2 start scripts/compressor.js --name "flixon-compressor" --time
+            cd "$CURRENT_LINK"
+            pm2 delete flixon-compressor > /dev/null 2>&1 || true
+            pm2 start scripts/compressor.js --name "flixon-compressor" --time
             pm2 save
 
             # ── 13. Prune old releases (keep last MAX_RELEASES) ─────────

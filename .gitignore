@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Temporary downloads and video caches
+/temp/
+temp/
+*.mp4
+*.mkv

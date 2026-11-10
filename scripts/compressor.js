@@ -1,10 +1,24 @@
-require('dotenv').config({ path: '.env.local' });
-require('dotenv').config({ path: '.env' });
+const fs = require('fs');
+const path = require('path');
+
+// Robustly load env file across VPS releases, shared folder, or local dev
+const possibleEnvPaths = [
+  path.resolve(__dirname, '..', '.env.local'),
+  path.resolve(__dirname, '..', '.env'),
+  '/var/www/flixon/.env.local',
+  '/var/www/flixon-releases/.shared.env.local',
+  path.resolve(process.cwd(), '.env.local'),
+  path.resolve(process.cwd(), '.env'),
+];
+for (const p of possibleEnvPaths) {
+  if (fs.existsSync(p)) {
+    require('dotenv').config({ path: p });
+  }
+}
+
 const { createClient } = require('@supabase/supabase-js');
 const { S3Client, GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
-const fs = require('fs');
-const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
 const { pipeline } = require('stream/promises');
 
@@ -404,11 +418,24 @@ async function processNextJob() {
 
 async function pingHeartbeat() {
   try {
-    await supabase.from('admin_settings').upsert({
+    const { error } = await supabase.from('admin_settings').upsert({
       setting_key: 'compressor_worker_last_ping',
       setting_value: Date.now().toString(),
-      updated_at: new Date().toISOString(),
     }, { onConflict: 'setting_key' });
+    if (error) console.error('[Heartbeat Error]', error.message);
+  } catch (err) {
+    console.error('[Heartbeat Exception]', err.message);
+  }
+}
+
+async function recoverStaleJobs() {
+  try {
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    await supabase
+      .from('compression_jobs')
+      .update({ status: 'pending', error_message: 'Auto-recovered from interrupted processing' })
+      .eq('status', 'processing')
+      .lt('created_at', fifteenMinsAgo);
   } catch (_) {}
 }
 
@@ -422,10 +449,16 @@ async function startWorker() {
   console.log('   Codec: H.264 (CRF 28, FastStart, Smart 720p Scale)');
   console.log('====================================================\n');
   console.log('Worker running in background. Monitoring queue for new jobs...');
+  await recoverStaleJobs();
+  let loopCount = 0;
 
   while (isRunning) {
     try {
       await pingHeartbeat();
+      loopCount++;
+      if (loopCount % 50 === 0) {
+        await recoverStaleJobs();
+      }
       const processed = await processNextJob();
       if (!processed) {
         // Sleep 4 seconds before checking again

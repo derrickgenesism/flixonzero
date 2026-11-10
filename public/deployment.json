@@ -1,9 +1,11 @@
 {
-  "commit": "272543d",
-  "fullCommit": "272543dd020a6fbfa8b76d9581ad491e5864b725",
-  "message": "ci: add automated VPS deployment workflow on git push",
+  "commit": "e498a56",
+  "fullCommit": "e498a56ce636391d9287c528d1ee9dc7ac161a3d",
+  "message": "feat: robust zero-downtime deploy with blue-green releases, auto-rollback, health check, and manual rollback workflow",
   "author": "derrickgenesism",
-  "commitDate": "Sun Nov 8 02:10:47 2026 +0300",
-  "deployedAt": "2026-11-07T23:28:47.759Z",
+  "commitDate": "Tue Nov 10 09:20:44 2026 +0300",
+  "deployedAt": "2026-11-10T06:40:32.935Z",
+  "deployedAtEAT": "10 Nov 2026, 09:40 am EAT",
+  "timeZone": "Africa/Kampala (EAT, UTC+3)",
   "repository": "derrickgenesism/flixonzero"
 }
