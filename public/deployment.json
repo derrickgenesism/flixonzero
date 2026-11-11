@@ -1,11 +1,11 @@
 {
-  "commit": "d97a45b",
-  "fullCommit": "d97a45bd5e8728b9b2cc3939a8b403e46949cfaa",
-  "message": "feat(compress): add full live VPS queue table, active queue count, and transparent job tracking",
+  "commit": "bd5adce",
+  "fullCommit": "bd5adce660ece7a8338be46a9524668fdfbc9cd1",
+  "message": "feat(affiliates): overhaul partner program, package commission breakdown, mobile money withdraw modal, and account page responsiveness",
   "author": "derrickgenesism",
-  "commitDate": "Tue Nov 10 10:35:36 2026 +0300",
-  "deployedAt": "2026-11-10T07:35:55.974Z",
-  "deployedAtEAT": "10 Nov 2026, 10:35 am EAT",
+  "commitDate": "Wed Nov 11 20:27:53 2026 +0300",
+  "deployedAt": "2026-11-11T17:59:28.396Z",
+  "deployedAtEAT": "11 Nov 2026, 08:59 pm EAT",
   "timeZone": "Africa/Kampala (EAT, UTC+3)",
   "repository": "derrickgenesism/flixonzero"
 }

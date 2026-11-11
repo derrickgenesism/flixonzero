@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { instantActivateAffiliate } from './referrals/actions';
 import ConvertEarningsModal from './ConvertEarningsModal';
+import WithdrawCashModal from './WithdrawCashModal';
+import { calculateAllPlanRewards } from '@/lib/affiliateCalculations';
 
 export default function AffiliateEarnCard({
   affiliateCode = null,
@@ -13,6 +15,7 @@ export default function AffiliateEarnCard({
   subscriptionEndDate = null,
   plans = [],
   boostData = null,
+  affiliateConfig = {},
   siteUrl = 'https://flixon.net'
 }) {
   const router = useRouter();
@@ -20,18 +23,27 @@ export default function AffiliateEarnCard({
   const [activating, setActivating] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [simFriends, setSimFriends] = useState(5);
+  const [selectedSimPlanId, setSelectedSimPlanId] = useState(() => plans[plans.length - 1]?.id || 3);
 
   const isApproved = affiliateCode && (affiliateStatus === 'approved' || !affiliateStatus);
-  // Guarantee official domain https://flixon.net is always used (never leaking vercel.app deployment URLs)
   const cleanBaseUrl = (!siteUrl || siteUrl.includes('vercel.app') || siteUrl.includes('your-domain'))
     ? 'https://flixon.net'
     : siteUrl.replace(/\/+$/, '');
   const referralLink = affiliateCode ? `${cleanBaseUrl}/?ref=${affiliateCode}` : '';
 
-  // Commission calculation for simulator (e.g. 3,000 UGX per monthly pass or 25%)
-  const monthlyCommission = boostData?.multiplier ? Math.round(3000 * Number(boostData.multiplier)) : 3000;
-  const simulatedEarnings = simFriends * monthlyCommission;
+  // Calculate dynamic commissions for every active subscription package
+  const planRewards = calculateAllPlanRewards(plans, affiliateConfig);
+
+  // Dynamic Simulator calculation
+  const simPlanReward = planRewards.find(r => r.planId === Number(selectedSimPlanId)) || planRewards[planRewards.length - 1] || { reward: 2800, planName: 'Monthly Pass', percent: 35 };
+  const simulatedEarnings = simFriends * Number(simPlanReward.reward || 0);
+
+  // Global settings for payout
+  const minPayout = Number(affiliateConfig?.minPayout || 5000);
+  const withdrawalFee = Number(affiliateConfig?.withdrawalFee || 500);
+  const globalPct = Number(affiliateConfig?.commissionPercentage || 35);
 
   // Social share URLs
   const shareText = encodeURIComponent(
@@ -72,14 +84,17 @@ export default function AffiliateEarnCard({
     <>
       <div
         style={{
-          background: 'linear-gradient(145deg, rgba(251,191,36,0.08) 0%, rgba(20,20,20,0.95) 100%)',
+          background: 'linear-gradient(145deg, rgba(251,191,36,0.08) 0%, rgba(20,20,20,0.98) 100%)',
           borderRadius: '16px',
           padding: '28px',
           marginBottom: '24px',
           border: '1px solid rgba(251,191,36,0.25)',
           boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
           position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          boxSizing: 'border-box',
+          width: '100%',
+          maxWidth: '100%'
         }}
       >
         {/* Promotional Boost Banner */}
@@ -96,69 +111,139 @@ export default function AffiliateEarnCard({
               alignItems: 'center',
               gap: '6px',
               marginBottom: '16px',
-              letterSpacing: '0.5px'
+              letterSpacing: '0.5px',
+              flexWrap: 'wrap'
             }}
           >
             <span>🔥</span>
-            <span>{boostData.multiplier}X COMMISSION BOOST ACTIVE: All rewards doubled right now!</span>
+            <span>{boostData.multiplier}X COMMISSION BOOST ACTIVE: All partner rewards multiplied right now!</span>
           </div>
         )}
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-          <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#fbbf24', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>
-              <span>💰</span> FlixOn Affiliate & Earning Program
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px', marginBottom: '20px' }}>
+          <div style={{ flex: '1 1 300px', minWidth: 0 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#fbbf24', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>
+              <span>💰</span> FlixOn Partner & Earning Program
             </div>
-            <h2 style={{ fontSize: '22px', fontWeight: '900', color: '#fff', margin: '0 0 6px' }}>
-              Turn Your Movie Love Into Real Cash
+            <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#fff', margin: '0 0 8px', lineHeight: '1.25', wordBreak: 'break-word' }}>
+              Turn Movie Sharing Into Daily Mobile Money
             </h2>
-            <p style={{ margin: 0, fontSize: '14px', color: 'var(--text2)', maxWidth: '600px', lineHeight: '1.5' }}>
-              Share FlixOn movies with friends or on social media. Earn instant cash on every visitor click and high commissions whenever someone subscribes!
+            <p style={{ margin: 0, fontSize: '14px', color: 'var(--text2)', lineHeight: '1.6', maxWidth: '680px' }}>
+              Invite friends, family, and movie lovers to watch translated blockbusters and series on FlixOn. 
+              Earn guaranteed cash on every subscription and withdraw straight to your MTN or Airtel Mobile Money!
             </p>
           </div>
 
           {isApproved && (
-            <div style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', color: '#fbbf24' }}>
-              Partner Code: <strong style={{ color: '#fff' }}>{affiliateCode}</strong>
+            <div style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', padding: '8px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', color: '#fbbf24', flexShrink: 0 }}>
+              Partner Code: <strong style={{ color: '#fff', fontFamily: 'monospace', fontSize: '13px' }}>{affiliateCode}</strong>
             </div>
           )}
         </div>
 
+        {/* 3 Step Visual Guide */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', flexShrink: 0 }}>
+              1
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: '700', fontSize: '13px', color: '#fff', marginBottom: '2px' }}>Share Your Link</div>
+              <div style={{ fontSize: '12px', color: 'var(--text3)', lineHeight: '1.4' }}>Send on WhatsApp, TikTok bio, Facebook or group chats.</div>
+            </div>
+          </div>
+
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(74,222,128,0.15)', color: '#4ade80', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', flexShrink: 0 }}>
+              2
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: '700', fontSize: '13px', color: '#fff', marginBottom: '2px' }}>Friends Subscribe</div>
+              <div style={{ fontSize: '12px', color: 'var(--text3)', lineHeight: '1.4' }}>When they buy any VIP pass, you earn up to {globalPct}% cash instantly.</div>
+            </div>
+          </div>
+
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(59,130,246,0.15)', color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', flexShrink: 0 }}>
+              3
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: '700', fontSize: '13px', color: '#fff', marginBottom: '2px' }}>Instant Cashout</div>
+              <div style={{ fontSize: '12px', color: 'var(--text3)', lineHeight: '1.4' }}>Withdraw directly to MTN or Airtel Mobile Money anytime.</div>
+            </div>
+          </div>
+        </div>
+
+        {/* PACKAGE EARNINGS BREAKDOWN: Exactly what you earn per package */}
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '800', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              🎯 What You Earn on Every Subscription Package:
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--text3)' }}>
+              Commissions credited instantly to your partner balance
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+            {planRewards.map(rewardInfo => (
+              <div
+                key={rewardInfo.planId}
+                style={{
+                  background: 'rgba(0,0,0,0.35)',
+                  border: rewardInfo.isBoosted ? '1px solid #d97706' : '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>{rewardInfo.planName}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text3)' }}>{rewardInfo.price.toLocaleString()} UGX</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '4px 0 2px' }}>
+                  <span style={{ fontSize: '18px', fontWeight: '900', color: '#4ade80' }}>
+                    +{rewardInfo.reward.toLocaleString()} <span style={{ fontSize: '12px', fontWeight: '600' }}>UGX</span>
+                  </span>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#fbbf24' }}>
+                    ({rewardInfo.percent}%)
+                  </span>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)' }}>
+                  Per referral signup
+                  {rewardInfo.isBoosted && <span style={{ color: '#f59e0b', fontWeight: '700', marginLeft: '4px' }}>🔥 {rewardInfo.multiplier}x Active</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {!isApproved ? (
           /* Step 1: User Has Not Activated Yet -> Instant 1-Click Activation */
-          <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '20px', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '22px' }}>⚡</span>
-                <div>
-                  <strong style={{ color: '#fff', fontSize: '13px' }}>Instant 1-Click Link</strong>
-                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>No waiting for manual approval</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '22px' }}>📱</span>
-                <div>
-                  <strong style={{ color: '#fff', fontSize: '13px' }}>WhatsApp & Social Sharing</strong>
-                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Pre-made Luganda & English templates</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '22px' }}>💵</span>
-                <div>
-                  <strong style={{ color: '#fff', fontSize: '13px' }}>MTN / Airtel Cash Out</strong>
-                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Withdraw or convert to free VIP days</div>
-                </div>
-              </div>
-            </div>
-
+          <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: '14px', padding: '24px', border: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#fff', margin: '0 0 8px' }}>
+              Ready to Start Earning Real Mobile Money?
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text3)', maxWidth: '520px', margin: '0 auto 20px', lineHeight: '1.5' }}>
+              Activate your official partner link in 1-click. Share on your status or social media and get paid on every friend who checks out FlixOn!
+            </p>
             <button
               onClick={handleActivate}
               disabled={activating}
               className="gms-btn gms-btn--primary"
-              style={{ padding: '14px 28px', fontSize: '15px', fontWeight: '800', background: '#d97706', borderColor: '#d97706' }}
+              style={{
+                padding: '14px 32px',
+                fontSize: '15px',
+                fontWeight: '800',
+                background: '#d97706',
+                borderColor: '#d97706',
+                cursor: 'pointer'
+              }}
             >
-              {activating ? 'Generating Your Link...' : '⚡ Start Earning Money — Get My Link'}
+              {activating ? 'Generating Your Link...' : '⚡ Get My Partner Link & Start Earning'}
             </button>
           </div>
         ) : (
@@ -175,15 +260,16 @@ export default function AffiliateEarnCard({
                   readOnly
                   value={referralLink}
                   style={{
-                    flex: 1,
-                    minWidth: '240px',
+                    flex: '1 1 240px',
+                    minWidth: '200px',
                     padding: '12px 14px',
                     background: 'rgba(0,0,0,0.5)',
                     border: '1px solid rgba(255,255,255,0.15)',
                     color: '#fff',
                     borderRadius: '8px',
                     fontSize: '14px',
-                    fontFamily: 'monospace'
+                    fontFamily: 'monospace',
+                    boxSizing: 'border-box'
                   }}
                 />
                 <button
@@ -196,7 +282,8 @@ export default function AffiliateEarnCard({
                     fontSize: '13px',
                     background: copied ? '#22c55e' : '#d97706',
                     borderColor: copied ? '#22c55e' : '#d97706',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   {copied ? '✓ Link Copied!' : '📋 Copy Link'}
@@ -205,7 +292,7 @@ export default function AffiliateEarnCard({
                   type="button"
                   onClick={() => setShowQrModal(true)}
                   className="gms-btn gms-btn--ghost"
-                  style={{ padding: '12px 16px', fontSize: '13px', cursor: 'pointer' }}
+                  style={{ padding: '12px 16px', fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap' }}
                   title="Display QR code on screen for friends to scan"
                 >
                   📱 Show QR Code
@@ -254,15 +341,37 @@ export default function AffiliateEarnCard({
               </div>
             </div>
 
-            {/* Interactive Earnings Simulator */}
+            {/* Interactive Dynamic Earnings Simulator */}
             <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '18px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '22px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                 <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>
                   📊 Potential Earnings Calculator:
                 </span>
-                <span style={{ fontSize: '13px', color: 'var(--text2)' }}>
-                  If <strong>{simFriends} friends</strong> buy Monthly Pass:
-                </span>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Plan:</span>
+                  <select
+                    value={selectedSimPlanId}
+                    onChange={(e) => setSelectedSimPlanId(Number(e.target.value))}
+                    style={{
+                      background: 'rgba(0,0,0,0.6)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      color: '#fff',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      fontSize: '12px'
+                    }}
+                  >
+                    {planRewards.map(p => (
+                      <option key={p.planId} value={p.planId}>
+                        {p.planName} ({p.price.toLocaleString()} UGX)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '8px', fontSize: '13px', color: 'var(--text2)' }}>
+                If <strong>{simFriends} friends</strong> buy <strong>{simPlanReward.planName}</strong>:
               </div>
 
               <input
@@ -276,7 +385,7 @@ export default function AffiliateEarnCard({
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text3)' }}>
-                  Earn up to {monthlyCommission.toLocaleString()} UGX per monthly subscription
+                  Earn {simPlanReward.reward.toLocaleString()} UGX per subscription ({simPlanReward.percent}%)
                 </span>
                 <div style={{ fontSize: '18px', fontWeight: '900', color: '#fbbf24' }}>
                   You Earn: {simulatedEarnings.toLocaleString()} UGX
@@ -288,29 +397,51 @@ export default function AffiliateEarnCard({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
               <div>
                 <div style={{ fontSize: '12px', color: 'var(--text3)', textTransform: 'uppercase' }}>Available Referral Balance:</div>
-                <div style={{ fontSize: '24px', fontWeight: '900', color: '#fbbf24' }}>
-                  {Number(availableBalance).toLocaleString()} UGX
+                <div style={{ fontSize: '26px', fontWeight: '900', color: '#4ade80' }}>
+                  {Number(availableBalance).toLocaleString()} <span style={{ fontSize: '14px', fontWeight: '600' }}>UGX</span>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
+                  Min cashout: {minPayout.toLocaleString()} UGX
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {/* Dedicated Cash Out / Withdraw Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowWithdrawModal(true)}
+                  className="gms-btn gms-btn--primary"
+                  style={{
+                    padding: '11px 20px',
+                    fontSize: '14px',
+                    fontWeight: '800',
+                    background: availableBalance >= minPayout ? '#22c55e' : 'rgba(255,255,255,0.1)',
+                    borderColor: availableBalance >= minPayout ? '#22c55e' : 'transparent',
+                    cursor: availableBalance >= minPayout ? 'pointer' : 'default',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title={availableBalance >= minPayout ? 'Withdraw directly to MTN or Airtel Mobile Money' : `Requires at least ${minPayout.toLocaleString()} UGX`}
+                >
+                  💵 Cash Out (Withdraw)
+                </button>
+
                 {availableBalance >= 1000 && (
                   <button
                     type="button"
                     onClick={() => setShowConvertModal(true)}
                     className="gms-btn gms-btn--ghost"
-                    style={{ padding: '10px 18px', fontSize: '14px', borderColor: 'rgba(251,191,36,0.3)', color: '#fbbf24' }}
+                    style={{ padding: '11px 18px', fontSize: '14px', borderColor: 'rgba(96,165,250,0.3)', color: '#60a5fa', whiteSpace: 'nowrap' }}
                   >
-                    ⚡ Convert to VIP Pass...
+                    ⚡ Convert to VIP Pass
                   </button>
                 )}
 
                 <Link
                   href="/account/referrals"
-                  className="gms-btn gms-btn--primary"
-                  style={{ padding: '10px 18px', fontSize: '14px', background: '#d97706', borderColor: '#d97706' }}
+                  className="gms-btn gms-btn--ghost"
+                  style={{ padding: '11px 18px', fontSize: '14px', borderColor: 'rgba(251,191,36,0.3)', color: '#fbbf24', whiteSpace: 'nowrap' }}
                 >
-                  Partner Dashboard & Cash Out →
+                  Partner Dashboard →
                 </Link>
               </div>
             </div>
@@ -383,6 +514,15 @@ export default function AffiliateEarnCard({
         availableBalance={availableBalance}
         subscriptionEndDate={subscriptionEndDate}
         plans={plans}
+      />
+
+      {/* Modern Mobile Money Withdraw Modal */}
+      <WithdrawCashModal
+        isOpen={showWithdrawModal}
+        onClose={() => setShowWithdrawModal(false)}
+        availableBalance={availableBalance}
+        minPayout={minPayout}
+        withdrawalFee={withdrawalFee}
       />
     </>
   );

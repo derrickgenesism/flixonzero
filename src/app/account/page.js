@@ -4,10 +4,10 @@ import Navbar from '@/components/Navbar';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import AffiliateEarnCard from './AffiliateEarnCard';
+import { checkTransactionStatus } from '@/app/checkout/actions';
+import { parseAffiliateSettings } from '@/lib/affiliateCalculations';
 
 export const metadata = { title: 'My Account — Flixon' };
-
-import { checkTransactionStatus } from '@/app/checkout/actions';
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -17,7 +17,7 @@ export default async function AccountPage() {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
         <Navbar />
-        <main style={{ paddingTop: '100px', paddingBottom: '60px', maxWidth: '900px', margin: '0 auto', padding: '100px 24px 60px' }}>
+        <main style={{ maxWidth: '900px', margin: '0 auto', padding: '100px 24px 60px', boxSizing: 'border-box' }}>
           <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '32px' }}>Profile Dashboard</h1>
           
           <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '32px', marginBottom: '24px', border: '1px solid var(--border)', textAlign: 'center' }}>
@@ -100,24 +100,23 @@ export default async function AccountPage() {
       remainingText = `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`;
     }
   }
-  // Fetch active plans and boost settings
+
+  // Fetch active plans and affiliate settings
   const { data: plans } = await _injectedAdminClient()
     .from('subscription_plans')
     .select('id, name, price, duration_days')
     .eq('is_active', true)
     .order('price', { ascending: true });
 
-  const { data: boostSettings } = await _injectedAdminClient()
+  const { data: affiliateSettingsRows } = await _injectedAdminClient()
     .from('admin_settings')
     .select('setting_key, setting_value')
-    .in('setting_key', ['affiliate_boost_enabled', 'affiliate_boost_multiplier', 'affiliate_boost_ends_at', 'affiliate_boost_name']);
+    .like('setting_key', 'affiliate%');
 
-  const boostMap = Object.fromEntries((boostSettings || []).map(s => [s.setting_key, s.setting_value]));
-  const isBoostActive = boostMap.affiliate_boost_enabled === 'true' &&
-    (!boostMap.affiliate_boost_ends_at || new Date(boostMap.affiliate_boost_ends_at) > new Date());
-  const boostData = isBoostActive ? {
-    multiplier: boostMap.affiliate_boost_multiplier || '2.0',
-    name: boostMap.affiliate_boost_name || 'Special Multiplier Boost'
+  const affiliateConfig = parseAffiliateSettings(affiliateSettingsRows || []);
+  const boostData = affiliateConfig.isBoostActive ? {
+    multiplier: String(affiliateConfig.boostMultiplier),
+    name: affiliateConfig.boostName
   } : null;
 
   const hasPendingManual = transactions?.some(t => t.status === 'pending');
@@ -125,11 +124,11 @@ export default async function AccountPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <Navbar />
-      <main style={{ paddingTop: '100px', paddingBottom: '60px', maxWidth: '900px', margin: '0 auto', padding: '100px 24px 60px' }}>
+      <main style={{ maxWidth: '900px', margin: '0 auto', padding: '100px 20px 60px', boxSizing: 'border-box', width: '100%' }}>
         <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '24px' }}>My Account</h1>
 
         {hasPendingManual && (
-          <div style={{ background: 'rgba(2, 132, 199, 0.12)', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ background: 'rgba(2, 132, 199, 0.12)', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '14px', boxSizing: 'border-box' }}>
             <span style={{ fontSize: '24px', flexShrink: 0 }}>⏳</span>
             <div>
               <strong style={{ color: '#fff', fontSize: '14px', display: 'block', marginBottom: '2px' }}>
@@ -142,46 +141,46 @@ export default async function AccountPage() {
           </div>
         )}
 
-        {/* Quick Links */}
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '32px' }}>
+        {/* Quick Navigation Links */}
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '28px' }}>
           {[
             { href: '/my-list', label: '❤️ My List' },
-            { href: '/account/referrals', label: '💰 Referrals' },
-            { href: '/checkout', label: '💳 Subscribe' },
+            { href: '/account/referrals', label: '💰 Partner Dashboard' },
+            { href: '/checkout', label: '💳 View VIP Plans' },
           ].map(l => (
-            <Link key={l.href} href={l.href} className="gms-btn gms-btn--ghost" style={{ padding: '10px 18px', fontSize: '14px' }}>
+            <Link key={l.href} href={l.href} className="gms-btn gms-btn--ghost" style={{ padding: '9px 16px', fontSize: '13px', whiteSpace: 'nowrap' }}>
               {l.label}
             </Link>
           ))}
         </div>
 
-        {/* Subscription Card */}
-        <div style={{ background: isSubscribed ? 'rgba(74,222,128,0.05)' : 'var(--bg2)', borderRadius: '16px', padding: '32px', marginBottom: '24px', border: `1px solid ${isSubscribed ? 'rgba(74,222,128,0.25)' : 'var(--border)'}` }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: 'var(--text2)' }}>Subscription</h2>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
-            <div>
+        {/* Subscription Status Card */}
+        <div style={{ background: isSubscribed ? 'rgba(74,222,128,0.05)' : 'var(--bg2)', borderRadius: '16px', padding: '24px 28px', marginBottom: '24px', border: `1px solid ${isSubscribed ? 'rgba(74,222,128,0.25)' : 'var(--border)'}`, boxSizing: 'border-box' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Subscription Status</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ minWidth: 0, flex: '1 1 240px' }}>
               {isSubscribed ? (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#4ade80', display: 'inline-block', boxShadow: '0 0 8px #4ade80' }} />
-                    <span style={{ fontSize: '22px', fontWeight: '800', color: '#fff' }}>Premium Active</span>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#4ade80', display: 'inline-block', boxShadow: '0 0 8px #4ade80', flexShrink: 0 }} />
+                    <span style={{ fontSize: '22px', fontWeight: '800', color: '#fff' }}>VIP Pass Active</span>
                   </div>
-                  <p style={{ margin: 0, color: 'var(--text2)', fontSize: '15px' }}>
-                    <strong style={{ color: '#fff' }}>{remainingText}</strong> remaining · Expires {new Date(profile.subscription_end_date).toLocaleDateString('en-UG', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  <p style={{ margin: 0, color: 'var(--text2)', fontSize: '14px', lineHeight: '1.5' }}>
+                    <strong style={{ color: '#4ade80' }}>{remainingText}</strong> remaining · Expires {new Date(profile.subscription_end_date).toLocaleDateString('en-UG', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
                 </>
               ) : (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--text3)', display: 'inline-block' }} />
-                    <span style={{ fontSize: '22px', fontWeight: '800', color: '#fff' }}>No Active Plan</span>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--text3)', display: 'inline-block', flexShrink: 0 }} />
+                    <span style={{ fontSize: '22px', fontWeight: '800', color: '#fff' }}>Free Account</span>
                   </div>
-                  <p style={{ margin: 0, color: 'var(--text2)', fontSize: '15px' }}>Subscribe to unlock unlimited movies and series.</p>
+                  <p style={{ margin: 0, color: 'var(--text2)', fontSize: '14px' }}>Subscribe to unlock unlimited movies, series, and downloads.</p>
                 </>
               )}
             </div>
-            <Link href="/checkout" className={`gms-btn ${isSubscribed ? 'gms-btn--ghost' : 'gms-btn--primary'}`}>
-              {isSubscribed ? 'Extend Subscription' : 'View Plans'}
+            <Link href="/checkout" className={`gms-btn ${isSubscribed ? 'gms-btn--ghost' : 'gms-btn--primary'}`} style={{ whiteSpace: 'nowrap' }}>
+              {isSubscribed ? 'Extend Subscription' : 'Upgrade to VIP Pass'}
             </Link>
           </div>
         </div>
@@ -194,19 +193,20 @@ export default async function AccountPage() {
           subscriptionEndDate={profile?.subscription_end_date}
           plans={plans || []}
           boostData={boostData}
+          affiliateConfig={affiliateConfig}
           siteUrl="https://flixon.net"
         />
 
         {/* PPV Rentals */}
         {ppvPurchases && ppvPurchases.length > 0 && (
-          <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '28px', marginBottom: '24px', border: '1px solid var(--border)' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: 'var(--text2)' }}>🎬 My Rentals</h2>
+          <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '24px 28px', marginBottom: '24px', border: '1px solid var(--border)', boxSizing: 'border-box' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🎬 My Active Rentals</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {ppvPurchases.map(ppv => {
                 const isActive = ppv.expires_at && new Date(ppv.expires_at) > new Date();
                 const hoursLeft = isActive ? Math.max(0, Math.ceil((new Date(ppv.expires_at) - new Date()) / (1000 * 60 * 60))) : 0;
                 return (
-                  <div key={ppv.id} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                  <div key={ppv.id} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border)', boxSizing: 'border-box' }}>
                     {ppv.movies?.thumbnail_url && (
                       <img src={ppv.movies.thumbnail_url} alt={ppv.movies?.title} style={{ width: '52px', height: '78px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0 }} />
                     )}
@@ -228,92 +228,130 @@ export default async function AccountPage() {
           </div>
         )}
 
-        {/* Account Details */}
-        <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '28px', marginBottom: '24px', border: '1px solid var(--border)' }}>
+        {/* Account Details (Fully Responsive Layout with zero overflow) */}
+        <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '24px 28px', marginBottom: '24px', border: '1px solid var(--border)', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: 'var(--text2)' }}>Account Details</h2>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <Link href="/account/profile" className="gms-btn gms-btn--ghost" style={{ padding: '6px 14px', fontSize: '13px' }}>
-                Edit Profile
+            <h2 style={{ fontSize: '16px', fontWeight: '700', margin: 0, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Account Information</h2>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <Link href="/account/profile" className="gms-btn gms-btn--ghost" style={{ padding: '6px 14px', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                ✏️ Edit Profile
               </Link>
-              <form action="/auth/signout" method="POST">
-                <button type="submit" className="gms-btn gms-btn--ghost" style={{ padding: '6px 14px', fontSize: '13px', color: '#ff6b6b', borderColor: 'rgba(255,107,107,0.2)' }}>
+              <form action="/auth/signout" method="POST" style={{ margin: 0 }}>
+                <button type="submit" className="gms-btn gms-btn--ghost" style={{ padding: '6px 14px', fontSize: '12px', color: '#f87171', borderColor: 'rgba(239,68,68,0.25)', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                   Sign Out
                 </button>
               </form>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '14px', fontSize: '15px' }}>
-            <div style={{ color: 'var(--text3)' }}>Email</div>
-            <div style={{ color: '#fff' }}>{user.email}</div>
-            <div style={{ color: 'var(--text3)' }}>Username</div>
-            <div style={{ color: '#fff' }}>{profile?.username || 'Not set'}</div>
-            <div style={{ color: 'var(--text3)' }}>Joined</div>
-            <div style={{ color: '#fff' }}>{new Date(user.created_at).toLocaleDateString('en-UG', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-            <div style={{ color: 'var(--text3)' }}>Genres</div>
-            <div style={{ color: '#fff', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {profile?.genre_preferences?.length > 0
-                ? profile.genre_preferences.map(g => (
-                    <span key={g} style={{ padding: '2px 8px', background: 'rgba(229,9,20,0.1)', border: '1px solid rgba(229,9,20,0.25)', borderRadius: '12px', fontSize: '12px', color: 'var(--acc)' }}>{g}</span>
-                  ))
-                : <span style={{ color: 'var(--text3)' }}>None set · <Link href="/onboarding" style={{ color: 'var(--text2)' }}>Set preferences</Link></span>
-              }
-            </div>
-            <div style={{ color: 'var(--text3)' }}>Partner Code</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: '700', letterSpacing: '2px' }}>
-                {affiliateCode || '—'}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+            {/* Email Row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', gap: '8px', minWidth: 0 }}>
+              <span style={{ color: 'var(--text3)', fontSize: '13px', fontWeight: '500' }}>Email Address</span>
+              <span style={{ color: '#fff', fontSize: '14px', fontWeight: '600', wordBreak: 'break-all', overflowWrap: 'anywhere', maxWidth: '100%' }}>
+                {user.email}
               </span>
-              <Link href="/account/referrals" style={{ fontSize: '12px', color: 'var(--acc)', textDecoration: 'underline' }}>
-                {affiliateCode ? 'View Portal →' : 'Join Program →'}
-              </Link>
+            </div>
+
+            {/* Username Row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', gap: '8px', minWidth: 0 }}>
+              <span style={{ color: 'var(--text3)', fontSize: '13px', fontWeight: '500' }}>Username</span>
+              <span style={{ color: '#fff', fontSize: '14px', fontWeight: '600', wordBreak: 'break-all' }}>
+                @{profile?.username || 'Not set'}
+              </span>
+            </div>
+
+            {/* Joined Date Row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', gap: '8px', minWidth: 0 }}>
+              <span style={{ color: 'var(--text3)', fontSize: '13px', fontWeight: '500' }}>Member Since</span>
+              <span style={{ color: '#fff', fontSize: '14px', fontWeight: '600' }}>
+                {new Date(user.created_at).toLocaleDateString('en-UG', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+            </div>
+
+            {/* Partner Code Row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(251,191,36,0.04)', borderRadius: '10px', border: '1px solid rgba(251,191,36,0.15)', flexWrap: 'wrap', gap: '8px', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '14px' }}>🤝</span>
+                <span style={{ color: '#fbbf24', fontSize: '13px', fontWeight: '600' }}>Partner Code</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: '700', letterSpacing: '1px', fontSize: '14px', background: 'rgba(0,0,0,0.4)', padding: '2px 8px', borderRadius: '6px' }}>
+                  {affiliateCode || 'None'}
+                </span>
+                <Link href="/account/referrals" style={{ fontSize: '12px', color: '#fbbf24', textDecoration: 'underline', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                  {affiliateCode ? 'Open Partner Portal →' : 'Join Program →'}
+                </Link>
+              </div>
+            </div>
+
+            {/* Genre Preferences Row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', gap: '8px', minWidth: 0 }}>
+              <span style={{ color: 'var(--text3)', fontSize: '13px', fontWeight: '500' }}>Favorite Genres</span>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '100%' }}>
+                {profile?.genre_preferences?.length > 0
+                  ? profile.genre_preferences.map(g => (
+                      <span key={g} style={{ padding: '2px 8px', background: 'rgba(229,9,20,0.12)', border: '1px solid rgba(229,9,20,0.3)', borderRadius: '12px', fontSize: '11px', color: '#ff6b6b', fontWeight: '600' }}>{g}</span>
+                    ))
+                  : <span style={{ color: 'var(--text3)', fontSize: '13px' }}>None set · <Link href="/onboarding" style={{ color: 'var(--text2)', textDecoration: 'underline' }}>Set preferences</Link></span>
+                }
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Billing History */}
-        <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '28px', border: '1px solid var(--border)' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: 'var(--text2)' }}>Billing History</h2>
+        {/* Billing History (Smoothly scrollable, zero word clipping) */}
+        <div style={{ background: 'var(--bg2)', borderRadius: '16px', padding: '24px 28px', border: '1px solid var(--border)', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Billing History</h2>
           {transactions && transactions.length > 0 ? (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px', minWidth: '480px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text3)' }}>
-                    <th style={{ padding: '10px 0', fontWeight: '600' }}>Date</th>
-                    <th style={{ padding: '10px 0', fontWeight: '600' }}>Amount</th>
-                    <th style={{ padding: '10px 0', fontWeight: '600' }}>Status</th>
-                    <th style={{ padding: '10px 0', fontWeight: '600' }}>Reference</th>
+                    <th style={{ padding: '10px 12px', fontWeight: '600' }}>Date</th>
+                    <th style={{ padding: '10px 12px', fontWeight: '600' }}>Amount</th>
+                    <th style={{ padding: '10px 12px', fontWeight: '600' }}>Status</th>
+                    <th style={{ padding: '10px 12px', fontWeight: '600' }}>Reference</th>
                   </tr>
                 </thead>
                 <tbody>
                   {transactions.map(tx => (
-                    <tr key={tx.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <td style={{ padding: '14px 0', color: '#fff' }}>{new Date(tx.created_at).toLocaleDateString()}</td>
-                      <td style={{ padding: '14px 0', color: '#fff' }}>{Number(tx.amount).toLocaleString()} {tx.currency || 'UGX'}</td>
-                      <td style={{ padding: '14px 0' }}>
+                    <tr key={tx.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <td style={{ padding: '12px 12px', color: '#fff', whiteSpace: 'nowrap' }}>
+                        {new Date(tx.created_at).toLocaleDateString()}
+                      </td>
+                      <td style={{ padding: '12px 12px', color: '#fff', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                        {Number(tx.amount).toLocaleString()} {tx.currency || 'UGX'}
+                      </td>
+                      <td style={{ padding: '12px 12px', whiteSpace: 'nowrap' }}>
                         <span style={{ 
                           padding: '3px 8px', 
-                          borderRadius: '4px', 
+                          borderRadius: '6px', 
                           fontSize: '11px', 
                           fontWeight: '700', 
                           background: tx.status === 'successful' 
                             ? 'rgba(74,222,128,0.15)' 
-                            : (tx.status === 'pending' ? 'rgba(234, 179, 8, 0.15)' : 'rgba(229,9,20,0.15)'), 
+                            : (tx.status === 'pending' ? 'rgba(234, 179, 8, 0.15)' : 'rgba(239,68,68,0.15)'), 
                           color: tx.status === 'successful' 
                             ? '#4ade80' 
-                            : (tx.status === 'pending' ? '#facc15' : '#ff6b6b') 
+                            : (tx.status === 'pending' ? '#facc15' : '#f87171'),
+                          border: `1px solid ${tx.status === 'successful' ? 'rgba(74,222,128,0.3)' : (tx.status === 'pending' ? 'rgba(234,179,8,0.3)' : 'rgba(239,68,68,0.3)')}`
                         }}>
-                          {tx.status === 'pending' ? 'Pending Approval' : tx.status}
+                          {tx.status === 'pending' ? 'Pending Approval' : (tx.status === 'successful' ? 'Paid' : tx.status)}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 0', color: 'var(--text3)', fontFamily: 'monospace', fontSize: '12px' }}>{tx.tx_ref}</td>
+                      <td style={{ padding: '12px 12px', color: 'var(--text3)', fontFamily: 'monospace', fontSize: '11px', wordBreak: 'break-all' }}>
+                        {tx.tx_ref}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text3)', fontSize: '15px' }}>No billing history yet.</div>
+            <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text3)', fontSize: '14px' }}>
+              No billing transactions recorded yet.
+            </div>
           )}
         </div>
       </main>

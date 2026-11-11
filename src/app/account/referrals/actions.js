@@ -297,6 +297,8 @@ export async function requestPayout(formData) {
 
   const amount = Math.floor(Number(formData.get('amount')));
   const rawPhone = String(formData.get('phone') || '').trim();
+  const accountName = String(formData.get('account_name') || '').trim();
+  const rawNetwork = String(formData.get('network') || '').toLowerCase();
   const normalizedPhone = normalizeUgandaPhone(rawPhone);
   
   const admin = createAdminClient();
@@ -325,6 +327,8 @@ export async function requestPayout(formData) {
   if (!isValidUgandaPhone(normalizedPhone)) {
     return { error: 'Please enter a valid Ugandan mobile money number (e.g. 077... or 075...)' };
   }
+
+  const networkName = rawNetwork === 'airtel' ? 'Airtel Money' : (rawNetwork === 'mtn' ? 'MTN MoMo' : (normalizedPhone.startsWith('25670') || normalizedPhone.startsWith('25675') || normalizedPhone.startsWith('25674') ? 'Airtel Money' : 'MTN MoMo'));
 
   const { data: profile } = await admin
     .from('user_profiles')
@@ -366,11 +370,12 @@ export async function requestPayout(formData) {
 
   // 2. Record payout in affiliate_commissions as pending
   const feeNote = withdrawalFee > 0 ? ` (Gross: ${amount.toLocaleString()} UGX | Fee: -${withdrawalFee.toLocaleString()} UGX | Net Transfer: ${netAmount.toLocaleString()} UGX)` : '';
+  const descNamePart = accountName ? ` [${accountName}]` : '';
   await admin.from('affiliate_commissions').insert({
     affiliate_id: affiliate.id,
     amount: -amount,
     type: 'payout_pending',
-    description: `Mobile Money Payout: 0${normalizedPhone.slice(3)}${feeNote} (Pending Admin Transfer)`
+    description: `${networkName} Payout: 0${normalizedPhone.slice(3)}${descNamePart}${feeNote} (Pending Admin Transfer)`
   });
 
   // 2b. Sync into payout_requests table
@@ -380,7 +385,9 @@ export async function requestPayout(formData) {
     status: 'pending',
     payout_method: 'mobile_money',
     payout_details: JSON.stringify({
+      network: networkName,
       phone: `0${normalizedPhone.slice(3)}`,
+      account_name: accountName || undefined,
       gross_amount: amount,
       withdrawal_fee: withdrawalFee,
       net_payout: netAmount
@@ -411,7 +418,7 @@ export async function requestPayout(formData) {
       await admin.from('support_messages').insert({
         thread_id: thread.id,
         sender_role: 'system',
-        content: `Your cash withdrawal request of ${amount.toLocaleString()} UGX to mobile money 0${normalizedPhone.slice(3)} has been received. After telecom transfer fee (${withdrawalFee.toLocaleString()} UGX), you will receive ${netAmount.toLocaleString()} UGX.`,
+        content: `Your cash withdrawal request of ${amount.toLocaleString()} UGX to ${networkName} (0${normalizedPhone.slice(3)}${accountName ? ` - ${accountName}` : ''}) has been received. After telecom transfer fee (${withdrawalFee.toLocaleString()} UGX), you will receive ${netAmount.toLocaleString()} UGX.`,
         is_read: false
       });
     }
@@ -439,18 +446,20 @@ export async function requestPayout(formData) {
   await sendTelegramNotice(
     `💰 <b>NEW AFFILIATE CASH WITHDRAWAL REQUEST</b> 💰\n\n` +
     `• <b>Affiliate:</b> @${profile.username || 'User'} (<code>${profile.email}</code>)\n` +
+    `• <b>Network:</b> <b>${networkName}</b>\n` +
+    `• <b>Phone (MM):</b> <code>0${normalizedPhone.slice(3)}</code>${accountName ? `\n• <b>Account Name:</b> ${accountName}` : ''}\n` +
     `• <b>Gross Requested:</b> ${amount.toLocaleString()} UGX\n` +
     `• <b>Telecom Transfer Fee:</b> -${withdrawalFee.toLocaleString()} UGX\n` +
     `• <b>👉 NET CASH TO SEND:</b> <b>${netAmount.toLocaleString()} UGX</b>\n` +
-    `• <b>Phone (MM):</b> <code>0${normalizedPhone.slice(3)}</code>\n` +
     `• <b>Remaining Balance:</b> ${(available - amount).toLocaleString()} UGX\n` +
     `• <b>Date Submitted:</b> ${dateFormatted} at ${timeFormatted} EAT\n\n` +
-    `👉 <i>Send <b>${netAmount.toLocaleString()} UGX</b> to <code>0${normalizedPhone.slice(3)}</code> and mark completed in Admin Panel → Payouts.</i>`
+    `👉 <i>Send <b>${netAmount.toLocaleString()} UGX</b> via ${networkName} to <code>0${normalizedPhone.slice(3)}</code> and mark completed in Admin Panel → Payouts.</i>`
   );
 
   revalidatePath('/account/referrals');
+  revalidatePath('/account');
   return { 
     success: true, 
-    message: `✅ Payout request of ${amount.toLocaleString()} UGX submitted! After telecom fee (${withdrawalFee.toLocaleString()} UGX), you will receive ${netAmount.toLocaleString()} UGX to your mobile money within 2-6 hours.` 
+    message: `✅ Payout request of ${amount.toLocaleString()} UGX submitted! After telecom fee (${withdrawalFee.toLocaleString()} UGX), you will receive ${netAmount.toLocaleString()} UGX via ${networkName} within 2-6 hours.` 
   };
 }
