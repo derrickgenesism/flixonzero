@@ -189,6 +189,21 @@ export default async function ReferralsPage() {
     .select('id', { count: 'exact', head: true })
     .eq('affiliate_id', affiliate.id);
 
+  // Get stats: Total Paid VIP Conversions (Subscribers)
+  const { count: totalPaidSubscribers } = await admin
+    .from('affiliate_commissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('affiliate_id', affiliate.id)
+    .eq('type', 'subscription');
+
+  // Get list of referred members (anonymized for dashboard transparency)
+  const { data: referredMembers } = await admin
+    .from('user_profiles')
+    .select('id, email, username, created_at, subscription_end_date, subscription_plan')
+    .eq('referred_by', affiliate.id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
   // Get active plans for dynamic earnings & conversion
   const { data: activePlans } = await admin
     .from('subscription_plans')
@@ -238,6 +253,8 @@ export default async function ReferralsPage() {
           referralLink={referralLink}
           totalSignups={totalSignups || 0}
           totalClicks={totalClicks || 0}
+          totalSubscribers={totalPaidSubscribers || 0}
+          referredMembers={referredMembers || []}
           commissions={commissions || []}
           withdrawalFee={affiliateConfig.withdrawalFee}
           minPayout={affiliateConfig.minPayout}

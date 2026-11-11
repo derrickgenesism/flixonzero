@@ -103,8 +103,13 @@ export default function AddMovieClient({ tmdbApiKey }) {
       setError(res.error);
       setSaving(false);
     } else {
-      alert("Movie added successfully!");
-      router.push('/');
+      const fromSource = searchParams.get('from');
+      const provider = searchParams.get('provider') || 'b2';
+      if (fromSource === 'cloudflare-import') {
+        router.push(`/admin/movies/cloudflare-import?provider=${encodeURIComponent(provider)}&imported=${encodeURIComponent(formData.title || '1')}`);
+      } else {
+        router.push('/admin/movies?added=1');
+      }
     }
   };
 

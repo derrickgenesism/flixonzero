@@ -8,9 +8,10 @@ import { redirect } from 'next/navigation';
 import { verifyAndActivate } from '@/lib/payments';
 import { checkPaymentSecurity, recordImmediateFailedAttempt } from '@/lib/fraudGuard';
 
-async function ensureReferralAttribution(admin, userEmail, cookieStore) {
+async function ensureReferralAttribution(admin, userEmail, cookieStore, explicitRefCode = null) {
   try {
-    const refCode = cookieStore.get('affiliate_ref')?.value?.trim();
+    const cookieRef = cookieStore?.get ? cookieStore.get('affiliate_ref')?.value : null;
+    const refCode = (explicitRefCode || cookieRef)?.trim();
     if (!refCode || !userEmail) return;
 
     const { data: profile } = await admin
@@ -38,7 +39,7 @@ async function ensureReferralAttribution(admin, userEmail, cookieStore) {
   }
 }
 
-export async function processDirectCharge(planId, phoneNumber, network, promoResult = null) {
+export async function processDirectCharge(planId, phoneNumber, network, promoResult = null, clientRefCode = null) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -51,7 +52,7 @@ export async function processDirectCharge(planId, phoneNumber, network, promoRes
     .single();
 
   const cookieStore = await cookies();
-  await ensureReferralAttribution(_injectedAdminClient(), user.email, cookieStore);
+  await ensureReferralAttribution(_injectedAdminClient(), user.email, cookieStore, clientRefCode);
   const visitorId = cookieStore.get('flx_vid')?.value || '';
 
   // ── Fraud & Rate-Limiting Security Check ─────────────────────────────────
@@ -235,7 +236,7 @@ export async function checkTransactionStatus(tx_ref) {
   return result;
 }
 
-export async function submitManualPayment(planId, phoneNumber, transactionRef = '', promoResult = null) {
+export async function submitManualPayment(planId, phoneNumber, transactionRef = '', promoResult = null, clientRefCode = null) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -244,7 +245,7 @@ export async function submitManualPayment(planId, phoneNumber, transactionRef = 
   }
 
   const cookieStore = await cookies();
-  await ensureReferralAttribution(_injectedAdminClient(), user.email, cookieStore);
+  await ensureReferralAttribution(_injectedAdminClient(), user.email, cookieStore, clientRefCode);
 
   const cleanPhone = (phoneNumber || '').trim();
   if (!cleanPhone || cleanPhone.length < 5) {

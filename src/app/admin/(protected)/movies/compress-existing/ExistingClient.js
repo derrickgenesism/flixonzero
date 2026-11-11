@@ -55,8 +55,14 @@ function StatusBadge({ status, progress, isTaggedName }) {
   );
 }
 
-function ProgressBar({ progress, status }) {
-  if (status === 'pending') return <span style={{ color: 'var(--text3)', fontSize: '13px' }}>⏳ In Queue — VPS will process automatically...</span>;
+function ProgressBar({ progress, status, workerOnline = true }) {
+  if (status === 'pending') {
+    return (
+      <span style={{ color: workerOnline ? 'var(--text3)' : '#f59e0b', fontSize: '13px' }}>
+        {workerOnline ? '⏳ In Queue — VPS will process automatically...' : '⏳ Waiting (VPS worker offline — push to start)'}
+      </span>
+    );
+  }
   if (status === 'processing' && (!progress || progress === 0)) {
     return <span style={{ color: '#818cf8', fontSize: '12px' }}>📥 Transferring video to VPS (High-speed)...</span>;
   }
@@ -285,18 +291,51 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
               width: '10px',
               height: '10px',
               borderRadius: '50%',
-              background: '#46b450',
-              boxShadow: '0 0 10px #46b450',
+              background: workerOnline ? '#46b450' : '#f59e0b',
+              boxShadow: workerOnline ? '0 0 10px #46b450' : '0 0 10px #f59e0b',
             }} />
-            <span style={{ fontSize: '13px', fontWeight: '700', color: '#46b450' }}>
-              ⚡ Squeeze Engine: Active (Automatic Background Compression)
+            <span style={{ fontSize: '13px', fontWeight: '700', color: workerOnline ? '#46b450' : '#f59e0b' }}>
+              {workerOnline ? '⚡ Squeeze Engine: Active (Automatic Background Compression)' : '⚠️ Squeeze Engine: Worker Offline / Paused'}
             </span>
           </div>
 
-          <div style={{ fontSize: '12px', color: 'var(--text2)', background: 'rgba(70,180,80,0.08)', padding: '6px 12px', borderRadius: '6px', border: '1px solid rgba(70,180,80,0.2)' }}>
-            H.264 FastStart • 720p Smart Downscale • Automatic 24/7 VPS Background
+          <div style={{
+            fontSize: '12px',
+            color: workerOnline ? 'var(--text2)' : '#fbbf24',
+            background: workerOnline ? 'rgba(70,180,80,0.08)' : 'rgba(245,158,11,0.1)',
+            padding: '6px 12px',
+            borderRadius: '6px',
+            border: `1px solid ${workerOnline ? 'rgba(70,180,80,0.2)' : 'rgba(245,158,11,0.3)'}`
+          }}>
+            {workerOnline
+              ? 'H.264 FastStart • 720p Smart Downscale • Automatic 24/7 VPS Background'
+              : 'VPS Worker Not Running • Push to GitHub to Auto-Deploy & Start'}
           </div>
         </div>
+
+        {!workerOnline && (
+          <div style={{
+            marginBottom: '18px',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            background: 'rgba(245, 158, 11, 0.12)',
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            color: '#fbbf24',
+            fontSize: '12.5px',
+            lineHeight: '1.5',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '10px'
+          }}>
+            <span style={{ fontSize: '18px', flexShrink: 0, marginTop: '-2px' }}>⚠️</span>
+            <div>
+              <strong style={{ color: '#fff', display: 'block', marginBottom: '2px' }}>
+                VPS Compressor Service Offline ({activeQueueJobs.length} video{activeQueueJobs.length === 1 ? '' : 's'} waiting in queue)
+              </strong>
+              The background compression worker process (<code>pm2 flixon-compressor</code>) is currently stopped on the VPS. Queued videos will start compressing automatically as soon as the worker is online. Pushing your commits to GitHub master triggers the deploy workflow which automatically updates and restarts the worker.
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <h3 style={{ margin: 0, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -566,7 +605,7 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
                               ? (qJob.progress ? `⚡ Squeezing ${qJob.progress}%` : '📥 Transferring to VPS...')
                               : `⏳ Waiting in VPS Queue (#${index + 1})`}
                           </span>
-                          <ProgressBar progress={qJob.progress} status={qJob.status} />
+                          <ProgressBar progress={qJob.progress} status={qJob.status} workerOnline={workerOnline} />
                         </div>
                       </td>
                       <td style={{ padding: '14px 18px', textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -649,7 +688,7 @@ export default function ExistingClient({ initialVideos = [], currentProvider = '
                       {job ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <StatusBadge status={job.status} progress={job.progress} isTaggedName={isTaggedName} />
-                          <ProgressBar progress={job.progress} status={job.status} />
+                          <ProgressBar progress={job.progress} status={job.status} workerOnline={workerOnline} />
                         </div>
                       ) : (
                         <StatusBadge status={isDone ? 'completed' : null} progress={null} isTaggedName={isTaggedName} />

@@ -122,7 +122,12 @@ export default function CheckoutClient({
     setTxRef(null);
     setVerificationMessage(null);
 
-    const res = await processDirectCharge(selectedPlan.id, phoneNumber, network, promoResult?.valid ? promoResult : null);
+    let clientRef = null;
+    try {
+      clientRef = localStorage.getItem('affiliate_ref');
+    } catch (_) {}
+
+    const res = await processDirectCharge(selectedPlan.id, phoneNumber, network, promoResult?.valid ? promoResult : null, clientRef);
     
     if (res?.error) {
       setError(res.error);
@@ -152,11 +157,17 @@ export default function CheckoutClient({
     setError(null);
 
     try {
+      let clientRef = null;
+      try {
+        clientRef = localStorage.getItem('affiliate_ref');
+      } catch (_) {}
+
       const res = await submitManualPayment(
         selectedPlan.id,
         manualPhone,
         manualRef,
-        promoResult?.valid ? promoResult : null
+        promoResult?.valid ? promoResult : null,
+        clientRef
       );
 
       if (res?.error) {

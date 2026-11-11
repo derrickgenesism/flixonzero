@@ -13,7 +13,9 @@ export default async function CloudStorageImportPage({ searchParams }) {
   const getSetting = (k, fallback = '') => settings?.find(s => s.setting_key === k)?.setting_value || fallback;
 
   // Determine active provider from query string or default setting
-  const activeProvider = (await searchParams)?.provider || getSetting('storage_provider', 'b2');
+  const resolvedParams = await searchParams;
+  const activeProvider = resolvedParams?.provider || getSetting('storage_provider', 'b2');
+  const importedMovie = resolvedParams?.imported;
 
   // Backblaze B2 Config
   const b2Endpoint = getSetting('b2_endpoint', 'https://s3.us-east-005.backblazeb2.com');
@@ -187,6 +189,29 @@ export default async function CloudStorageImportPage({ searchParams }) {
         </div>
       </div>
 
+      {/* Success Notification after importing a movie */}
+      {importedMovie && (
+        <div style={{ background: 'rgba(74, 222, 128, 0.12)', border: '1px solid #4ade80', borderRadius: '10px', padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#fff', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '20px' }}>✅</span>
+            <div>
+              <strong style={{ color: '#4ade80', fontSize: '14px' }}>
+                {importedMovie === '1' || importedMovie === 'true' ? 'Movie successfully published!' : `"${decodeURIComponent(importedMovie)}" published successfully!`}
+              </strong>
+              <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '2px' }}>
+                Your movie is live on FlixOn. You can immediately import another video from this bucket below.
+              </div>
+            </div>
+          </div>
+          <Link
+            href={`/admin/movies/cloudflare-import?provider=${activeProvider}`}
+            style={{ fontSize: '12px', color: 'var(--text3)', textDecoration: 'none', background: 'rgba(255,255,255,0.06)', padding: '6px 12px', borderRadius: '6px' }}
+          >
+            Dismiss ✕
+          </Link>
+        </div>
+      )}
+
       {/* Configuration Missing Alert */}
       {!isConfigured && (
         <div style={{ background: 'rgba(229, 9, 20, 0.1)', border: '1px solid #e50914', padding: '20px', borderRadius: '8px', color: '#fff', marginBottom: '24px' }}>
@@ -291,7 +316,7 @@ export default async function CloudStorageImportPage({ searchParams }) {
                         </td>
                         <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                           <Link
-                            href={`/admin/movies/add?title=${encodeURIComponent(cleanTitle)}&video_url=${encodeURIComponent(fileUrl)}`}
+                            href={`/admin/movies/add?title=${encodeURIComponent(cleanTitle)}&video_url=${encodeURIComponent(fileUrl)}&from=cloudflare-import&provider=${activeProvider}`}
                             className="gms-btn gms-btn--primary"
                             style={{ fontSize: '12px', padding: '6px 14px', whiteSpace: 'nowrap', display: 'inline-block' }}
                           >

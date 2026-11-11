@@ -4,6 +4,9 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { Readable } from 'stream';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // Allow 5 minutes on server for high-speed streaming
+
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const videoUrl = searchParams.get('url');
@@ -74,18 +77,32 @@ export async function GET(req) {
       }
 
       writeMessage('progress', 0);
-      writeMessage('status', 'Connecting to URL...');
+      writeMessage('status', 'Connecting to source URL...');
 
-      const response = await fetch(videoUrl);
-      if (!response.ok) throw new Error(`Failed to fetch URL: ${response.statusText}`);
+      // Heartbeat ping so client SSE connection never drops during long streams
+      const pingInterval = setInterval(() => {
+        try {
+          writeMessage('ping', Date.now());
+        } catch (_) {}
+      }, 2500);
+
+      const response = await fetch(videoUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': '*/*',
+          'Referer': 'https://google.com/',
+        },
+      });
+      if (!response.ok) throw new Error(`Failed to fetch source URL: HTTP ${response.status} (${response.statusText})`);
 
       const contentLength = Number(response.headers.get('content-length')) || 0;
-      writeMessage('status', `Streaming to ${provider === 'b2' ? 'Backblaze B2' : 'Cloudflare R2'} (${bucketName})...`);
+      writeMessage('status', `Streaming high-speed to ${provider === 'b2' ? 'Backblaze B2' : 'Cloudflare R2'} (${bucketName})...`);
 
+      // 10MB parts allow immediate parallel uploading to B2/R2 without waiting for large buffers
       const upload = new Upload({
         client: s3,
-        queueSize: 8,
-        partSize: 50 * 1024 * 1024,
+        queueSize: 4,
+        partSize: 10 * 1024 * 1024,
         leavePartsOnError: false,
         params: {
           Bucket: bucketName,
@@ -106,7 +123,11 @@ export async function GET(req) {
         }
       });
 
-      await upload.done();
+      try {
+        await upload.done();
+      } finally {
+        clearInterval(pingInterval);
+      }
 
       let cdnDomain = getSetting('cdn_domain', 'cdn.flixon.net');
       if (cdnDomain && !cdnDomain.startsWith('http')) cdnDomain = `https://${cdnDomain}`;
@@ -115,7 +136,7 @@ export async function GET(req) {
       const finalUrl = `${cdnDomain}/${encodeURIComponent(generatedKey)}`;
       writeMessage('status', 'Upload complete!');
       writeMessage('progress', 100);
-      writeMessage('complete', { key: generatedKey, url: finalUrl, provider, bucket: bucketName });
+      writeMessage('complete', { key: generatedKey, url: finalUrl, provider, bucket: bucketName, size: contentLength });
 
     } catch (error) {
       console.error('[Upload Direct Error]:', error);

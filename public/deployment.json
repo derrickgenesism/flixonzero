@@ -1,11 +1,11 @@
 {
-  "commit": "bd5adce",
-  "fullCommit": "bd5adce660ece7a8338be46a9524668fdfbc9cd1",
+  "commit": "2b86db9",
+  "fullCommit": "2b86db9f8fd57cc51b426b3e5c81027ce8978d1c",
   "message": "feat(affiliates): overhaul partner program, package commission breakdown, mobile money withdraw modal, and account page responsiveness",
   "author": "derrickgenesism",
-  "commitDate": "Wed Nov 11 20:27:53 2026 +0300",
-  "deployedAt": "2026-11-11T17:59:28.396Z",
-  "deployedAtEAT": "11 Nov 2026, 08:59 pm EAT",
+  "commitDate": "Wed Nov 11 20:59:28 2026 +0300",
+  "deployedAt": "2026-11-11T20:10:02.747Z",
+  "deployedAtEAT": "11 Nov 2026, 11:10 pm EAT",
   "timeZone": "Africa/Kampala (EAT, UTC+3)",
   "repository": "derrickgenesism/flixonzero"
 }

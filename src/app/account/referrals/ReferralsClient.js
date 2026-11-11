@@ -11,6 +11,8 @@ export default function ReferralsClient({
   referralLink, 
   totalSignups = 0, 
   totalClicks = 0, 
+  totalSubscribers = 0,
+  referredMembers = [],
   commissions = [],
   withdrawalFee = 500,
   minPayout = 5000,
@@ -41,6 +43,11 @@ export default function ReferralsClient({
   const maxReward = planRewards.length > 0 
     ? planRewards.reduce((prev, curr) => curr.reward > prev.reward ? curr : prev, planRewards[0])
     : { reward: 2800, percent: 35 };
+
+  // Conversion rate calculation
+  const conversionRate = totalClicks > 0 
+    ? ((totalSubscribers / totalClicks) * 100).toFixed(1)
+    : (totalSignups > 0 ? ((totalSubscribers / totalSignups) * 100).toFixed(1) : '0.0');
 
   // 4-Tier Gamified Ladder
   let tierName = '🥉 Bronze Partner';
@@ -169,7 +176,7 @@ export default function ReferralsClient({
   return (
     <div style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
       {/* Top Stats & Quick Action Bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
         
         {/* Available Balance Card with Direct Cashout Trigger */}
         <div style={{ background: 'var(--bg2)', padding: '22px 24px', borderRadius: '16px', border: '1px solid rgba(74,222,128,0.25)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
@@ -222,21 +229,49 @@ export default function ReferralsClient({
           </div>
         </div>
 
-        {/* Referred Signups Card */}
+        {/* Traffic & Clicks Card */}
         <div style={{ background: 'var(--bg2)', padding: '22px 24px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
           <div>
-            <div style={{ color: 'var(--text3)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-              Referred Signups
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ color: 'var(--text3)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                🔗 Link Visitors
+              </span>
+              <span style={{ fontSize: '11px', color: '#38bdf8', background: 'rgba(56,189,248,0.1)', padding: '2px 8px', borderRadius: '12px', fontWeight: '700' }}>
+                Unique Clicks
+              </span>
             </div>
-            <div style={{ fontSize: '32px', fontWeight: '900', color: '#fff', lineHeight: '1.2' }}>
-              {totalSignups}
+            <div style={{ fontSize: '32px', fontWeight: '900', color: '#38bdf8', lineHeight: '1.2' }}>
+              {totalClicks}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px' }}>
-              Total Link Visitors: <strong style={{ color: '#38bdf8' }}>{totalClicks}</strong>
+              Friends Joined: <strong style={{ color: '#fff' }}>{totalSignups}</strong> accounts
             </div>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '14px', background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: '8px' }}>
-            💡 Tip: Share in movie WhatsApp groups to get instant signups!
+            👥 {totalSignups} of {totalClicks > 0 ? totalClicks : 1} visitors registered ({totalClicks > 0 ? Math.round((totalSignups / totalClicks) * 100) : 0}% signup rate)
+          </div>
+        </div>
+
+        {/* Conversions & VIP Subscribers Card */}
+        <div style={{ background: 'var(--bg2)', padding: '22px 24px', borderRadius: '16px', border: '1px solid rgba(251,191,36,0.25)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ color: 'var(--text3)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                💎 VIP Subscribers
+              </span>
+              <span style={{ fontSize: '11px', color: '#fbbf24', background: 'rgba(251,191,36,0.12)', padding: '2px 8px', borderRadius: '12px', fontWeight: '700' }}>
+                Paid Conversions
+              </span>
+            </div>
+            <div style={{ fontSize: '32px', fontWeight: '900', color: '#fbbf24', lineHeight: '1.2' }}>
+              {totalSubscribers}
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px' }}>
+              Conversion Rate: <strong style={{ color: Number(conversionRate) > 0 ? '#4ade80' : 'var(--text3)' }}>{conversionRate}%</strong>
+            </div>
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '14px', background: 'rgba(251,191,36,0.04)', padding: '6px 10px', borderRadius: '8px' }}>
+            💰 You earn cash instantly on every VIP pass renewal!
           </div>
         </div>
 
@@ -887,6 +922,97 @@ export default function ReferralsClient({
             </form>
           )}
         </div>
+      </div>
+
+      {/* REFERRED MEMBERS & CONVERSION STATUS TABLE */}
+      <div style={{ background: 'var(--bg2)', borderRadius: '16px', border: '1px solid var(--border)', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', width: '100%', boxSizing: 'border-box', marginBottom: '28px' }}>
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 2px', color: '#fff' }}>
+              👥 Your Referred Members ({referredMembers.length})
+            </h2>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text3)' }}>
+              Friends who created an account with your link and their current VIP status
+            </p>
+          </div>
+          <span style={{ fontSize: '12px', color: '#4ade80', background: 'rgba(74,222,128,0.1)', padding: '4px 10px', borderRadius: '12px', fontWeight: '700' }}>
+            {totalSubscribers} Paid VIPs
+          </span>
+        </div>
+
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px', minWidth: '540px' }}>
+          <thead>
+            <tr style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--text3)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <th style={{ padding: '14px 20px', fontWeight: '500' }}>Member</th>
+              <th style={{ padding: '14px 20px', fontWeight: '500' }}>Joined Date</th>
+              <th style={{ padding: '14px 20px', fontWeight: '500' }}>Subscription Status</th>
+              <th style={{ padding: '14px 20px', fontWeight: '500', textAlign: 'right' }}>Active Access</th>
+            </tr>
+          </thead>
+          <tbody>
+            {referredMembers.length === 0 ? (
+              <tr>
+                <td colSpan={4} style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text3)' }}>
+                  <div style={{ fontSize: '28px', marginBottom: '8px' }}>🔗</div>
+                  <strong style={{ color: '#fff', display: 'block', marginBottom: '4px' }}>No friends have joined yet</strong>
+                  Share your partner link on WhatsApp or TikTok to start seeing your referrals here!
+                </td>
+              </tr>
+            ) : referredMembers.map((member) => {
+              const now = new Date();
+              const isVip = member.subscription_end_date && new Date(member.subscription_end_date) > now;
+              const daysLeft = isVip ? Math.ceil((new Date(member.subscription_end_date) - now) / (1000 * 60 * 60 * 24)) : 0;
+              const joinedDate = member.created_at ? new Date(member.created_at).toLocaleDateString('en-UG', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                timeZone: 'Africa/Kampala'
+              }) : 'Recently';
+
+              // Anonymize email: e.g. "dav***@gmail.com"
+              const rawEmail = member.email || member.username || 'User';
+              const maskedEmail = rawEmail.includes('@')
+                ? rawEmail.replace(/^(.)(.*)(@.*)$/, (_, first, mid, rest) => first + '***' + rest)
+                : rawEmail.slice(0, 3) + '***';
+
+              return (
+                <tr key={member.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <td style={{ padding: '14px 20px', fontWeight: '600', color: '#fff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '28px', height: '28px', borderRadius: '50%', background: isVip ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.06)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px' }}>
+                        {isVip ? '💎' : '👤'}
+                      </span>
+                      <span>{maskedEmail}</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 20px', color: 'var(--text3)', whiteSpace: 'nowrap' }}>
+                    {joinedDate}
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    {isVip ? (
+                      <span style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.3)', color: '#4ade80', fontSize: '11px', fontWeight: '800', padding: '3px 9px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span>●</span> VIP Active {member.subscription_plan ? `(${member.subscription_plan})` : ''}
+                      </span>
+                    ) : (
+                      <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text3)', fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: '12px' }}>
+                        Free Account
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '14px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {isVip ? (
+                      <span style={{ color: '#4ade80', fontWeight: '700' }}>
+                        {daysLeft} day{daysLeft !== 1 ? 's' : ''} left
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text3)' }}>—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {/* Earnings Activity / Commissions Ledger */}
