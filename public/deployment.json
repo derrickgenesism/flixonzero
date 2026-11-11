@@ -1,11 +1,11 @@
 {
-  "commit": "2b86db9",
-  "fullCommit": "2b86db9f8fd57cc51b426b3e5c81027ce8978d1c",
-  "message": "feat(affiliates): overhaul partner program, package commission breakdown, mobile money withdraw modal, and account page responsiveness",
+  "commit": "2dcf335",
+  "fullCommit": "2dcf335864ceb8af078eb18aa3893578aefe9514",
+  "message": "feat: partner analytics funnel, multi-movie direct stream queue, TMDB auto-publisher, cloud import redirect fix, and truthful squeeze worker status",
   "author": "derrickgenesism",
-  "commitDate": "Wed Nov 11 20:59:28 2026 +0300",
-  "deployedAt": "2026-11-11T20:10:02.747Z",
-  "deployedAtEAT": "11 Nov 2026, 11:10 pm EAT",
+  "commitDate": "Wed Nov 11 23:12:47 2026 +0300",
+  "deployedAt": "2026-11-11T23:06:33.515Z",
+  "deployedAtEAT": "12 Nov 2026, 02:06 am EAT",
   "timeZone": "Africa/Kampala (EAT, UTC+3)",
   "repository": "derrickgenesism/flixonzero"
 }
