@@ -16,13 +16,13 @@ export default function AddMovieClient({ tmdbApiKey }) {
   const [selectedMovie, setSelectedMovie] = useState(null);
   
   const [formData, setFormData] = useState({
-    title: '',
+    title: searchParams.get('title') || '',
     description: '',
     type: 'video',
     thumbnail_url: '',
     backdrop_url: '',
     video_url: searchParams.get('video_url') || '',
-    categories: [],
+    categories: searchParams.get('vj') ? searchParams.get('vj').split(',').map(s => s.trim()).filter(Boolean) : [],
     release_year: '',
     actors: '',
     trailer_url: '',
@@ -71,6 +71,9 @@ export default function AddMovieClient({ tmdbApiKey }) {
       const genres = details.genres?.map(g => g.name) || [];
       const director = details.credits?.crew?.find(c => c.job === 'Director')?.name || '';
       
+      const existingVjs = (formData.categories || []).filter(c => c && c.toLowerCase().startsWith('vj '));
+      const combinedCategories = Array.from(new Set([...genres, ...existingVjs]));
+
       setFormData({
         ...formData,
         title: details.title || tmdbMovie.title,
@@ -79,7 +82,7 @@ export default function AddMovieClient({ tmdbApiKey }) {
         backdrop_url: tmdbMovie.backdrop_path ? `https://image.tmdb.org/t/p/original${tmdbMovie.backdrop_path}` : '',
         release_year: year,
         actors: cast,
-        categories: genres,
+        categories: combinedCategories,
         director,
         runtime: details.runtime || '',
         imdb_rating: details.vote_average ? (details.vote_average / 2).toFixed(1) : ''

@@ -3,19 +3,58 @@
 import { useState, useEffect, useRef } from 'react';
 import { insertMovie, fetchTMDBMovieDetails } from '../add/actions';
 import Link from 'next/link';
+import VjSelector from '@/components/admin/VjSelector';
 
-function cleanMovieTitleFromUrl(urlOrName) {
-  if (!urlOrName) return '';
+function extractVjsAndCleanTitle(urlOrName) {
+  if (!urlOrName) return { title: '', vjs: [] };
   let name = urlOrName.split('/').pop().split('?')[0] || '';
   try {
     name = decodeURIComponent(name);
   } catch (_) {}
-  return name
+
+  const lower = name.toLowerCase().replace(/[\._-]/g, ' ');
+  const detectedVjs = [];
+  const knownVjs = [
+    { key: 'vj junior', name: 'VJ Junior' },
+    { key: 'vj emmy', name: 'VJ Emmy' },
+    { key: 'vj ice p', name: 'VJ Ice P' },
+    { key: 'vj jingo', name: 'VJ Jingo' },
+    { key: 'vj mark', name: 'VJ Mark' },
+    { key: 'vj kamil', name: 'VJ Kamil' },
+    { key: 'vj jovan', name: 'VJ Jovan' },
+    { key: 'vj kevin', name: 'VJ Kevin' },
+    { key: 'vj kevo', name: 'VJ Kevo' },
+    { key: 'vj muba', name: 'VJ Muba' },
+    { key: 'vj neil', name: 'VJ Neil' },
+    { key: 'vj ulio', name: 'VJ Ulio' },
+    { key: 'vj ham', name: 'VJ Ham' },
+    { key: 'vj mosco', name: 'VJ Mosco' },
+    { key: 'vj soul', name: 'VJ Soul' },
+    { key: 'vj cox', name: 'VJ Cox' },
+    { key: 'vj isma', name: 'VJ Isma' },
+    { key: 'vj frank', name: 'VJ Frank' },
+  ];
+
+  for (const item of knownVjs) {
+    if (lower.includes(item.key) && !detectedVjs.includes(item.name)) {
+      detectedVjs.push(item.name);
+    }
+  }
+
+  const title = name
     .replace(/\.(mp4|mkv|webm|avi|mov|m3u8)$/i, '')
     .replace(/[\._]/g, ' ')
-    .replace(/\b(1080p|720p|480p|4k|2160p|bluray|web-dl|webrip|x264|x265|hevc|h264|aac|dvdrip|hdrip)\b/ig, '')
+    .replace(/\b(vj\s+[a-z0-9]+)\b/ig, '')
+    .replace(/\b(1080p|720p|480p|4k|2160p|bluray|web-dl|webrip|x264|x265|hevc|h264|aac|dvdrip|hdrip|luga|luganda|translated)\b/ig, '')
     .replace(/\[.*?\]|\(.*?\)/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
+
+  return { title, vjs: detectedVjs };
+}
+
+function cleanMovieTitleFromUrl(urlOrName) {
+  return extractVjsAndCleanTitle(urlOrName).title;
 }
 
 export default function UploadClient({ tmdbApiKey = '' }) {
@@ -30,21 +69,21 @@ export default function UploadClient({ tmdbApiKey = '' }) {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedTmdb, setSelectedTmdb] = useState(null);
   const [autoPublish, setAutoPublish] = useState(true);
+  const [selectedVjs, setSelectedVjs] = useState([]);
 
   // Active Multi-Job Queue
   const [jobs, setJobs] = useState([]);
 
-  // Auto-detect title from URL input
+  // Auto-detect title and VJ from URL or file input
   useEffect(() => {
-    if (uploadMode === 'url' && videoUrl.trim()) {
-      const detected = cleanMovieTitleFromUrl(videoUrl);
-      if (detected && !selectedTmdb && detected.length > 2) {
-        setSearchQuery(detected);
+    const raw = uploadMode === 'url' ? videoUrl.trim() : (file?.name || '');
+    if (raw) {
+      const { title, vjs } = extractVjsAndCleanTitle(raw);
+      if (title && !selectedTmdb && title.length > 2) {
+        setSearchQuery(title);
       }
-    } else if (uploadMode === 'file' && file?.name) {
-      const detected = cleanMovieTitleFromUrl(file.name);
-      if (detected && !selectedTmdb && detected.length > 2) {
-        setSearchQuery(detected);
+      if (vjs.length > 0 && selectedVjs.length === 0) {
+        setSelectedVjs(vjs);
       }
     }
   }, [videoUrl, file, uploadMode, selectedTmdb]);
@@ -108,19 +147,22 @@ export default function UploadClient({ tmdbApiKey = '' }) {
   }
 
   // Publish a completed video with TMDB data
-  async function publishMovieToCatalog(jobId, tmdbData, publicVideoUrl) {
+  async function publishMovieToCatalog(jobId, tmdbData, publicVideoUrl, vjs = []) {
     if (!tmdbData || !publicVideoUrl) return;
 
     setJobs(prev => prev.map(j => j.id === jobId ? { ...j, publishing: true } : j));
 
     try {
+      const nonVjCategories = (tmdbData.categories || ['Action', 'Drama']).filter(c => !c || !c.toLowerCase().startsWith('vj '));
+      const finalCategories = [...nonVjCategories, ...(vjs || [])];
+
       const moviePayload = {
         title: tmdbData.title,
         description: tmdbData.description,
         type: 'video',
         thumbnail_url: tmdbData.thumbnail_url,
         video_url: publicVideoUrl,
-        categories: tmdbData.categories && tmdbData.categories.length > 0 ? tmdbData.categories : ['Action', 'Drama'],
+        categories: finalCategories.length > 0 ? finalCategories : ['Action', 'Drama'],
         release_year: tmdbData.release_year,
         actors: tmdbData.actors,
         director: tmdbData.director,
@@ -163,6 +205,7 @@ export default function UploadClient({ tmdbApiKey = '' }) {
     const currentTargetProvider = provider;
     const currentTmdb = selectedTmdb;
     const currentAutoPublish = autoPublish;
+    const currentVjs = [...selectedVjs];
 
     const rawName = uploadMode === 'url'
       ? (currentUrl.split('/').pop().split('?')[0] || `video_${Date.now()}.mp4`)
@@ -186,6 +229,7 @@ export default function UploadClient({ tmdbApiKey = '' }) {
       error: null,
       publicUrl: null,
       tmdb: currentTmdb,
+      vjs: currentVjs,
       autoPublish: currentAutoPublish,
       published: false,
       publishing: false,
@@ -200,6 +244,7 @@ export default function UploadClient({ tmdbApiKey = '' }) {
     setVideoUrl('');
     setFile(null);
     setSelectedTmdb(null);
+    setSelectedVjs([]);
     setSearchQuery('');
     setSuggestions([]);
     const fileEl = document.getElementById('flx-queue-file-input');
@@ -207,14 +252,14 @@ export default function UploadClient({ tmdbApiKey = '' }) {
 
     // Start background stream
     if (uploadMode === 'url') {
-      startUrlStream(jobId, currentUrl, cleanFilename, currentTargetProvider, currentTmdb, currentAutoPublish);
+      startUrlStream(jobId, currentUrl, cleanFilename, currentTargetProvider, currentTmdb, currentAutoPublish, currentVjs);
     } else {
-      startFileUpload(jobId, currentFile, cleanFilename, currentTargetProvider, currentTmdb, currentAutoPublish);
+      startFileUpload(jobId, currentFile, cleanFilename, currentTargetProvider, currentTmdb, currentAutoPublish, currentVjs);
     }
   }
 
   // URL Stream Worker
-  function startUrlStream(jobId, url, key, targetProvider, tmdbData, shouldAutoPublish) {
+  function startUrlStream(jobId, url, key, targetProvider, tmdbData, shouldAutoPublish, vjs = []) {
     const sse = new EventSource(`/api/upload-direct?url=${encodeURIComponent(url)}&key=${encodeURIComponent(key)}&provider=${targetProvider}`);
 
     setJobs(prev => prev.map(j => j.id === jobId ? { ...j, abortController: sse } : j));
@@ -238,7 +283,7 @@ export default function UploadClient({ tmdbApiKey = '' }) {
           } : j));
 
           if (shouldAutoPublish && tmdbData) {
-            publishMovieToCatalog(jobId, tmdbData, finalUrl);
+            publishMovieToCatalog(jobId, tmdbData, finalUrl, vjs);
           }
         } else if (payload.type === 'error') {
           sse.close();
@@ -266,7 +311,7 @@ export default function UploadClient({ tmdbApiKey = '' }) {
   }
 
   // File Upload Worker
-  async function startFileUpload(jobId, fileObj, key, targetProvider, tmdbData, shouldAutoPublish) {
+  async function startFileUpload(jobId, fileObj, key, targetProvider, tmdbData, shouldAutoPublish, vjs = []) {
     try {
       const res = await fetch('/api/r2-presign', {
         method: 'POST',
@@ -316,8 +361,8 @@ export default function UploadClient({ tmdbApiKey = '' }) {
       } : j));
 
       if (shouldAutoPublish && tmdbData) {
-        publishMovieToCatalog(jobId, tmdbData, finalUrl);
-      }
+            publishMovieToCatalog(jobId, tmdbData, finalUrl, vjs);
+          }
     } catch (err) {
       setJobs(prev => prev.map(j => j.id === jobId ? {
         ...j,
@@ -590,6 +635,27 @@ export default function UploadClient({ tmdbApiKey = '' }) {
           </div>
         )}
 
+                {/* VJ (Translator) Selection Section */}
+        <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '18px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🎙️ VJ (Translator) Selection:
+            </span>
+            {selectedVjs.length > 0 && (
+              <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: '700' }}>
+                {selectedVjs.join(', ')}
+              </span>
+            )}
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text3)', margin: '0 0 10px 0' }}>
+            Select the VJ who voiced/translated this movie (e.g. VJ Junior, VJ Emmy, VJ Ice P). It will be saved directly into the movie categories.
+          </p>
+          <VjSelector
+            selectedVjs={selectedVjs}
+            onChange={setSelectedVjs}
+          />
+        </div>
+
         {/* Action Button: Never blocks! */}
         <button
           type="button"
@@ -659,6 +725,14 @@ export default function UploadClient({ tmdbApiKey = '' }) {
                           <span style={{ color: job.provider === 'b2' ? '#c084fc' : '#f97316', fontWeight: '700' }}>
                             {job.provider === 'b2' ? '🟣 Backblaze B2' : '🟠 Cloudflare R2'}
                           </span>
+                          {job.vjs && job.vjs.length > 0 && (
+                            <>
+                              {' • '}
+                              <span style={{ color: '#38bdf8', fontWeight: '700' }}>
+                                🎙️ {job.vjs.join(', ')}
+                              </span>
+                            </>
+                          )}
                           {' • '}
                           <span style={{ color: isDone ? '#4ade80' : isError ? '#ff6b6b' : 'var(--text2)' }}>
                             {job.statusMsg}
@@ -743,7 +817,7 @@ export default function UploadClient({ tmdbApiKey = '' }) {
                         Video ready in cloud: <code style={{ color: '#38bdf8' }}>{job.publicUrl}</code>
                       </span>
                       <Link
-                        href={`/admin/movies/add?title=${encodeURIComponent(job.tmdb?.title || cleanMovieTitleFromUrl(job.filename))}&video_url=${encodeURIComponent(job.publicUrl)}`}
+                        href={`/admin/movies/add?title=${encodeURIComponent(job.tmdb?.title || cleanMovieTitleFromUrl(job.filename))}&video_url=${encodeURIComponent(job.publicUrl)}${job.vjs && job.vjs.length > 0 ? `&vj=${encodeURIComponent(job.vjs.join(','))}` : ''}`}
                         className="gms-btn gms-btn--primary"
                         style={{ fontSize: '12px', padding: '6px 14px' }}
                       >
