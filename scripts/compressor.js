@@ -16,6 +16,18 @@ for (const p of possibleEnvPaths) {
   }
 }
 
+// Polyfill WebSocket for Node.js < 22 environments where native WebSocket is absent (e.g. VPS Node 20)
+if (typeof globalThis.WebSocket === 'undefined') {
+  class MockWebSocket {
+    constructor() {}
+    addEventListener() {}
+    removeEventListener() {}
+    send() {}
+    close() {}
+  }
+  globalThis.WebSocket = MockWebSocket;
+}
+
 const { createClient } = require('@supabase/supabase-js');
 const { S3Client, GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
@@ -422,7 +434,14 @@ async function pingHeartbeat() {
       setting_key: 'compressor_worker_last_ping',
       setting_value: Date.now().toString(),
     }, { onConflict: 'setting_key' });
-    if (error) console.error('[Heartbeat Error]', error.message);
+    if (error) {
+      console.error('[Heartbeat Error]', error.message);
+    } else {
+      await supabase.from('admin_settings').upsert({
+        setting_key: 'compressor_worker_status',
+        setting_value: 'online',
+      }, { onConflict: 'setting_key' });
+    }
   } catch (err) {
     console.error('[Heartbeat Exception]', err.message);
   }
@@ -449,6 +468,8 @@ async function startWorker() {
   console.log('   Codec: H.264 (CRF 28, FastStart, Smart 720p Scale)');
   console.log('====================================================\n');
   console.log('Worker running in background. Monitoring queue for new jobs...');
+  await pingHeartbeat();
+  console.log('[FlixOn Compressor] Initial heartbeat sent to Supabase.');
   await recoverStaleJobs();
   let loopCount = 0;
 

@@ -44,6 +44,18 @@ export async function insertMovie(movieData) {
     categories = ['Action', 'Drama']; // Fallback
   }
 
+  // Determine publication date from explicit created_at or release_date
+  let publicationDate = new Date().toISOString();
+  if (movieData.created_at) {
+    try {
+      publicationDate = new Date(movieData.created_at).toISOString();
+    } catch (_) {}
+  } else if (movieData.release_date) {
+    try {
+      publicationDate = new Date(movieData.release_date).toISOString();
+    } catch (_) {}
+  }
+
   const { data, error } = await supabase.from('movies').insert({
     id: movieData.id || Date.now(),
     title: movieData.title,
@@ -54,7 +66,7 @@ export async function insertMovie(movieData) {
     categories: categories,
     release_year: movieData.release_year,
     actors: movieData.actors,
-    created_at: new Date().toISOString()
+    created_at: publicationDate
   }).select();
 
   if (error) {

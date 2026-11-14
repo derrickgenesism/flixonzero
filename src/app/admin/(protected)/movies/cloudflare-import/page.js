@@ -302,6 +302,8 @@ export default async function CloudStorageImportPage({ searchParams }) {
                     const sizeMB = (obj.Size / (1024 * 1024)).toFixed(1);
                     const encodedKey = obj.Key.split('/').map(p => encodeURIComponent(p)).join('/');
                     const fileUrl = `${cdnDomain}/${encodedKey}`;
+                    const fileIsoDate = obj.LastModified ? new Date(obj.LastModified).toISOString() : '';
+                    const fileDateShort = fileIsoDate ? fileIsoDate.slice(0, 10) : '';
 
                     return (
                       <tr key={obj.Key} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
@@ -316,7 +318,7 @@ export default async function CloudStorageImportPage({ searchParams }) {
                         </td>
                         <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                           <Link
-                            href={`/admin/movies/add?title=${encodeURIComponent(cleanTitle)}&video_url=${encodeURIComponent(fileUrl)}&from=cloudflare-import&provider=${activeProvider}`}
+                            href={`/admin/movies/add?title=${encodeURIComponent(cleanTitle)}&video_url=${encodeURIComponent(fileUrl)}&from=cloudflare-import&provider=${activeProvider}&file_date=${encodeURIComponent(fileIsoDate)}&release_date=${encodeURIComponent(fileDateShort)}`}
                             className="gms-btn gms-btn--primary"
                             style={{ fontSize: '12px', padding: '6px 14px', whiteSpace: 'nowrap', display: 'inline-block' }}
                           >

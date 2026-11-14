@@ -45,6 +45,16 @@ export async function GET() {
     // Test run compressor script directly for 2 seconds
     try {
       result.testRun = execSync(`node -e "
+        if (typeof globalThis.WebSocket === 'undefined') {
+          class MockWebSocket {
+            constructor() {}
+            addEventListener() {}
+            removeEventListener() {}
+            send() {}
+            close() {}
+          }
+          globalThis.WebSocket = MockWebSocket;
+        }
         require('dotenv').config({path: '${envPath.replace(/\\/g, '/')}'});
         const { createClient } = require('@supabase/supabase-js');
         const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);

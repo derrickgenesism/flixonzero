@@ -17,7 +17,22 @@ export async function fetchMoviesPage(category, page = 0, pageSize = PAGE_SIZE) 
 
   if (!category || category === 'All') {
     query = query.order('created_at', { ascending: false });
-  } else if (category === 'Trending' || category === 'New Arrivals' || category === 'Latest' || category.includes('Latest')) {
+  } else if (category === 'New Arrivals') {
+    const all = await getCachedMovies();
+    const now = Date.now();
+    const sorted = [...all].filter(m => !m.is_coming_soon).sort((a, b) => {
+      const isANew = a.categories?.some(c => c === 'New Arrival' || (c.startsWith('NewArrival:') && parseInt(c.split(':')[1], 10) > now)) ? 1 : 0;
+      const isBNew = b.categories?.some(c => c === 'New Arrival' || (c.startsWith('NewArrival:') && parseInt(c.split(':')[1], 10) > now)) ? 1 : 0;
+      if (isBNew !== isANew) return isBNew - isANew;
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
+    return {
+      movies: sorted.slice(from, to + 1),
+      total: sorted.length
+    };
+  } else if (category === 'Trending' || category === 'Latest' || category.includes('Latest')) {
     query = query.order('created_at', { ascending: false });
   } else if (category === 'Top Rated') {
     query = query.not('imdb_rating', 'is', null).order('imdb_rating', { ascending: false });

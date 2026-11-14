@@ -1,11 +1,11 @@
 {
-  "commit": "0ce5e22",
-  "fullCommit": "0ce5e22518aef66fa3406baef952710476ecf949",
-  "message": "ci: enable cancel-in-progress to unblock deployment queue and update metadata",
+  "commit": "5a10fbc",
+  "fullCommit": "5a10fbc1b021f4183f52d73227d923ffe70cae8f",
+  "message": "feat(upload): add VJ selector to direct stream and auto-detect VJ from video name/URL",
   "author": "derrickgenesism",
-  "commitDate": "Thu Nov 12 02:06:49 2026 +0300",
-  "deployedAt": "2026-11-11T23:25:44.231Z",
-  "deployedAtEAT": "12 Nov 2026, 02:25 am EAT",
+  "commitDate": "Thu Nov 12 02:26:24 2026 +0300",
+  "deployedAt": "2026-11-14T12:26:21.938Z",
+  "deployedAtEAT": "14 Nov 2026, 03:26 pm EAT",
   "timeZone": "Africa/Kampala (EAT, UTC+3)",
   "repository": "derrickgenesism/flixonzero"
 }

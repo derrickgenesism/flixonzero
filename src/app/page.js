@@ -167,7 +167,14 @@ export default async function Home({ searchParams }) {
       return false;
     }) ? 1 : 0;
     
-    return isBNew - isANew;
+    if (isBNew !== isANew) {
+      return isBNew - isANew;
+    }
+
+    // Follow exact publication / release dates descending
+    const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return dateB - dateA;
   }).slice(0, 15) : [];
   const topRated = isSectionEnabled('Top Rated') ? [...safeMovies].filter(m => !m.is_coming_soon).sort((a, b) => (b.imdb_rating || 0) - (a.imdb_rating || 0)).slice(0, 15) : [];
   const premium = isSectionEnabled('Premium Exclusives') ? safeMovies.filter(m => m.type === 'genesis_premium' && !m.is_coming_soon).slice(0, 15) : [];

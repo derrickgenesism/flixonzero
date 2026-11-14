@@ -69,6 +69,7 @@ export default function UploadClient({ tmdbApiKey = '' }) {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedTmdb, setSelectedTmdb] = useState(null);
   const [autoPublish, setAutoPublish] = useState(true);
+  const [isNewArrival, setIsNewArrival] = useState(false);
   const [selectedVjs, setSelectedVjs] = useState([]);
 
   // Active Multi-Job Queue
@@ -131,6 +132,7 @@ export default function UploadClient({ tmdbApiKey = '' }) {
           thumbnail_url: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
           backdrop_url: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : '',
           release_year: year,
+          release_date: details.release_date || item.release_date || '',
           actors: cast,
           categories: genres,
           director,
@@ -156,6 +158,14 @@ export default function UploadClient({ tmdbApiKey = '' }) {
       const nonVjCategories = (tmdbData.categories || ['Action', 'Drama']).filter(c => !c || !c.toLowerCase().startsWith('vj '));
       const finalCategories = [...nonVjCategories, ...(vjs || [])];
 
+      // Respect exact publication / release date from TMDB
+      let publicationDate = new Date().toISOString();
+      if (tmdbData?.release_date) {
+        try {
+          publicationDate = new Date(tmdbData.release_date).toISOString();
+        } catch (_) {}
+      }
+
       const moviePayload = {
         title: tmdbData.title,
         description: tmdbData.description,
@@ -164,6 +174,7 @@ export default function UploadClient({ tmdbApiKey = '' }) {
         video_url: publicVideoUrl,
         categories: finalCategories.length > 0 ? finalCategories : ['Action', 'Drama'],
         release_year: tmdbData.release_year,
+        created_at: publicationDate,
         actors: tmdbData.actors,
         director: tmdbData.director,
         runtime: tmdbData.runtime,
@@ -205,7 +216,7 @@ export default function UploadClient({ tmdbApiKey = '' }) {
     const currentTargetProvider = provider;
     const currentTmdb = selectedTmdb;
     const currentAutoPublish = autoPublish;
-    const currentVjs = [...selectedVjs];
+    const currentVjs = isNewArrival ? [...selectedVjs, 'New Arrival'] : [...selectedVjs];
 
     const rawName = uploadMode === 'url'
       ? (currentUrl.split('/').pop().split('?')[0] || `video_${Date.now()}.mp4`)
@@ -245,6 +256,7 @@ export default function UploadClient({ tmdbApiKey = '' }) {
     setFile(null);
     setSelectedTmdb(null);
     setSelectedVjs([]);
+    setIsNewArrival(false);
     setSearchQuery('');
     setSuggestions([]);
     const fileEl = document.getElementById('flx-queue-file-input');
@@ -622,16 +634,28 @@ export default function UploadClient({ tmdbApiKey = '' }) {
               </div>
             )}
 
-            {/* Auto-Publish Checkbox */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}>
-              <input
-                type="checkbox"
-                checked={autoPublish}
-                onChange={e => setAutoPublish(e.target.checked)}
-                style={{ width: '16px', height: '16px', accentColor: '#22c55e' }}
-              />
-              <span>Automatically publish movie to FlixOn as soon as video stream completes</span>
-            </label>
+            {/* Auto-Publish & Feature Options */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}>
+                <input
+                  type="checkbox"
+                  checked={autoPublish}
+                  onChange={e => setAutoPublish(e.target.checked)}
+                  style={{ width: '16px', height: '16px', accentColor: '#22c55e' }}
+                />
+                <span>Automatically publish movie to FlixOn as soon as video stream completes</span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#fbbf24' }}>
+                <input
+                  type="checkbox"
+                  checked={isNewArrival}
+                  onChange={e => setIsNewArrival(e.target.checked)}
+                  style={{ width: '16px', height: '16px', accentColor: '#fbbf24' }}
+                />
+                <span>⭐ Pin to Top of New Arrivals (special priority placement above standard release dates)</span>
+              </label>
+            </div>
           </div>
         )}
 

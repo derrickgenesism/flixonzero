@@ -24,6 +24,8 @@ export default function AddMovieClient({ tmdbApiKey }) {
     video_url: searchParams.get('video_url') || '',
     categories: searchParams.get('vj') ? searchParams.get('vj').split(',').map(s => s.trim()).filter(Boolean) : [],
     release_year: '',
+    release_date: searchParams.get('release_date') || (searchParams.get('file_date') ? searchParams.get('file_date').slice(0, 10) : ''),
+    created_at: searchParams.get('file_date') || '',
     actors: '',
     trailer_url: '',
     imdb_rating: '',
@@ -67,7 +69,8 @@ export default function AddMovieClient({ tmdbApiKey }) {
     
     if (details) {
       const cast = details.credits?.cast?.slice(0, 5).map(c => c.name).join(', ') || '';
-      const year = details.release_date ? details.release_date.split('-')[0] : '';
+      const releaseDate = details.release_date || tmdbMovie.release_date || '';
+      const year = releaseDate ? releaseDate.split('-')[0] : '';
       const genres = details.genres?.map(g => g.name) || [];
       const director = details.credits?.crew?.find(c => c.job === 'Director')?.name || '';
       
@@ -81,6 +84,8 @@ export default function AddMovieClient({ tmdbApiKey }) {
         thumbnail_url: tmdbMovie.poster_path ? `https://image.tmdb.org/t/p/w500${tmdbMovie.poster_path}` : '',
         backdrop_url: tmdbMovie.backdrop_path ? `https://image.tmdb.org/t/p/original${tmdbMovie.backdrop_path}` : '',
         release_year: year,
+        release_date: releaseDate,
+        created_at: releaseDate ? new Date(releaseDate).toISOString() : new Date().toISOString(),
         actors: cast,
         categories: combinedCategories,
         director,
@@ -230,6 +235,22 @@ export default function AddMovieClient({ tmdbApiKey }) {
               <div style={{ flex: 1 }}>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '5px' }}>Year</label>
                 <input type="text" value={formData.release_year} onChange={e => handleManualEdit('release_year', e.target.value)} style={{ width: '100%', padding: '10px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '4px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '5px' }}>Release / Published Date</label>
+                <input
+                  type="date"
+                  value={formData.release_date || ''}
+                  onChange={e => {
+                    const d = e.target.value;
+                    handleManualEdit('release_date', d);
+                    if (d) {
+                      handleManualEdit('created_at', new Date(d).toISOString());
+                      handleManualEdit('release_year', d.split('-')[0]);
+                    }
+                  }}
+                  style={{ width: '100%', padding: '10px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '4px' }}
+                />
               </div>
               <div style={{ flex: 1 }}>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text2)', marginBottom: '5px' }}>Movie Type</label>
