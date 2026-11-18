@@ -1,11 +1,11 @@
 {
-  "commit": "5a10fbc",
-  "fullCommit": "5a10fbc1b021f4183f52d73227d923ffe70cae8f",
-  "message": "feat(upload): add VJ selector to direct stream and auto-detect VJ from video name/URL",
+  "commit": "3fa669d",
+  "fullCommit": "3fa669dcd7fc3f6d52cd1d43b4abecea12ee8251",
+  "message": "fix(compressor): add WebSocket polyfill for Node 20 VPS, and fix movie chronological ordering by release dates",
   "author": "derrickgenesism",
-  "commitDate": "Thu Nov 12 02:26:24 2026 +0300",
-  "deployedAt": "2026-11-14T12:26:21.938Z",
-  "deployedAtEAT": "14 Nov 2026, 03:26 pm EAT",
+  "commitDate": "Sat Nov 14 15:26:49 2026 +0300",
+  "deployedAt": "2026-11-18T22:23:22.078Z",
+  "deployedAtEAT": "19 Nov 2026, 01:23 am EAT",
   "timeZone": "Africa/Kampala (EAT, UTC+3)",
   "repository": "derrickgenesism/flixonzero"
 }

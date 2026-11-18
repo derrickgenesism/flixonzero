@@ -18,8 +18,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Please choose your preferred VJ or language translation.' }, { status: 400 });
     }
 
-    const requesterEmail = user?.email || user_email || 'guest@flixon.net';
-    const requesterName = username || user?.user_metadata?.username || (requesterEmail.split('@')[0]) || 'User';
+    const requesterEmail = user?.email || (user_email?.trim() ? user_email.trim() : 'Guest Visitor (No email provided)');
+    const requesterName = username || user?.user_metadata?.username || (user?.email ? user.email.split('@')[0] : (user_email?.trim() ? user_email.trim().split('@')[0] : 'Guest Visitor'));
 
     // Dispatch alerts (Telegram + Email to mutyabaderrick77@gmail.com + Support thread in DB)
     await sendMovieRequestAlerts({
