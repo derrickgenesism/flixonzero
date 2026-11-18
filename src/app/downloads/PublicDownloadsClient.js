@@ -13,6 +13,8 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
   });
 
   const [downloadTriggered, setDownloadTriggered] = useState(false);
+  const [downloadingAppName, setDownloadingAppName] = useState('');
+  const [movieFilter, setMovieFilter] = useState('All');
   const cinemaRef = useRef(null);
 
   // Sync if initialAppKey changes
@@ -28,41 +30,55 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
     name: 'FlixOn Downloader',
     version: 'v1.0',
     file_size: '22 MB',
-    file_url: 'https://flixon.net',
-    gradient: 'linear-gradient(135deg, #10b981, #06b6d4)',
+    file_url: 'https://cdn.flixon.net/apps/Vidmate-v6.0345-NoAds.apk',
+    gradient: 'linear-gradient(135deg, #f43f5e, #fb923c)',
     badge: 'FREE'
   };
 
   // Trigger download action & track analytics
-  function handleDownloadClick() {
+  function handleDownload(appToDownload, e) {
+    if (e) e.stopPropagation();
+    const target = appToDownload || activeApp;
+    setSelectedAppId(target.id);
+    setDownloadingAppName(target.name);
     setDownloadTriggered(true);
 
     // Call background tracker to increment download count
-    if (activeApp?.id) {
+    if (target?.id) {
       fetch('/api/admin/shared-apps/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appId: activeApp.id })
+        body: JSON.stringify({ appId: target.id })
       }).catch(() => {});
     }
 
     // Scroll smoothly to movies showcase after short delay
     setTimeout(() => {
       cinemaRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 1500);
+    }, 1200);
   }
+
+  // Filter movies
+  const filteredMovies = movies.filter(m => {
+    if (movieFilter === 'All') return true;
+    if (movieFilter === 'VJ Junior') return (m.categories || []).some(c => c.toLowerCase().includes('junior'));
+    if (movieFilter === 'VJ Emmy') return (m.categories || []).some(c => c.toLowerCase().includes('emmy'));
+    if (movieFilter === 'VJ Ice P') return (m.categories || []).some(c => c.toLowerCase().includes('ice'));
+    if (movieFilter === 'Series') return m.type === 'gsm_series' || (m.categories || []).some(c => c.toLowerCase().includes('series'));
+    return true;
+  });
 
   return (
     <div className="dl-portal-root">
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 
         .dl-portal-root {
           min-height: 100vh;
-          background: #090a0f;
+          background: #080a11;
           color: #ffffff;
           font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          padding: 0 0 60px 0;
+          padding: 0 0 70px 0;
           box-sizing: border-box;
           overflow-x: hidden;
         }
@@ -72,10 +88,10 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 16px 24px;
+          padding: 14px 24px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(10, 12, 18, 0.85);
-          backdrop-filter: blur(12px);
+          background: rgba(10, 12, 20, 0.92);
+          backdrop-filter: blur(14px);
           position: sticky;
           top: 0;
           z-index: 100;
@@ -84,12 +100,12 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
         .dl-brand-link {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
           text-decoration: none;
         }
 
         .dl-brand-logo {
-          height: 38px;
+          height: 36px;
           width: auto;
           object-fit: contain;
         }
@@ -102,9 +118,9 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
           text-transform: uppercase;
           color: #10b981;
           background: rgba(16, 185, 129, 0.12);
-          border: 1px solid rgba(16, 185, 129, 0.3);
-          padding: 3px 8px;
-          border-radius: 6px;
+          border: 1px solid rgba(16, 185, 129, 0.35);
+          padding: 4px 10px;
+          border-radius: 8px;
         }
 
         .dl-nav-btn {
@@ -115,8 +131,8 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
           font-size: 13px;
           font-weight: 800;
           color: #ffffff;
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255, 255, 255, 0.15);
+          background: rgba(229, 9, 20, 0.15);
+          border: 1px solid rgba(229, 9, 20, 0.4);
           padding: 8px 16px;
           border-radius: 10px;
           text-decoration: none;
@@ -124,27 +140,57 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
         }
 
         .dl-nav-btn:hover {
-          background: rgba(229, 9, 20, 0.2);
-          border-color: #e50914;
+          background: #e50914;
           color: #ffffff;
+          transform: translateY(-1px);
         }
 
         /* Container */
         .dl-container {
-          max-width: 1140px;
+          max-width: 1180px;
           margin: 0 auto;
-          padding: 24px 18px;
+          padding: 24px 16px;
         }
 
-        /* Top Header */
+        /* Top Announcement Ticker */
+        .dl-live-ticker {
+          background: linear-gradient(90deg, rgba(244, 63, 94, 0.15), rgba(245, 158, 11, 0.15), rgba(16, 185, 129, 0.15));
+          border: 1px solid rgba(244, 63, 94, 0.3);
+          border-radius: 12px;
+          padding: 10px 16px;
+          margin-bottom: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 10px;
+          font-size: 13px;
+        }
+
+        .dl-ticker-text {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #f1f5f9;
+        }
+
+        .dl-ticker-pulse {
+          width: 8px;
+          height: 8px;
+          background: #f43f5e;
+          border-radius: 50%;
+          animation: dlBeacon 1.2s infinite ease-in-out;
+        }
+
+        /* Header */
         .dl-main-header {
           text-align: center;
-          margin-bottom: 26px;
+          margin-bottom: 28px;
         }
 
         .dl-main-title {
           font-family: 'Outfit', sans-serif;
-          font-size: clamp(2rem, 5vw, 3.2rem);
+          font-size: clamp(2.1rem, 5.2vw, 3.4rem);
           font-weight: 900;
           letter-spacing: -0.02em;
           margin: 0 0 8px 0;
@@ -156,127 +202,64 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
         }
 
         .dl-sub-title {
-          font-size: 14px;
+          font-size: 14.5px;
           color: #94a3b8;
           margin: 0;
         }
 
-        /* Tabs Grid */
-        .dl-tabs-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
-          margin-bottom: 18px;
-        }
-
-        @media (min-width: 640px) {
-          .dl-tabs-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-          }
-        }
-
-        .dl-app-tab {
-          appearance: none;
-          background: rgba(18, 22, 34, 0.9);
-          border: 1.5px solid rgba(255, 255, 255, 0.1);
-          border-radius: 18px;
-          padding: 16px 10px;
-          cursor: pointer;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          color: #ffffff;
-          transition: all 0.22s ease;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .dl-app-tab:hover {
-          transform: translateY(-2px);
-          border-color: rgba(255, 255, 255, 0.3);
-          background: rgba(26, 33, 50, 0.98);
-        }
-
-        .dl-app-tab.is-active {
-          background: linear-gradient(160deg, rgba(16, 185, 129, 0.22), rgba(6, 182, 212, 0.15));
-          border-color: #10b981;
-          box-shadow: 0 10px 26px -6px rgba(16, 185, 129, 0.45);
-          transform: translateY(-2px);
-        }
-
-        .dl-app-tab-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 14px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 8px 18px rgba(0,0,0,0.45);
-          flex-shrink: 0;
-        }
-
-        .dl-app-tab-name {
-          font-family: 'Outfit', sans-serif;
-          font-size: 14px;
-          font-weight: 800;
-          line-height: 1.2;
-          text-align: center;
-          word-break: break-word;
-        }
-
-        .dl-app-tab-ver {
-          font-size: 11px;
-          color: #94a3b8;
-          background: rgba(255,255,255,0.06);
-          padding: 2px 7px;
-          border-radius: 6px;
-        }
-
-        /* Instant Download Bar */
-        .dl-instant-bar {
-          background: linear-gradient(145deg, #111726 0%, #0b0f19 100%);
-          border: 1.5px solid rgba(16, 185, 129, 0.5);
+        /* Top Spotlight / Hero Bar */
+        .dl-spotlight-bar {
+          background: linear-gradient(145deg, #121829 0%, #0c101c 100%);
+          border: 2px solid rgba(16, 185, 129, 0.6);
           border-radius: 22px;
-          padding: 20px 24px;
+          padding: 22px 24px;
           display: flex;
           flex-direction: column;
           gap: 18px;
-          box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.75), 0 0 32px -12px rgba(16, 185, 129, 0.35);
-          margin-bottom: 28px;
+          box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.75), 0 0 35px -10px rgba(16, 185, 129, 0.35);
+          margin-bottom: 30px;
         }
 
-        @media (min-width: 720px) {
-          .dl-instant-bar {
+        @media (min-width: 760px) {
+          .dl-spotlight-bar {
             flex-direction: row;
             align-items: center;
             justify-content: space-between;
           }
         }
 
-        .dl-selected-left {
+        .dl-spotlight-left {
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 18px;
           min-width: 0;
           flex: 1;
         }
 
-        .dl-selected-icon {
-          width: 58px;
-          height: 58px;
-          border-radius: 16px;
+        .dl-spotlight-logo-wrap {
+          width: 64px;
+          height: 64px;
+          border-radius: 18px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.15);
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+          overflow: hidden;
           box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
         }
 
-        .dl-selected-title {
+        .dl-spotlight-img {
+          width: 52px;
+          height: 52px;
+          object-fit: contain;
+          border-radius: 12px;
+        }
+
+        .dl-spotlight-title {
           font-family: 'Outfit', sans-serif;
-          font-size: clamp(1.3rem, 3vw, 1.7rem);
+          font-size: clamp(1.4rem, 3.2vw, 1.85rem);
           font-weight: 900;
           margin: 0 0 6px 0;
           color: #ffffff;
@@ -292,27 +275,27 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
         }
 
         .dl-meta-pill {
-          font-size: 11px;
+          font-size: 11.5px;
           font-weight: 700;
-          padding: 3px 8px;
+          padding: 3px 9px;
           border-radius: 6px;
           background: rgba(255, 255, 255, 0.08);
           color: #cbd5e1;
         }
 
         .dl-meta-pill.verified {
-          background: rgba(16, 185, 129, 0.15);
+          background: rgba(16, 185, 129, 0.16);
           color: #34d399;
-          border: 1px solid rgba(16, 185, 129, 0.3);
+          border: 1px solid rgba(16, 185, 129, 0.35);
         }
 
         .dl-meta-pill.b2 {
-          background: rgba(56, 189, 248, 0.15);
+          background: rgba(56, 189, 248, 0.16);
           color: #38bdf8;
-          border: 1px solid rgba(56, 189, 248, 0.3);
+          border: 1px solid rgba(56, 189, 248, 0.35);
         }
 
-        .dl-cta-box {
+        .dl-spotlight-cta-box {
           display: flex;
           align-items: center;
           gap: 12px;
@@ -324,19 +307,19 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
           display: inline-flex;
           align-items: center;
           gap: 5px;
-          background: rgba(16, 185, 129, 0.18);
-          border: 1px solid rgba(52, 211, 153, 0.5);
+          background: rgba(16, 185, 129, 0.2);
+          border: 1px solid rgba(52, 211, 153, 0.55);
           color: #6ee7b7;
           font-family: 'Outfit', sans-serif;
-          font-size: 12px;
+          font-size: 12.5px;
           font-weight: 800;
-          padding: 8px 12px;
+          padding: 9px 13px;
           border-radius: 999px;
           animation: dlPointRight 0.9s infinite ease-in-out;
-          box-shadow: 0 6px 16px rgba(16, 185, 129, 0.25);
+          box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
         }
 
-        .dl-download-btn {
+        .dl-spotlight-btn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -358,25 +341,177 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
           white-space: nowrap;
         }
 
-        .dl-download-btn:hover {
+        .dl-spotlight-btn:hover {
           transform: translateY(-2px) scale(1.02);
           box-shadow: 0 18px 40px -2px rgba(16, 185, 129, 0.85);
           filter: brightness(1.08);
           color: #03150e;
         }
 
+        /* 1-Click Multi-App Grid */
+        .dl-section-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+        }
+
+        .dl-section-head h2 {
+          font-family: 'Outfit', sans-serif;
+          font-size: 20px;
+          font-weight: 900;
+          margin: 0;
+          color: #ffffff;
+        }
+
+        .dl-apps-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          gap: 16px;
+          margin-bottom: 34px;
+        }
+
+        .dl-app-card {
+          background: rgba(18, 22, 34, 0.95);
+          border: 1.5px solid rgba(255, 255, 255, 0.1);
+          border-radius: 20px;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          transition: all 0.25s ease;
+          position: relative;
+          cursor: pointer;
+        }
+
+        .dl-app-card:hover {
+          transform: translateY(-4px);
+          border-color: rgba(16, 185, 129, 0.5);
+          box-shadow: 0 14px 34px -8px rgba(0, 0, 0, 0.6), 0 0 24px -10px rgba(16, 185, 129, 0.35);
+        }
+
+        .dl-app-card.is-active {
+          border-color: #10b981;
+          background: linear-gradient(160deg, rgba(16, 185, 129, 0.15), rgba(18, 22, 34, 0.98));
+          box-shadow: 0 14px 34px -8px rgba(16, 185, 129, 0.35);
+        }
+
+        .dl-card-top {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+        }
+
+        .dl-card-logo-wrap {
+          width: 54px;
+          height: 54px;
+          border-radius: 15px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          overflow: hidden;
+          box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+        }
+
+        .dl-card-logo-img {
+          width: 44px;
+          height: 44px;
+          object-fit: contain;
+          border-radius: 10px;
+        }
+
+        .dl-card-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .dl-card-name {
+          font-family: 'Outfit', sans-serif;
+          font-size: 16px;
+          font-weight: 800;
+          color: #ffffff;
+          margin: 0 0 4px 0;
+          word-break: break-word;
+        }
+
+        .dl-card-badge {
+          display: inline-block;
+          font-size: 10px;
+          font-weight: 800;
+          text-transform: uppercase;
+          background: rgba(244, 63, 94, 0.15);
+          color: #fb7185;
+          border: 1px solid rgba(244, 63, 94, 0.4);
+          padding: 2px 6px;
+          border-radius: 6px;
+        }
+
+        .dl-card-desc {
+          font-size: 12.5px;
+          color: #94a3b8;
+          line-height: 1.45;
+          margin: 0;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .dl-card-footer {
+          margin-top: auto;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          padding-top: 12px;
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .dl-card-size {
+          font-size: 12px;
+          font-weight: 700;
+          color: #38bdf8;
+        }
+
+        .dl-card-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 9px 14px;
+          border-radius: 10px;
+          font-family: 'Outfit', sans-serif;
+          font-size: 12.5px;
+          font-weight: 800;
+          text-transform: uppercase;
+          text-decoration: none;
+          color: #03150e;
+          background: linear-gradient(135deg, #10b981, #34d399);
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+        }
+
+        .dl-card-btn:hover {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+        }
+
         /* Banner shown when download is triggered */
         .dl-download-alert {
-          background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(6, 182, 212, 0.2));
+          background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.2));
           border: 1.5px solid #10b981;
           border-radius: 16px;
-          padding: 16px 20px;
-          margin-bottom: 30px;
+          padding: 18px 22px;
+          margin-bottom: 34px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           flex-wrap: wrap;
-          gap: 12px;
+          gap: 14px;
           animation: dlFadeIn 0.3s ease-out;
         }
 
@@ -393,12 +528,12 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
           justify-content: space-between;
           flex-wrap: wrap;
           gap: 12px;
-          margin-bottom: 22px;
+          margin-bottom: 20px;
         }
 
         .dl-cinema-title-box h2 {
           font-family: 'Outfit', sans-serif;
-          font-size: clamp(1.4rem, 3.2vw, 2rem);
+          font-size: clamp(1.4rem, 3.2vw, 2.1rem);
           font-weight: 900;
           margin: 0 0 6px 0;
           color: #ffffff;
@@ -408,14 +543,42 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
         }
 
         .dl-cinema-title-box p {
-          font-size: 13.5px;
+          font-size: 14px;
           color: #94a3b8;
           margin: 0;
         }
 
+        /* VJ Filter Tabs */
+        .dl-vj-tabs {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-bottom: 22px;
+        }
+
+        .dl-vj-tab {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #cbd5e1;
+          padding: 8px 14px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .dl-vj-tab.is-active {
+          background: #f43f5e;
+          border-color: #f43f5e;
+          color: #ffffff;
+          box-shadow: 0 6px 18px rgba(244, 63, 94, 0.45);
+        }
+
         .dl-cinema-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
           gap: 20px;
         }
 
@@ -681,70 +844,62 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
       </nav>
 
       <div className="dl-container">
+        {/* Live Cinema Ticker */}
+        <div className="dl-live-ticker">
+          <div className="dl-ticker-text">
+            <span className="dl-ticker-pulse" />
+            <strong>FREE CINEMA ALERT:</strong>
+            <span>Stream 100% free Luganda translated movies (VJ Junior, VJ Emmy, VJ Ice P) with zero sign-up!</span>
+          </div>
+          <Link href="/?category=Free" style={{ color: '#f59e0b', fontWeight: '800', textDecoration: 'none' }}>
+            Watch Free Movies ▶
+          </Link>
+        </div>
+
         {/* Header */}
         <header className="dl-main-header">
           <h1 className="dl-main-title">Downloaders Premium</h1>
           <p className="dl-sub-title">
-            100% Virus-Free Verified APKs • High-Speed Direct CDN Storage • Watch Free Luganda Translated Movies
+            100% Virus-Free Verified APKs • High-Speed Direct CDN Storage • Instant Free Luganda Translated Movies
           </p>
         </header>
 
         {/* ========================================================
-            TOP SECTION: INTERACTIVE APP SELECTOR TABS
+            SPOTLIGHT HERO BAR
             ======================================================== */}
-        <section aria-label="Premium Android Apps Selection">
-          <div className="dl-tabs-grid" role="tablist">
-            {apps.map((app) => {
-              const isSelected = app.id === selectedAppId;
-              return (
-                <button
-                  key={app.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isSelected}
-                  onClick={() => {
-                    setSelectedAppId(app.id);
-                    setDownloadTriggered(false);
-                  }}
-                  className={`dl-app-tab ${isSelected ? 'is-active' : ''}`}
-                >
-                  <div
-                    className="dl-app-tab-icon"
-                    style={{ background: app.gradient || 'linear-gradient(135deg, #10b981, #06b6d4)' }}
-                  >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
-                      <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
-                    </svg>
-                  </div>
-                  <span className="dl-app-tab-name">{app.name}</span>
-                  <span className="dl-app-tab-ver">{app.version || 'APK'}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ========================================================
-              INSTANT ABOVE-THE-FOLD ACTION BAR
-              ======================================================== */}
-          <div className="dl-instant-bar">
-            <div className="dl-selected-left">
+        <section aria-label="Spotlight Featured App">
+          <div className="dl-spotlight-bar">
+            <div className="dl-spotlight-left">
               <div
-                className="dl-selected-icon"
+                className="dl-spotlight-logo-wrap"
                 style={{ background: activeApp.gradient || 'linear-gradient(135deg, #10b981, #06b6d4)' }}
               >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
-                  <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
-                </svg>
+                {activeApp.local_icon || activeApp.icon_url ? (
+                  <img
+                    src={activeApp.local_icon || activeApp.icon_url}
+                    alt={activeApp.name}
+                    className="dl-spotlight-img"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                ) : (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
+                    <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                  </svg>
+                )}
               </div>
 
               <div style={{ minWidth: 0 }}>
-                <h2 className="dl-selected-title">{activeApp.name}</h2>
+                <h2 className="dl-spotlight-title">{activeApp.name}</h2>
                 <div className="dl-meta-pills">
                   <span className="dl-meta-pill">{activeApp.version || 'v1.0'}</span>
                   <span className="dl-meta-pill">{activeApp.file_size || 'Direct APK'}</span>
                   <span className="dl-meta-pill verified">✓ Verified Safe</span>
+                  {activeApp.badge && (
+                    <span className="dl-meta-pill" style={{ background: 'rgba(244, 63, 94, 0.2)', color: '#fb7185' }}>
+                      {activeApp.badge}
+                    </span>
+                  )}
                   {activeApp.file_url?.includes('cdn.flixon.net') && (
                     <span className="dl-meta-pill b2">⚡ Fast B2 CDN</span>
                   )}
@@ -752,7 +907,7 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
               </div>
             </div>
 
-            <div className="dl-cta-box">
+            <div className="dl-spotlight-cta-box">
               <span className="dl-pointer-cue" aria-hidden="true">
                 <span>Tap here</span>
                 <span style={{ fontSize: '16px' }}>👉</span>
@@ -763,15 +918,15 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
                 target="_blank"
                 rel="noopener noreferrer"
                 download
-                onClick={handleDownloadClick}
-                className="dl-download-btn"
+                onClick={(e) => handleDownload(activeApp, e)}
+                className="dl-spotlight-btn"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                <span>DOWNLOAD NOW</span>
+                <span>DOWNLOAD {activeApp.file_size ? `(${activeApp.file_size})` : 'NOW'}</span>
               </a>
             </div>
           </div>
@@ -780,11 +935,11 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
           {downloadTriggered && (
             <div className="dl-download-alert">
               <div>
-                <div style={{ fontWeight: '800', color: '#10b981', fontSize: '15px', marginBottom: '2px' }}>
-                  🎉 Your download has started!
+                <div style={{ fontWeight: '900', color: '#10b981', fontSize: '16px', marginBottom: '2px' }}>
+                  🎉 Your download for {downloadingAppName || 'the app'} has started!
                 </div>
-                <div style={{ fontSize: '13px', color: '#cbd5e1' }}>
-                  While your app finishes downloading, enjoy today&apos;s top Luganda translated movies below with zero sign-up!
+                <div style={{ fontSize: '13.5px', color: '#cbd5e1' }}>
+                  While your APK downloads, stream today&apos;s hottest Luganda translated movies below 100% free!
                 </div>
               </div>
               <button
@@ -794,10 +949,10 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
                   background: '#10b981',
                   color: '#000',
                   border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  fontWeight: '800',
-                  fontSize: '12px',
+                  padding: '10px 18px',
+                  borderRadius: '10px',
+                  fontWeight: '900',
+                  fontSize: '13px',
                   cursor: 'pointer'
                 }}
               >
@@ -805,6 +960,92 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
               </button>
             </div>
           )}
+        </section>
+
+        {/* ========================================================
+            ALL APKS: EVERY FILE HAS ITS OWN 1-CLICK DOWNLOAD BUTTON
+            ======================================================== */}
+        <section aria-label="Choose APK File to Download">
+          <div className="dl-section-head">
+            <h2>📦 Choose a File to Download (1-Click Instant)</h2>
+            <span style={{ fontSize: '13px', color: '#10b981', fontWeight: '700' }}>
+              ✓ All Hosted on Backblaze B2 CDN
+            </span>
+          </div>
+
+          <div className="dl-apps-grid">
+            {apps.map((app) => {
+              const isSelected = app.id === selectedAppId;
+              const logoSrc = app.local_icon || app.icon_url;
+
+              return (
+                <div
+                  key={app.id}
+                  onClick={() => {
+                    setSelectedAppId(app.id);
+                  }}
+                  className={`dl-app-card ${isSelected ? 'is-active' : ''}`}
+                >
+                  <div className="dl-card-top">
+                    <div
+                      className="dl-card-logo-wrap"
+                      style={{ background: app.gradient || 'linear-gradient(135deg, #10b981, #06b6d4)' }}
+                    >
+                      {logoSrc ? (
+                        <img
+                          src={logoSrc}
+                          alt={app.name}
+                          className="dl-card-logo-img"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
+                          <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                        </svg>
+                      )}
+                    </div>
+
+                    <div className="dl-card-info">
+                      <div className="dl-card-name">{app.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '700' }}>
+                          {app.version || 'APK'}
+                        </span>
+                        {app.badge && <span className="dl-card-badge">{app.badge}</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="dl-card-desc">
+                    {app.description || 'High-speed Android application. Free from ads, clean, verified virus-free, and fast.'}
+                  </p>
+
+                  <div className="dl-card-footer">
+                    <span className="dl-card-size">
+                      {app.file_size || 'Direct APK'}
+                    </span>
+
+                    <a
+                      href={app.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      onClick={(e) => handleDownload(app, e)}
+                      className="dl-card-btn"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      <span>DOWNLOAD</span>
+                    </a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
 
         {/* ========================================================
@@ -837,8 +1078,22 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
             </Link>
           </div>
 
+          {/* VJ Filter Pills */}
+          <div className="dl-vj-tabs">
+            {['All', 'VJ Junior', 'VJ Emmy', 'VJ Ice P', 'Series'].map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setMovieFilter(tab)}
+                className={`dl-vj-tab ${movieFilter === tab ? 'is-active' : ''}`}
+              >
+                {tab === 'All' ? '🔥 All Free Cinema' : tab}
+              </button>
+            ))}
+          </div>
+
           <div className="dl-cinema-grid">
-            {movies.map((movie) => {
+            {filteredMovies.map((movie) => {
               const vjs = (movie.categories || []).filter(c => c.toLowerCase().includes('vj'));
               const genres = (movie.categories || []).filter(c => !c.toLowerCase().includes('vj')).slice(0, 2);
               const poster = movie.thumbnail_url || 'https://thefilmstage.com/wp-content/uploads/2017/02/Shoot-Em-Up.jpg';
@@ -909,7 +1164,7 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
             <div className="dl-vip-text">
               <h3>🎬 Want 1,000+ Translated Movies on FlixOn?</h3>
               <p>
-                Watch exclusive releases from VJ Junior, VJ Emmy, VJ Ice P, VJ Jingo, VJ Mark &amp; download movies to watch offline.
+                Watch exclusive releases from VJ Junior, VJ Emmy, VJ Ice P, VJ Jingo, VJ Mark &amp; download movies to watch offline on any phone, tablet, or TV.
               </p>
             </div>
 

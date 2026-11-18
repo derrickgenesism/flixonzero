@@ -397,20 +397,19 @@ export default function DownloadsAdminClient({ initialApps = [], storageInfo = {
     const tabsHtml = activeList.map((app, idx) => `
       <!-- Tab: ${escapeHtml(app.name)} -->
       <button type="button" class="dl-app-tab ${idx === 0 ? 'is-active' : ''}" role="tab" aria-selected="${idx === 0 ? 'true' : 'false'}" data-app-key="${app.id}">
-        <div class="dl-app-icon" style="background: ${app.gradient || 'linear-gradient(135deg, #10b981, #06b6d4)'} !important;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
-          </svg>
+        <div class="dl-app-icon" style="background: ${app.gradient || 'linear-gradient(135deg, #10b981, #06b6d4)'} !important; overflow: hidden !important;">
+          ${(app.icon_url || app.local_icon) ? `<img src="${app.icon_url || `https://flixon.net${app.local_icon}`}" alt="${escapeHtml(app.name)}" style="width: 36px !important; height: 36px !important; object-fit: contain !important; border-radius: 8px !important;" />` : `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>`}
         </div>
         <span class="dl-app-tab-label">${escapeHtml(app.name)}</span>
       </button>`).join('\n');
 
     const appDict = activeList.reduce((acc, app) => {
+      const iconImg = (app.icon_url || app.local_icon) ? `<img src="${app.icon_url || `https://flixon.net${app.local_icon}`}" alt="${escapeHtml(app.name)}" style="width: 44px !important; height: 44px !important; object-fit: contain !important; border-radius: 10px !important;" />` : '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>';
       acc[app.id] = {
         label: app.name,
         url: app.file_url,
         gradient: app.gradient || 'linear-gradient(135deg, #10b981, #06b6d4)',
-        svg: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>'
+        svg: iconImg
       };
       return acc;
     }, {});
@@ -977,11 +976,21 @@ ${tabsHtml}
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
-                  boxShadow: '0 8px 18px rgba(0,0,0,0.4)'
+                  boxShadow: '0 8px 18px rgba(0,0,0,0.4)',
+                  overflow: 'hidden'
                 }}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
-                  </svg>
+                  {app.local_icon || app.icon_url ? (
+                    <img 
+                      src={app.local_icon || app.icon_url} 
+                      alt={app.name} 
+                      style={{ width: '42px', height: '42px', objectFit: 'contain' }} 
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                    />
+                  ) : (
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                    </svg>
+                  )}
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>

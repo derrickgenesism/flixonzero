@@ -100,8 +100,7 @@ export async function GET() {
       // Auto-save default starter apps
       await admin.from('admin_settings').upsert({
         setting_key: 'shared_apps_list',
-        setting_value: JSON.stringify(apps),
-        updated_at: new Date().toISOString()
+        setting_value: JSON.stringify(apps)
       }, { onConflict: 'setting_key' });
     }
 
@@ -140,8 +139,7 @@ export async function POST(request) {
     const admin = createAdminClient();
     const { error } = await admin.from('admin_settings').upsert({
       setting_key: 'shared_apps_list',
-      setting_value: JSON.stringify(apps),
-      updated_at: new Date().toISOString()
+      setting_value: JSON.stringify(apps)
     }, { onConflict: 'setting_key' });
 
     if (error) throw error;

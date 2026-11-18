@@ -46,8 +46,7 @@ export async function POST(request) {
 
     await admin.from('admin_settings').upsert({
       setting_key: 'shared_apps_list',
-      setting_value: JSON.stringify(updatedApps),
-      updated_at: new Date().toISOString()
+      setting_value: JSON.stringify(updatedApps)
     }, { onConflict: 'setting_key' });
 
     return NextResponse.json({ success: true, appId, count: updatedCount });
