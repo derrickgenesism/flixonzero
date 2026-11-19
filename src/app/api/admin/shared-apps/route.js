@@ -18,7 +18,7 @@ const DEFAULT_STARTER_APPS = [
     gradient: 'linear-gradient(135deg, #f43f5e, #fb923c)',
     icon_svg: 'download',
     description: 'Download HD videos from YouTube, TikTok, Facebook, Instagram & 1,000+ sites with zero ads.',
-    download_count: 1840,
+    download_count: 0,
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -36,7 +36,7 @@ const DEFAULT_STARTER_APPS = [
     gradient: 'linear-gradient(135deg, #f59e0b, #ef4444)',
     icon_svg: 'bolt',
     description: 'High-speed 4K & MP3 converter. Download audio and video streams instantly in one tap.',
-    download_count: 1420,
+    download_count: 0,
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -54,7 +54,7 @@ const DEFAULT_STARTER_APPS = [
     gradient: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
     icon_svg: 'shield',
     description: 'Material You yt-dlp downloader for Android with custom formats, subtitle extraction, and zero trackers.',
-    download_count: 980,
+    download_count: 0,
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -74,7 +74,7 @@ const DEFAULT_STARTER_APPS = [
     icon_url: 'https://cdn.flixon.net/apps/icons/blackhole.webp',
     local_icon: '/icons/apps/blackhole.webp',
     description: 'Download all videos, reels, stories & clips from Instagram, TikTok, Facebook, Twitter & YouTube in 1 tap with zero ads.',
-    download_count: 4120,
+    download_count: 0,
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
