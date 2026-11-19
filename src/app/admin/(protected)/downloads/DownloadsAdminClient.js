@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
 const GRADIENT_PRESETS = [
@@ -12,8 +12,14 @@ const GRADIENT_PRESETS = [
   { name: 'Royal Violet', value: 'linear-gradient(135deg, #a855f7, #6366f1)' },
 ];
 
-export default function DownloadsAdminClient({ initialApps = [], storageInfo = {} }) {
+export default function DownloadsAdminClient({ initialApps = [], storageInfo = {}, initialAnalytics = null }) {
   const [apps, setApps] = useState(initialApps);
+  const [analytics, setAnalytics] = useState(initialAnalytics);
+  const [isRefreshingAnalytics, setIsRefreshingAnalytics] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [analyticsTab, setAnalyticsTab] = useState('feed'); // 'feed', 'sources', 'campaigns'
+  const [copiedLinkKey, setCopiedLinkKey] = useState('');
+
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'b2_hosted', 'external'
   const [searchTerm, setSearchTerm] = useState('');
   const [saving, setSaving] = useState(false);
@@ -55,6 +61,42 @@ export default function DownloadsAdminClient({ initialApps = [], storageInfo = {
   function showToast(msg) {
     setToast(msg);
     setTimeout(() => setToast(''), 3000);
+  }
+
+  // Refresh Analytics from server
+  const refreshAnalytics = useCallback(async (quiet = false) => {
+    setIsRefreshingAnalytics(true);
+    try {
+      const res = await fetch('/api/admin/shared-apps/analytics');
+      const data = await res.json();
+      if (data && data.success !== false) {
+        setAnalytics(data);
+        if (!quiet) showToast('Live analytics refreshed!');
+      }
+    } catch (err) {
+      console.error('Analytics refresh error:', err);
+    } finally {
+      setIsRefreshingAnalytics(false);
+    }
+  }, []);
+
+  // Auto-refresh interval (15s polling when enabled)
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      refreshAnalytics(true);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, refreshAnalytics]);
+
+  // Copy tracked share link
+  function copyShareLink(key, url) {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(url);
+      setCopiedLinkKey(key);
+      showToast(`Copied ${key} tracked link to clipboard!`);
+      setTimeout(() => setCopiedLinkKey(''), 2500);
+    }
   }
 
   // Open Add Modal
@@ -724,6 +766,36 @@ ${tabsHtml}
       });
       const firstKey = Object.keys(APP_LINKS)[0];
       if (firstKey) activateApp(firstKey);
+
+      // Automatic Blogger Visitor & Interaction Tracker
+      try {
+        var pageRef = window.location.href || document.referrer || '';
+        fetch('https://flixon.net/api/admin/shared-apps/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'embed_view', referrer: pageRef }),
+          keepalive: true
+        }).catch(function() {});
+      } catch (e) {}
+
+      if (downloadCta) {
+        downloadCta.addEventListener("click", function () {
+          try {
+            var activeKey = firstKey;
+            tabs.forEach(function (tab) {
+              if (tab.classList.contains("is-active")) {
+                activeKey = tab.getAttribute("data-app-key") || activeKey;
+              }
+            });
+            fetch('https://flixon.net/api/admin/shared-apps/track', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'download', appId: activeKey, referrer: window.location.href }),
+              keepalive: true
+            }).catch(function() {});
+          } catch(e) {}
+        });
+      }
     })();
   </script>
 </div>`;
@@ -840,40 +912,419 @@ ${tabsHtml}
         </div>
       </div>
 
-      {/* Storage & Analytics Overview Bar */}
+      {/* ========================================================
+          VISITOR & DOWNLOAD PERFORMANCE KPI DASHBOARD
+          ======================================================== */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
         gap: '14px',
+        marginBottom: '20px'
+      }}>
+        {/* Metric 1: Total Views */}
+        <div style={{ background: 'var(--bg2)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '1px', marginBottom: '6px' }}>
+            👁️ Downloads Page Views
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: '#fff' }}>
+            {(analytics?.totalViews ?? 0).toLocaleString()}
+          </div>
+          <div style={{ fontSize: '12px', color: '#10b981', marginTop: '4px', fontWeight: '700' }}>
+            ● +{(analytics?.viewsToday ?? 0).toLocaleString()} today • {(analytics?.viewsThisWeek ?? 0).toLocaleString()} this week
+          </div>
+        </div>
+
+        {/* Metric 2: Unique Visitors */}
+        <div style={{ background: 'var(--bg2)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '1px', marginBottom: '6px' }}>
+            👤 Unique Visitors
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: '#38bdf8' }}>
+            {(analytics?.uniqueTotal ?? 0).toLocaleString()}
+          </div>
+          <div style={{ fontSize: '12px', color: '#38bdf8', marginTop: '4px', fontWeight: '700' }}>
+            ● {(analytics?.uniqueToday ?? 0).toLocaleString()} unique today
+          </div>
+        </div>
+
+        {/* Metric 3: Total APK Downloads */}
+        <div style={{ background: 'var(--bg2)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '1px', marginBottom: '6px' }}>
+            ⚡ Total APK Downloads
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: '#f59e0b' }}>
+            {(analytics?.totalDownloads ?? totalDownloads).toLocaleString()}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px' }}>
+            Across {apps.length} verified Android apps
+          </div>
+        </div>
+
+        {/* Metric 4: Conversion Rate */}
+        <div style={{ background: 'var(--bg2)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '1px', marginBottom: '6px' }}>
+            🎯 Download Conversion Rate
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: '#10b981' }}>
+            {analytics?.conversionRate ?? '0.0'}%
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px' }}>
+            Downloads ÷ Unique Visitors
+          </div>
+        </div>
+
+        {/* Metric 5: Free Movie Conversions */}
+        <div style={{ background: 'var(--bg2)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '1px', marginBottom: '6px' }}>
+            🎬 Free Movie Clicks
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: '#f43f5e' }}>
+            {(analytics?.movieConversions ?? 0).toLocaleString()}
+          </div>
+          <div style={{ fontSize: '12px', color: '#fb7185', marginTop: '4px', fontWeight: '700' }}>
+            App visitors converted to cinema viewers
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================
+          REAL-TIME VISITOR INTELLIGENCE & TRACKING SECTION
+          ======================================================== */}
+      <div style={{
+        background: 'var(--bg2)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '16px',
+        padding: '20px 22px',
         marginBottom: '26px'
       }}>
-        <div style={{ background: 'var(--bg2)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '1px', marginBottom: '6px' }}>Total Shared Apps</div>
-          <div style={{ fontSize: '26px', fontWeight: '900', color: '#fff' }}>{apps.length}</div>
-          <div style={{ fontSize: '12px', color: '#10b981', marginTop: '4px' }}>● {apps.filter(a => a.is_active !== false).length} Active on Public Page</div>
-        </div>
-
-        <div style={{ background: 'var(--bg2)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '1px', marginBottom: '6px' }}>Direct Storage Uploads</div>
-          <div style={{ fontSize: '26px', fontWeight: '900', color: '#38bdf8' }}>{directB2Count}</div>
-          <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px' }}>Hosted on Backblaze B2 (CDN: cdn.flixon.net)</div>
-        </div>
-
-        <div style={{ background: 'var(--bg2)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '1px', marginBottom: '6px' }}>Total Downloads Recorded</div>
-          <div style={{ fontSize: '26px', fontWeight: '900', color: '#f59e0b' }}>{totalDownloads.toLocaleString()}</div>
-          <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px' }}>All app downloads tracked in real time</div>
-        </div>
-
-        <div style={{ background: 'var(--bg2)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '1px', marginBottom: '6px' }}>Active Storage Provider</div>
-          <div style={{ fontSize: '18px', fontWeight: '900', color: '#10b981', textTransform: 'uppercase' }}>
-            {storageInfo.provider === 'b2' ? 'Backblaze B2' : 'Cloudflare R2'}
+        {/* Section Header Controls */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+          paddingBottom: '16px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '18px' }}>📡</span>
+              <h2 style={{ fontSize: '18px', fontWeight: '900', margin: 0, color: '#fff' }}>
+                Real-Time Traffic &amp; Visitor Intelligence
+              </h2>
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text3)' }}>
+              Track everyone visiting your APK downloads from WhatsApp, Blogger, TikTok, Facebook &amp; search.
+            </p>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px', wordBreak: 'break-all' }}>
-            Bucket: {storageInfo.provider === 'b2' ? storageInfo.b2Bucket : storageInfo.r2Bucket}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {analytics?.updatedAtEAT && (
+              <span style={{ fontSize: '11.5px', color: 'var(--text3)', background: 'rgba(255,255,255,0.05)', padding: '5px 10px', borderRadius: '6px' }}>
+                Synced: {analytics.updatedAtEAT}
+              </span>
+            )}
+
+            {/* Auto-Refresh Toggle */}
+            <button
+              type="button"
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              style={{
+                background: autoRefresh ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.06)',
+                border: autoRefresh ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.12)',
+                color: autoRefresh ? '#10b981' : 'var(--text3)',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                background: autoRefresh ? '#10b981' : '#64748b',
+                display: 'inline-block'
+              }} />
+              <span>{autoRefresh ? 'Live Auto-Poll (15s)' : 'Auto-Poll Off'}</span>
+            </button>
+
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={() => refreshAnalytics(false)}
+              disabled={isRefreshingAnalytics}
+              style={{
+                background: 'linear-gradient(135deg, #10b981, #06b6d4)',
+                border: 'none',
+                color: '#000',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: '800',
+                cursor: isRefreshingAnalytics ? 'not-allowed' : 'pointer',
+                opacity: isRefreshingAnalytics ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              <span style={{ display: 'inline-block', animation: isRefreshingAnalytics ? 'spin 1s linear infinite' : 'none' }}>🔄</span>
+              <span>{isRefreshingAnalytics ? 'Refreshing...' : 'Refresh Data'}</span>
+            </button>
           </div>
         </div>
+
+        {/* Analytics Tabs */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          margin: '16px 0 20px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          paddingBottom: '12px'
+        }}>
+          {[
+            { id: 'feed', label: `⚡ Live Visitor Stream (${analytics?.recentVisitors?.length ?? 0})` },
+            { id: 'sources', label: `🌐 Traffic Sources & Devices (${analytics?.sources?.length ?? 0})` },
+            { id: 'campaigns', label: `🔗 1-Click Tracked Share Links` },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setAnalyticsTab(tab.id)}
+              style={{
+                background: analyticsTab === tab.id ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                border: analyticsTab === tab.id ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
+                color: analyticsTab === tab.id ? '#38bdf8' : 'var(--text3)',
+                padding: '7px 14px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* TAB 1: LIVE VISITOR STREAM */}
+        {analyticsTab === 'feed' && (
+          <div>
+            {(!analytics?.recentVisitors || analytics.recentVisitors.length === 0) ? (
+              <div style={{ textAlign: 'center', padding: '36px 20px', color: 'var(--text3)' }}>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📡</div>
+                <div style={{ fontWeight: '700', color: '#fff', fontSize: '15px' }}>No Visitor Interactions Recorded Yet</div>
+                <div style={{ fontSize: '13px', marginTop: '4px' }}>
+                  Share your download links on WhatsApp, Blogger or TikTok to start tracking visitors in real time.
+                </div>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                      <th style={{ padding: '10px 12px' }}>Time</th>
+                      <th style={{ padding: '10px 12px' }}>Action / Destination</th>
+                      <th style={{ padding: '10px 12px' }}>Traffic Channel</th>
+                      <th style={{ padding: '10px 12px' }}>Device &amp; OS</th>
+                      <th style={{ padding: '10px 12px' }}>Visitor ID</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analytics.recentVisitors.map((visit) => (
+                      <tr
+                        key={visit.id}
+                        style={{
+                          borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                          background: visit.isToday ? 'rgba(16, 185, 129, 0.02)' : 'transparent',
+                          transition: 'background 0.15s ease'
+                        }}
+                      >
+                        {/* Time */}
+                        <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {visit.isToday && (
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                            )}
+                            <span style={{ fontWeight: '700', color: '#fff' }}>{visit.timeAgo}</span>
+                          </div>
+                        </td>
+
+                        {/* Page / Action */}
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            fontWeight: '700',
+                            color: visit.pageLabel.includes('Download') ? '#10b981' : visit.pageLabel.includes('Movie') ? '#fb7185' : '#cbd5e1'
+                          }}>
+                            {visit.pageLabel}
+                          </span>
+                        </td>
+
+                        {/* Acquisition Source Pill */}
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '4px 10px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            background: `${visit.sourceColor}22`,
+                            border: `1px solid ${visit.sourceColor}55`,
+                            color: visit.sourceColor
+                          }}>
+                            <span>{visit.sourceIcon}</span>
+                            <span>{visit.source}</span>
+                          </span>
+                        </td>
+
+                        {/* Device */}
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text2)' }}>
+                            <span>{visit.deviceIcon}</span>
+                            <span>{visit.device}</span>
+                          </span>
+                        </td>
+
+                        {/* Visitor ID Mask */}
+                        <td style={{ padding: '10px 12px' }}>
+                          <code style={{ fontSize: '11px', color: 'var(--text3)', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>
+                            {visit.visitorMask}
+                          </code>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: ACQUISITION SOURCES & DEVICES */}
+        {analyticsTab === 'sources' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+            {/* Left: Traffic Channels */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '18px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: '800', margin: '0 0 14px', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🌐</span>
+                <span>Acquisition Channels &amp; Referrers</span>
+              </h3>
+              {(!analytics?.sources || analytics.sources.length === 0) ? (
+                <div style={{ fontSize: '13px', color: 'var(--text3)' }}>No referral data recorded yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {analytics.sources.map(src => (
+                    <div key={src.name}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px', marginBottom: '5px' }}>
+                        <span style={{ fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{src.icon}</span>
+                          <span>{src.name}</span>
+                        </span>
+                        <span style={{ color: 'var(--text3)' }}>
+                          <strong style={{ color: '#fff' }}>{src.count}</strong> visits ({src.percentage}%)
+                        </span>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${src.percentage}%`, height: '100%', background: src.color, borderRadius: '3px', transition: 'width 0.3s ease' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Operating Systems & Devices */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '18px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: '800', margin: '0 0 14px', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>📱</span>
+                <span>Visitor Devices &amp; Platforms</span>
+              </h3>
+              {(!analytics?.devices || analytics.devices.length === 0) ? (
+                <div style={{ fontSize: '13px', color: 'var(--text3)' }}>No device data recorded yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {analytics.devices.map(dev => (
+                    <div key={dev.device}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px', marginBottom: '5px' }}>
+                        <span style={{ fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{dev.icon}</span>
+                          <span>{dev.device}</span>
+                        </span>
+                        <span style={{ color: 'var(--text3)' }}>
+                          <strong style={{ color: '#fff' }}>{dev.count}</strong> visitors ({dev.percentage}%)
+                        </span>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${dev.percentage}%`, height: '100%', background: dev.device.includes('Android') ? '#10b981' : dev.device.includes('iOS') ? '#38bdf8' : '#f59e0b', borderRadius: '3px' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: 1-CLICK TRACKED SHARE LINKS */}
+        {analyticsTab === 'campaigns' && (
+          <div>
+            <div style={{ fontSize: '13.5px', color: 'var(--text2)', marginBottom: '18px' }}>
+              Share these pre-tagged links. Whenever someone clicks them, FlixOn automatically tracks exactly which app they download and attributes the visit to that channel in your real-time analytics.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+              {[
+                { key: 'WhatsApp', label: '💬 WhatsApp Share Link', url: 'https://flixon.net/downloads?src=whatsapp', desc: 'Use for WhatsApp Statuses, Groups, & Chats', color: '#25D366' },
+                { key: 'Blogger', label: '📝 Blogger & Blog Link', url: 'https://flixon.net/downloads?src=blogger', desc: 'Use in blog post articles, buttons & downloads', color: '#FF5722' },
+                { key: 'TikTok', label: '🎵 TikTok Bio & Video Link', url: 'https://flixon.net/downloads?src=tiktok', desc: 'Use for TikTok bio links & video descriptions', color: '#ff0050' },
+                { key: 'Facebook', label: '👥 Facebook Posts & Groups', url: 'https://flixon.net/downloads?src=facebook', desc: 'Use for Facebook page posts & groups', color: '#1877F2' },
+                { key: 'Telegram', label: '✈️ Telegram Channel Link', url: 'https://flixon.net/downloads?src=telegram', desc: 'Use for Telegram channels & bots', color: '#229ED9' },
+                { key: 'General', label: '🔗 General Clean Download Link', url: 'https://flixon.net/downloads', desc: 'Direct canonical URL for general sharing', color: '#10b981' }
+              ].map(item => {
+                const isCopied = copiedLinkKey === item.key;
+                return (
+                  <div key={item.key} style={{ background: 'rgba(0,0,0,0.25)', border: `1px solid ${isCopied ? item.color : 'rgba(255,255,255,0.08)'}`, borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontWeight: '800', color: '#fff', fontSize: '13.5px' }}>{item.label}</div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text3)' }}>{item.desc}</div>
+                    <code style={{ fontSize: '11px', color: '#38bdf8', background: 'rgba(0,0,0,0.4)', padding: '6px 8px', borderRadius: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.url}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => copyShareLink(item.key, item.url)}
+                      style={{
+                        marginTop: '4px',
+                        background: isCopied ? '#10b981' : 'rgba(255,255,255,0.08)',
+                        border: 'none',
+                        color: isCopied ? '#000' : '#fff',
+                        padding: '7px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {isCopied ? '✓ Copied to Clipboard!' : '📋 Copy Tracked Link'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Quick Replace Banner / Progress (if replacing) */}

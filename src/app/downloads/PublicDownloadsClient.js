@@ -43,12 +43,22 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
     setDownloadingAppName(target.name);
     setDownloadTriggered(true);
 
-    // Call background tracker to increment download count
+    let vid = null;
+    try {
+      vid = localStorage.getItem('flx_vid');
+    } catch (_) {}
+
+    // Call background tracker to increment download count & record visit event
     if (target?.id) {
       fetch('/api/admin/shared-apps/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appId: target.id })
+        body: JSON.stringify({
+          action: 'download',
+          appId: target.id,
+          appName: target.name,
+          visitorId: vid
+        })
       }).catch(() => {});
     }
 
@@ -56,6 +66,26 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
     setTimeout(() => {
       cinemaRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 1200);
+  }
+
+  // Track conversion when user clicks to stream a free movie
+  function handleMovieClick(movie) {
+    let vid = null;
+    try {
+      vid = localStorage.getItem('flx_vid');
+    } catch (_) {}
+
+    fetch('/api/admin/shared-apps/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'movie_click',
+        movieId: movie?.id,
+        movieTitle: movie?.title,
+        visitorId: vid
+      }),
+      keepalive: true
+    }).catch(() => {});
   }
 
   // Filter movies
@@ -994,7 +1024,8 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
             </div>
 
             <Link
-              href="/?category=Free"
+              href="/?category=Free&from=downloads"
+              onClick={() => handleMovieClick({ id: 'catalog', title: 'All Free Movies' })}
               style={{
                 fontSize: '13px',
                 fontWeight: '800',
@@ -1033,7 +1064,8 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
               return (
                 <Link
                   key={movie.id}
-                  href={`/movie/${movie.id}`}
+                  href={`/movie/${movie.id}?from=downloads`}
+                  onClick={() => handleMovieClick(movie)}
                   className="dl-movie-card"
                   title={`Watch ${movie.title} free on FlixOn`}
                 >

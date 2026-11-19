@@ -1,11 +1,11 @@
 {
-  "commit": "21c2af0",
-  "fullCommit": "21c2af0b4cfa6c42d65fc0ca04c3d746963a10ed",
-  "message": "feat(downloads): upload APKs and icons to Backblaze B2, add 1-click download buttons on all cards, and upgrade free movie advertising showcase",
+  "commit": "a91f997",
+  "fullCommit": "a91f997fa2c3b59aa3c1ef1f708a591be077fd38",
+  "message": "fix(downloads): remove duplicate spotlight bar, update BlackHole details, and remove technical CDN jargon",
   "author": "derrickgenesism",
-  "commitDate": "Thu Nov 19 01:59:32 2026 +0300",
-  "deployedAt": "2026-11-19T05:11:57.256Z",
-  "deployedAtEAT": "19 Nov 2026, 08:11 am EAT",
+  "commitDate": "Thu Nov 19 08:12:40 2026 +0300",
+  "deployedAt": "2026-11-19T05:42:08.960Z",
+  "deployedAtEAT": "19 Nov 2026, 08:42 am EAT",
   "timeZone": "Africa/Kampala (EAT, UTC+3)",
   "repository": "derrickgenesism/flixonzero"
 }
