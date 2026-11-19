@@ -23,7 +23,7 @@ export async function generateMetadata({ params }) {
 
   return {
     title: `Download ${appName} — Fast Direct APK Download | FlixOn`,
-    description: `Download ${appName} verified clean APK directly from fast B2 CDN storage, plus stream free Luganda translated movies by VJ Junior, VJ Emmy, VJ Ice P on FlixOn.`
+    description: `Download ${appName} verified clean APK with fast direct download, plus stream free Luganda translated movies by VJ Junior, VJ Emmy, VJ Ice P on FlixOn.`
   };
 }
 

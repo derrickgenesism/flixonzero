@@ -860,107 +860,39 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
         <header className="dl-main-header">
           <h1 className="dl-main-title">Downloaders Premium</h1>
           <p className="dl-sub-title">
-            100% Virus-Free Verified APKs • High-Speed Direct CDN Storage • Instant Free Luganda Translated Movies
+            100% Virus-Free Verified APKs • Instant Direct Download • Free Luganda Translated Movies
           </p>
         </header>
 
-        {/* ========================================================
-            SPOTLIGHT HERO BAR
-            ======================================================== */}
-        <section aria-label="Spotlight Featured App">
-          <div className="dl-spotlight-bar">
-            <div className="dl-spotlight-left">
-              <div
-                className="dl-spotlight-logo-wrap"
-                style={{ background: activeApp.gradient || 'linear-gradient(135deg, #10b981, #06b6d4)' }}
-              >
-                {activeApp.local_icon || activeApp.icon_url ? (
-                  <img
-                    src={activeApp.local_icon || activeApp.icon_url}
-                    alt={activeApp.name}
-                    className="dl-spotlight-img"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                ) : (
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
-                    <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
-                  </svg>
-                )}
+        {/* Download Started Alert Banner */}
+        {downloadTriggered && (
+          <div className="dl-download-alert">
+            <div>
+              <div style={{ fontWeight: '900', color: '#10b981', fontSize: '16px', marginBottom: '2px' }}>
+                🎉 Your download for {downloadingAppName || 'the app'} has started!
               </div>
-
-              <div style={{ minWidth: 0 }}>
-                <h2 className="dl-spotlight-title">{activeApp.name}</h2>
-                <div className="dl-meta-pills">
-                  <span className="dl-meta-pill">{activeApp.version || 'v1.0'}</span>
-                  <span className="dl-meta-pill">{activeApp.file_size || 'Direct APK'}</span>
-                  <span className="dl-meta-pill verified">✓ Verified Safe</span>
-                  {activeApp.badge && (
-                    <span className="dl-meta-pill" style={{ background: 'rgba(244, 63, 94, 0.2)', color: '#fb7185' }}>
-                      {activeApp.badge}
-                    </span>
-                  )}
-                  {activeApp.file_url?.includes('cdn.flixon.net') && (
-                    <span className="dl-meta-pill b2">⚡ Fast B2 CDN</span>
-                  )}
-                </div>
+              <div style={{ fontSize: '13.5px', color: '#cbd5e1' }}>
+                While your APK downloads, stream today&apos;s hottest Luganda translated movies below 100% free!
               </div>
             </div>
-
-            <div className="dl-spotlight-cta-box">
-              <span className="dl-pointer-cue" aria-hidden="true">
-                <span>Tap here</span>
-                <span style={{ fontSize: '16px' }}>👉</span>
-              </span>
-
-              <a
-                href={activeApp.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                download
-                onClick={(e) => handleDownload(activeApp, e)}
-                className="dl-spotlight-btn"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                <span>DOWNLOAD {activeApp.file_size ? `(${activeApp.file_size})` : 'NOW'}</span>
-              </a>
-            </div>
+            <button
+              type="button"
+              onClick={() => cinemaRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              style={{
+                background: '#10b981',
+                color: '#000',
+                border: 'none',
+                padding: '10px 18px',
+                borderRadius: '10px',
+                fontWeight: '900',
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
+            >
+              Watch Free Movies Below 👇
+            </button>
           </div>
-
-          {/* Download Started Alert Banner */}
-          {downloadTriggered && (
-            <div className="dl-download-alert">
-              <div>
-                <div style={{ fontWeight: '900', color: '#10b981', fontSize: '16px', marginBottom: '2px' }}>
-                  🎉 Your download for {downloadingAppName || 'the app'} has started!
-                </div>
-                <div style={{ fontSize: '13.5px', color: '#cbd5e1' }}>
-                  While your APK downloads, stream today&apos;s hottest Luganda translated movies below 100% free!
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => cinemaRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                style={{
-                  background: '#10b981',
-                  color: '#000',
-                  border: 'none',
-                  padding: '10px 18px',
-                  borderRadius: '10px',
-                  fontWeight: '900',
-                  fontSize: '13px',
-                  cursor: 'pointer'
-                }}
-              >
-                Watch Free Movies Below 👇
-              </button>
-            </div>
-          )}
-        </section>
+        )}
 
         {/* ========================================================
             ALL APKS: EVERY FILE HAS ITS OWN 1-CLICK DOWNLOAD BUTTON
@@ -969,7 +901,7 @@ export default function PublicDownloadsClient({ apps = [], movies = [], initialA
           <div className="dl-section-head">
             <h2>📦 Choose a File to Download (1-Click Instant)</h2>
             <span style={{ fontSize: '13px', color: '#10b981', fontWeight: '700' }}>
-              ✓ All Hosted on Backblaze B2 CDN
+              ✓ 100% Free &amp; Verified Clean
             </span>
           </div>
 

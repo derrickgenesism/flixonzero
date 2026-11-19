@@ -1,11 +1,11 @@
 {
-  "commit": "62dff51",
-  "fullCommit": "62dff51ac7ad919464131ed6fc9a6d005a67d04e",
-  "message": "feat(downloads): add direct storage upload hub, 1-click APK replacer, Blogger embed generator, and independent public portal with live free movie ads",
+  "commit": "21c2af0",
+  "fullCommit": "21c2af0b4cfa6c42d65fc0ca04c3d746963a10ed",
+  "message": "feat(downloads): upload APKs and icons to Backblaze B2, add 1-click download buttons on all cards, and upgrade free movie advertising showcase",
   "author": "derrickgenesism",
-  "commitDate": "Thu Nov 19 01:24:14 2026 +0300",
-  "deployedAt": "2026-11-18T22:58:48.602Z",
-  "deployedAtEAT": "19 Nov 2026, 01:58 am EAT",
+  "commitDate": "Thu Nov 19 01:59:32 2026 +0300",
+  "deployedAt": "2026-11-19T05:11:57.256Z",
+  "deployedAtEAT": "19 Nov 2026, 08:11 am EAT",
   "timeZone": "Africa/Kampala (EAT, UTC+3)",
   "repository": "derrickgenesism/flixonzero"
 }
