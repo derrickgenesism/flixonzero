@@ -976,13 +976,13 @@ ${tabsHtml}
         {/* Metric 5: Free Movie Conversions */}
         <div style={{ background: 'var(--bg2)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '1px', marginBottom: '6px' }}>
-            🎬 Free Movie Clicks
+            🎬 Movie Clicks from Downloads
           </div>
           <div style={{ fontSize: '28px', fontWeight: '900', color: '#f43f5e' }}>
             {(analytics?.movieConversions ?? 0).toLocaleString()}
           </div>
-          <div style={{ fontSize: '12px', color: '#fb7185', marginTop: '4px', fontWeight: '700' }}>
-            App visitors converted to cinema viewers
+          <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px' }}>
+            Users who went to <strong style={{ color: '#fb7185' }}>/movie/*</strong> directly from /downloads
           </div>
         </div>
       </div>

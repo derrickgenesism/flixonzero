@@ -109,8 +109,13 @@ export async function getDownloadsAnalytics(adminClient) {
       adminClient.from('site_visits').select('*', { count: 'exact', head: true }).ilike('path', '%/downloads%').gte('created_at', yesterdayStartEAT).lt('created_at', todayStartEAT),
       // Week visits
       adminClient.from('site_visits').select('*', { count: 'exact', head: true }).ilike('path', '%/downloads%').gte('created_at', weekStartEAT),
-      // Movie Clicks / Conversions from downloads
-      adminClient.from('site_visits').select('*', { count: 'exact', head: true }).or('path.ilike.%from=downloads%,path.ilike.%/downloads/movie-click%,referrer.ilike.%/downloads%'),
+      // Movie Conversions: ONLY /movie/* pages where user came directly from /downloads
+      // Excludes /account, /login and all non-movie pages - must be a genuine movie click
+      adminClient
+        .from('site_visits')
+        .select('*', { count: 'exact', head: true })
+        .ilike('path', '/movie/%')
+        .or('referrer.eq.https://flixon.net/downloads,referrer.ilike.%/downloads%from%,referrer.ilike.%/downloads%src%'),
       // Recent visits for detailed aggregation (limit 600)
       adminClient.from('site_visits').select('id, visitor_id, path, referrer, user_agent, created_at').ilike('path', '%/downloads%').order('created_at', { ascending: false }).limit(600),
       // Apps list from admin_settings
